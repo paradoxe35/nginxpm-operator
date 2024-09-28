@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - npmoperator.io
+  - nginxpm-operator.io
   resources:
   - tokens
   verbs:
@@ -25,13 +25,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - npmoperator.io
+  - nginxpm-operator.io
   resources:
   - tokens/finalizers
   verbs:
   - update
 - apiGroups:
-  - npmoperator.io
+  - nginxpm-operator.io
   resources:
   - tokens/status
   verbs:

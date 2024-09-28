@@ -51,6 +51,7 @@ spec:
                 format: date-time
                 type: string
               secret:
+                default: {}
                 description: Secret resource reference to add to the token cr
                 properties:
                   secretName:

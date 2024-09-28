@@ -1,3 +1,13 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nginxpm-secret
+type: Opaque
+data:
+  identity: YWRtaW4=
+  secret: c2VjcmV0Cg==
+
+---
 apiVersion: nginxpm-operator.io/v1
 kind: Token
 metadata:
@@ -6,4 +16,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: token-sample
 spec:
-  # TODO(user): Add fields here
+  endpoint: https://localhost:8443
+  secret:
+    secretName: nginxpm-secret

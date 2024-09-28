@@ -43,9 +43,10 @@ type TokenSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Pattern=`^https?://`
-	Endpoint string `json:"endpoint"`
+	Endpoint string `json:"endpoint,omitempty"`
 
 	// Secret resource reference to add to the token cr
+	// +kubebuilder:default:={}
 	// +required
 	Secret Secret `json:"secret,omitempty"`
 
