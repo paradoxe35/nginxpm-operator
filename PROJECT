@@ -7,4 +7,13 @@ layout:
 - go.kubebuilder.io/v4
 projectName: nginxpm-operator
 repo: github.com/paradoxe35/nginxpm-operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: nginxpm-operator.io
+  kind: Token
+  path: github.com/paradoxe35/nginxpm-operator/api/v1
+  version: v1
 version: "3"
