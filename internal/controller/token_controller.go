@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -40,9 +39,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/go-logr/logr"
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
-	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
+	// nginxpm "github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
 )
 
 const (
@@ -119,7 +117,7 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	// Let's create a new Nginx Proxy Manager client
-	nginxpmClient, err := r.initNginxPMClient(ctx, req.Namespace, token, log)
+	nginxpmClient, err := r.initNginxPMClient(ctx, req.Namespace, token)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -144,12 +142,14 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{
-		RequeueAfter: nginxpmClient.Expires.UTC().Sub(metav1.Now().UTC()),
-	}, nil
+	requeueAfter := nginxpmClient.Expires.UTC().Sub(metav1.Now().UTC())
+
+	return ctrl.Result{RequeueAfter: requeueAfter}, nil
 }
 
-func (r *TokenReconciler) initNginxPMClient(ctx context.Context, Namespace string, token *nginxpmoperatoriov1.Token, log logr.Logger) (*nginxpm.Client, error) {
+func (r *TokenReconciler) initNginxPMClient(ctx context.Context, Namespace string, token *nginxpmoperatoriov1.Token) (*Client, error) {
+	log := logger.FromContext(ctx)
+
 	// Get the secret resource associated with the token
 	secret := &corev1.Secret{}
 	secretName := token.Spec.Secret.SecretName
@@ -175,11 +175,8 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, Namespace strin
 		return nil, err
 	}
 
-	// Let's check if the secret resource is valid
 	// Let create a new Nginx Proxy Manager client
-	// And check if the endpoint is valid and the connection is established
-	// If token from status is not empty, we will use it to create new client from
-	var nginxpmClient *nginxpm.Client
+	var nginxpmClient *Client
 
 	// Let's create a new HTTP client with a timeout
 	httpClient := &http.Client{
@@ -187,13 +184,13 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, Namespace strin
 	}
 
 	// If the token is not empty, we will use it to create new client from
-	expires := token.Status.Expires
-	hasValidToken := token.Status.Token != nil && expires != nil && expires.UTC().Before(time.Now().UTC())
+	expiredAt := token.Status.Expires
+	hasValidToken := token.Status.Token != nil && expiredAt != nil && expiredAt.UTC().After(time.Now().UTC())
 
 	// If the token is valid, we will use it to create new client from
 	if hasValidToken {
 		log.Info("Using token from status")
-		nginxpmClient = nginxpm.NewClientFromToken(httpClient, token.Spec.Endpoint, *token.Status.Token)
+		nginxpmClient = NewClientFromToken(httpClient, token.Spec.Endpoint, *token.Status.Token)
 
 		// Check if the connection is established
 		if err := nginxpmClient.CheckConnection(); err != nil {
@@ -202,25 +199,13 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, Namespace strin
 		}
 	}
 
-	// If the token is empty, we will use the identity and secret from secret to create new client from"
+	// If the token is empty, we will use the identity
+	// and secret from secret to create new client from"
 	if !hasValidToken {
-		log.Info("Using token from secret")
-
-		// Let's decode the identity and secret from secret
-		decodedIdentity, err := base64.StdEncoding.DecodeString(string(identity))
-		if err != nil {
-			log.Error(err, "Failed to decode identity from secret")
-			return nil, err
-		}
-
-		decodedSecret, err := base64.StdEncoding.DecodeString(string(secretDataValue))
-		if err != nil {
-			log.Error(err, "Failed to decode secret from secret")
-			return nil, err
-		}
+		log.Info("Instantiating new nginxpm client and create token")
 
 		// Let's create a new Nginx Proxy Manager client
-		nginxpmClient = nginxpm.NewClient(httpClient, token.Spec.Endpoint)
+		nginxpmClient = NewClient(httpClient, token.Spec.Endpoint)
 
 		// Check if the connection is established
 		if err := nginxpmClient.CheckConnection(); err != nil {
@@ -245,7 +230,7 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, Namespace strin
 		}
 
 		// Let's create a new token from the identity and secret
-		if err := nginxpm.CreateClientToken(nginxpmClient, string(decodedIdentity), string(decodedSecret)); err != nil {
+		if err := CreateClientToken(nginxpmClient, string(identity), string(secretDataValue)); err != nil {
 			log.Error(err, "Failed to create token from identity and secret")
 
 			// The following implementation will update the status

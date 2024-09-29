@@ -46,7 +46,6 @@ spec:
                 pattern: ^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$
                 type: string
               secret:
-                default: {}
                 description: Secret resource reference to add to the token cr
                 properties:
                   secretName:

@@ -55,7 +55,6 @@ type TokenSpec struct {
 	Endpoint string `json:"endpoint,omitempty"`
 
 	// Secret resource reference to add to the token cr
-	// +kubebuilder:default:={}
 	// +required
 	Secret Secret `json:"secret,omitempty"`
 }

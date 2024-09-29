@@ -1,4 +1,4 @@
-package nginxpm
+package controller
 
 import (
 	"encoding/json"
