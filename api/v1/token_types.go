@@ -23,6 +23,15 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// SecretData is the data of the secret resource
+type SecretData struct {
+	// In nginx-proxy-manager, this is normally the username or email address
+	Identity string `json:"identity"`
+
+	// In nginx-proxy-manager, this is normally the password
+	Secret string `json:"secret"`
+}
+
 type Secret struct {
 	// SecretName is the name of the secret resource to add to the token cr
 	// +kubebuilder:validation:MinLength=1
@@ -42,39 +51,36 @@ type TokenSpec struct {
 	// +kubebuilder:validation:MaxLength=255
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
-	// +kubebuilder:validation:Pattern=`^https?://`
+	// +kubebuilder:validation:Pattern=`^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$`
 	Endpoint string `json:"endpoint,omitempty"`
 
 	// Secret resource reference to add to the token cr
 	// +kubebuilder:default:={}
 	// +required
 	Secret Secret `json:"secret,omitempty"`
-
-	// Expiration time of the token, value is generated from controller reconcile
-	// +kubebuilder:validation:Format=date-time
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Type=string
-	// +optional
-	Expires *metav1.Time `json:"expires,omitempty"`
-
-	// Authentication Token, this is generated from controller reconcile
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Type=string
-	// +optional
-	Token string `json:"token,omitempty"`
 }
 
 // TokenStatus defines the observed state of Token
 type TokenStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Represents the observations of a Memcached's current state.
-	// Memcached.status.conditions.type are: "Available", "Progressing", and "Degraded"
-	// Memcached.status.conditions.status are one of True, False, Unknown.
-	// Memcached.status.conditions.reason the value should be a CamelCase string and producers of specific
+	// Authentication Token, this is generated from controller reconcile
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +optional
+	Token *string `json:"token,omitempty"`
+
+	// Expiration time of the token, value is generated from controller reconcile
+	// +optional
+	Expires *metav1.Time `json:"expires,omitempty"`
+
+	// Represents the observations of a Token's current state.
+	// Token.status.conditions.type are: "Available", "Progressing", and "Degraded"
+	// Token.status.conditions.status are one of True, False, Unknown.
+	// Token.status.conditions.reason the value should be a CamelCase string and producers of specific
 	// condition types may define expected values and meanings for this field, and whether the values
 	// are considered a guaranteed API.
-	// Memcached.status.conditions.Message is a human readable message indicating details about the transition.
+	// Token.status.conditions.Message is a human readable message indicating details about the transition.
 	// For further information see: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
 
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`

@@ -43,12 +43,7 @@ spec:
                 description: Endpoint of a Nginx Proxy manager instance
                 maxLength: 255
                 minLength: 1
-                pattern: ^https?://
-                type: string
-              expires:
-                description: Expiration time of the token, value is generated from
-                  controller reconcile
-                format: date-time
+                pattern: ^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$
                 type: string
               secret:
                 default: {}
@@ -63,10 +58,6 @@ spec:
                 required:
                 - secretName
                 type: object
-              token:
-                description: Authentication Token, this is generated from controller
-                  reconcile
-                type: string
             required:
             - endpoint
             - secret
@@ -130,6 +121,15 @@ spec:
                   - type
                   type: object
                 type: array
+              expires:
+                description: Expiration time of the token, value is generated from
+                  controller reconcile
+                format: date-time
+                type: string
+              token:
+                description: Authentication Token, this is generated from controller
+                  reconcile
+                type: string
             type: object
         type: object
     served: true
