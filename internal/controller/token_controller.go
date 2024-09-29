@@ -27,7 +27,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/fields"
@@ -36,7 +35,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logger "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -52,10 +50,11 @@ const (
 
 	// typeAvailableToken represents the status of the Deployment reconciliation
 	typeAvailableToken = "Available"
+
 	// typeDegradedToken represents the status used when the custom resource is deleted and the finalizer operations are yet to occur.
-	typeDegradedToken = "Degraded"
+	// typeDegradedToken = "Degraded"
 	// tokenFinalizer is the name of the finalizer used to delete the custom resource
-	tokenFinalizer = "nginxpm-operator.io/finalizer"
+	// tokenFinalizer = "nginxpm-operator.io/finalizer"
 )
 
 // TokenReconciler reconciles a Token object
@@ -96,14 +95,13 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	// Let's just set the status as Unknown when no status is available
 	if len(token.Status.Conditions) == 0 {
-		meta.SetStatusCondition(
-			&token.Status.Conditions,
-			metav1.Condition{
-				Type:   typeAvailableToken,
-				Status: metav1.ConditionUnknown,
-				Reason: "Reconciling", Message: "Starting reconciliation",
-			},
-		)
+		meta.SetStatusCondition(&token.Status.Conditions, metav1.Condition{
+			Type:    typeAvailableToken,
+			Status:  metav1.ConditionUnknown,
+			Reason:  "Reconciling",
+			Message: "Starting reconciliation",
+		})
+
 		if err = r.Status().Update(ctx, token); err != nil {
 			log.Error(err, "Failed to update Token status")
 			return ctrl.Result{}, err
@@ -126,56 +124,29 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
-	// Let's add a finalizer. Then, we can define some operations which should
-	// occur before the custom resource to be deleted.
-	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/finalizers
-	if !controllerutil.ContainsFinalizer(token, tokenFinalizer) {
-		log.Info("Adding Finalizer for Token")
-		if ok := controllerutil.AddFinalizer(token, tokenFinalizer); !ok {
-			log.Error(err, "Failed to add finalizer into the custom resource")
-			return ctrl.Result{Requeue: true}, nil
-		}
+	// Update the status of the token
+	// Set the token and expiration time in the status
+	token.Status.Token = &nginxpmClient.Token
+	token.Status.Expires = &metav1.Time{Time: nginxpmClient.Expires}
 
-		if err = r.Update(ctx, token); err != nil {
-			log.Error(err, "Failed to update custom resource to add finalizer")
-			return ctrl.Result{}, err
-		}
+	// The following implementation will update the status
+	meta.SetStatusCondition(&token.Status.Conditions, metav1.Condition{
+		Type:    typeAvailableToken,
+		Status:  metav1.ConditionTrue,
+		Reason:  "TokenCreated",
+		Message: fmt.Sprintf("Token with (%s) created successfully", nginxpmClient.Token),
+	})
+
+	// Update the status of the token with the new token and expiration time
+	// This will trigger the reconciliation of the token
+	if err := r.Status().Update(ctx, token); err != nil {
+		log.Error(err, "Failed to update Token status")
+		return ctrl.Result{}, err
 	}
 
-	// Check if the Token instance is marked to be deleted, which is
-	// indicated by the deletion timestamp being set.
-	isTokenMarkedToBeDeleted := token.GetDeletionTimestamp() != nil
-	if isTokenMarkedToBeDeleted {
-
-		if controllerutil.ContainsFinalizer(token, tokenFinalizer) {
-			log.Info("Performing Finalizer Operations for Token before delete CR")
-
-			// Let's add here a status "Downgrade" to reflect that this resource began its process to be terminated.
-			meta.SetStatusCondition(
-				&token.Status.Conditions,
-				metav1.Condition{
-					Type:    typeDegradedToken,
-					Status:  metav1.ConditionUnknown,
-					Reason:  "Finalizing",
-					Message: fmt.Sprintf("Performing finalizer operations for the custom resource: %s ", token.Name),
-				},
-			)
-
-			if err := r.Status().Update(ctx, token); err != nil {
-				log.Error(err, "Failed to update Token status")
-				return ctrl.Result{}, err
-			}
-
-			// Implement deletion logic here.....
-		}
-	}
-
-	// if token.Spec.Expires.Before(&metav1.Now()) {
-	// 	log.Info("Token is expired")
-	// 	return ctrl.Result{}, nil
-	// }
-
-	return ctrl.Result{}, nil
+	return ctrl.Result{
+		RequeueAfter: nginxpmClient.Expires.UTC().Sub(metav1.Now().UTC()),
+	}, nil
 }
 
 func (r *TokenReconciler) initNginxPMClient(ctx context.Context, Namespace string, token *nginxpmoperatoriov1.Token, log logr.Logger) (*nginxpm.Client, error) {
@@ -191,16 +162,16 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, Namespace strin
 	// Let's check if the secret resource is valid
 	identity, ok := secret.Data["identity"]
 	if !ok {
-		err := errors.New("Failed to get secret from secret")
-		log.Error(err, "Failed to get secret from secret")
+		err := errors.New("failed to get secret from secret")
+		log.Error(err, "failed to get secret from secret")
 		return nil, err
 	}
 
 	// Let's check if the secret resource is valid
 	secretDataValue, ok := secret.Data["secret"]
 	if !ok {
-		err := errors.New("Failed to get secret from secret")
-		log.Error(err, "Failed to get secret from secret")
+		err := errors.New("failed to get secret from secret")
+		log.Error(err, "failed to get secret from secret")
 		return nil, err
 	}
 
@@ -223,6 +194,12 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, Namespace strin
 	if hasValidToken {
 		log.Info("Using token from status")
 		nginxpmClient = nginxpm.NewClientFromToken(httpClient, token.Spec.Endpoint, *token.Status.Token)
+
+		// Check if the connection is established
+		if err := nginxpmClient.CheckConnection(); err != nil {
+			log.Error(err, "Connect to the nginx-proxy-manager endpoint failed")
+			return nil, err
+		}
 	}
 
 	// If the token is empty, we will use the identity and secret from secret to create new client from"
@@ -245,14 +222,45 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, Namespace strin
 		// Let's create a new Nginx Proxy Manager client
 		nginxpmClient = nginxpm.NewClient(httpClient, token.Spec.Endpoint)
 
-		// Let's create a new token from the identity and secret
-		if err := nginxpm.CreateClientToken(nginxpmClient, string(decodedIdentity), string(decodedSecret)); err != nil {
-			log.Error(err, "Failed to create token from identity and secret")
+		// Check if the connection is established
+		if err := nginxpmClient.CheckConnection(); err != nil {
+			log.Error(err, "Connect to the nginx-proxy-manager endpoint failed")
 			return nil, err
 		}
 
-		if err := nginxpmClient.CheckConnection(); err != nil {
-			log.Error(err, "Connect to the nginx-proxy-manager endpoint failed")
+		// Let's create a new token from the identity and secret
+		log.Info("Creating token from identity and secret")
+
+		// The following implementation will update the status
+		meta.SetStatusCondition(&token.Status.Conditions, metav1.Condition{
+			Type:    typeAvailableToken,
+			Status:  metav1.ConditionTrue,
+			Reason:  "CreatingToken",
+			Message: "Creating token from identity and secret",
+		})
+
+		if err := r.Status().Update(ctx, token); err != nil {
+			log.Error(err, "Failed to update Token status")
+			return nil, err
+		}
+
+		// Let's create a new token from the identity and secret
+		if err := nginxpm.CreateClientToken(nginxpmClient, string(decodedIdentity), string(decodedSecret)); err != nil {
+			log.Error(err, "Failed to create token from identity and secret")
+
+			// The following implementation will update the status
+			meta.SetStatusCondition(&token.Status.Conditions, metav1.Condition{
+				Type:    typeAvailableToken,
+				Status:  metav1.ConditionFalse,
+				Reason:  "FailedToCreateToken",
+				Message: "Failed to create token from identity and secret",
+			})
+
+			if err := r.Status().Update(ctx, token); err != nil {
+				log.Error(err, "Failed to update Token status")
+				return nil, err
+			}
+
 			return nil, err
 		}
 	}
