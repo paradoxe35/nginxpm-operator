@@ -21,7 +21,6 @@ limitations under the License.
 package v1
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -141,13 +140,6 @@ func (in *TokenStatus) DeepCopyInto(out *TokenStatus) {
 	if in.Expires != nil {
 		in, out := &in.Expires, &out.Expires
 		*out = (*in).DeepCopy()
-	}
-	if in.Conditions != nil {
-		in, out := &in.Conditions, &out.Conditions
-		*out = make([]metav1.Condition, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
-		}
 	}
 }
 
