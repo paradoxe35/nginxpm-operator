@@ -18,8 +18,10 @@ spec:
   # advancedConfig: use this add advanced configuration to the proxyhost, at your own risk
 
   forward:
-    serviceName: nginx-service
     scheme: http
+    service:
+      name: nginx-service
+  # Or you can use the host configuration
   # forward:
   #  scheme: http
   #  host:

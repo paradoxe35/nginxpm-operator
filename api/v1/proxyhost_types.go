@@ -124,29 +124,38 @@ type ForwardHost struct {
 	Port string `json:"port,omitempty"`
 }
 
-type Forward struct {
+type ForwardService struct {
 	// Name of the service resource to forward to
 	// IP and port of the service will be used as the forwarding target
 	// Only ClusterIP and LoadBalancer services are supported
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=255
-	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
-	// +optional
-	ServiceName *string `json:"serviceName"`
+	// +required
+	Name string `json:"name,omitempty"`
+}
 
-	// Host configuration, the Service configuration is the preferred way
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Type=object
-	// +optional
-	Host *ForwardHost `json:"host,omitempty"`
-
+type Forward struct {
 	// Scheme is the scheme to use for the forwarding, (http or https)
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Enum=http;https
 	// +required
 	Scheme string `json:"scheme,omitempty"`
+
+	// Service resource reference to forward to
+	// This is the preferred way to forward to a service than the host configuration
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=object
+	// +optional
+	Service *ForwardService `json:"service,omitempty"`
+
+	// Host configuration, the Service configuration is the preferred way
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=object
+	// +optional
+	Host *ForwardHost `json:"host,omitempty"`
 }
 
 type TokenName struct {

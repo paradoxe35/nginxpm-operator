@@ -91,14 +91,22 @@ spec:
                     - http
                     - https
                     type: string
-                  serviceName:
+                  service:
                     description: |-
-                      Name of the service resource to forward to
-                      IP and port of the service will be used as the forwarding target
-                      Only ClusterIP and LoadBalancer services are supported
-                    maxLength: 255
-                    minLength: 1
-                    type: string
+                      Service resource reference to forward to
+                      This is the preferred way to forward to a service than the host configuration
+                    properties:
+                      name:
+                        description: |-
+                          Name of the service resource to forward to
+                          IP and port of the service will be used as the forwarding target
+                          Only ClusterIP and LoadBalancer services are supported
+                        maxLength: 255
+                        minLength: 1
+                        type: string
+                    required:
+                    - name
+                    type: object
                 required:
                 - scheme
                 type: object
