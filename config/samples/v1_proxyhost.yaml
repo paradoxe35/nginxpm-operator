@@ -32,6 +32,8 @@ spec:
   ssl:
     autoCertificateRequest: true # This generates a new certificate or reuses an existing certificate that matches the domain name
 
+    # letsEncryptEmail: user@example.com # used on new certificate request
+
     # certificateId: 1 # if you know the certificate id of an existing certificate in the nginx-proxy-manager instance
 
     # customCertificate:

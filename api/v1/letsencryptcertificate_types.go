@@ -23,6 +23,45 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+type DnsChallengeProviderCredentialsSecret struct {
+	// Name of the secret resource
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=string
+	// +required
+	Name string `json:"name,omitempty"`
+}
+
+type DnsChallengeProviderCredentials struct {
+	// Secret resource holds dns challenge provider credentials
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=object
+	// +required
+	Secret DnsChallengeProviderCredentialsSecret `json:"secret,omitempty"`
+}
+
+type DnsChallenge struct {
+	// DNS Provider to use
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Enum=acmedns;aliyun;azure;bunny;cloudflare;cloudns;cloudxns;constellix;corenetworks;cpanel;desec;duckdns;digitalocean;directadmin;dnsimple;dnsmadeeasy;dnsmulti;dnspod;domainoffensive;domeneshop;dynu;easydns;eurodns;freedns;gandi;godaddy;google;googledomains;he;hetzner;infomaniak;inwx;ionos;ispconfig;isset;joker;linode;loopia;luadns;namecheap;netcup;njalla;nsone;oci;ovh;plesk;porkbun;powerdns;regru;rfc2136;route53;strato;timeweb;transip;tencentcloud;vultr;websupport
+	// +required
+	Provider string `json:"provider,omitempty"`
+
+	// Provider credentials
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=object
+	// +kubebuilder:validation:XPreserveUnknownFields
+	// +required
+	ProviderCredentials DnsChallengeProviderCredentials `json:"providerCredentials,omitempty"`
+
+	// Propagation seconds
+	// +kubebuilder:default:=0
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=integer
+	// +optional
+	PropagationSeconds int16 `json:"propagationSeconds,omitempty"`
+}
+
 // LetsEncryptCertificateSpec defines the desired state of LetsEncryptCertificate
 type LetsEncryptCertificateSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -33,6 +72,27 @@ type LetsEncryptCertificateSpec struct {
 	// +kubebuilder:validation:Type=object
 	// +required
 	Token TokenName `json:"token,omitempty"`
+
+	// Domain Names to request a certificate for
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=10
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=array
+	// +required
+	DomainNames []DomainName `json:"domainNames,omitempty"`
+
+	// LetsEncrypt Email address to request a certificate for
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+	// +optional
+	LetsEncryptEmail *string `json:"letsEncryptEmail,omitempty"`
+
+	// Use DNS challenge
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=object
+	// +optional
+	DnsChallenge *DnsChallenge `json:"dnsChallenge,omitempty"`
 }
 
 // LetsEncryptCertificateStatus defines the observed state of LetsEncryptCertificate
@@ -49,6 +109,19 @@ type LetsEncryptCertificateStatus struct {
 	// +kubebuilder:validation:Type=boolean
 	// +optional
 	Bound bool `json:"bound,omitempty"`
+
+	// Duplicated Domain Names in status, since once the certificate is created for these domain names
+	// the spec.domainNames will never changed
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=10
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=array
+	// +required
+	DomainNames []DomainName `json:"domainNames,omitempty"`
+
+	// Expiration time of the certificate, value is generated from controller reconcile
+	// +optional
+	ExpiresOn *string `json:"expiresOn,omitempty"`
 
 	// Represents the observations of a LetsEncryptCertificate's current state.
 	// LetsEncryptCertificate.status.conditions.type are: "Available", "Progressing", and "Degraded"

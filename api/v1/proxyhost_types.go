@@ -77,6 +77,13 @@ type Ssl struct {
 	// +optional
 	LetsEncryptCertificate *SslLetsEncryptCertificate `json:"letsEncryptCertificate,omitempty"`
 
+	// LetsEncrypt Email address to request a certificate for
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+	// +optional
+	LetsEncryptEmail *string `json:"letsEncryptEmail,omitempty"`
+
 	// Force SSL https, redirect http to https. default is true
 	// +kubebuilder:default:=true
 	// +kubebuilder:validation:Optional

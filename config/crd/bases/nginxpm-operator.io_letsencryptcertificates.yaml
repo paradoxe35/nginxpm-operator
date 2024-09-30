@@ -40,6 +40,107 @@ spec:
           spec:
             description: LetsEncryptCertificateSpec defines the desired state of LetsEncryptCertificate
             properties:
+              dnsChallenge:
+                description: Use DNS challenge
+                properties:
+                  propagationSeconds:
+                    default: 0
+                    description: Propagation seconds
+                    type: integer
+                  provider:
+                    description: DNS Provider to use
+                    enum:
+                    - acmedns
+                    - aliyun
+                    - azure
+                    - bunny
+                    - cloudflare
+                    - cloudns
+                    - cloudxns
+                    - constellix
+                    - corenetworks
+                    - cpanel
+                    - desec
+                    - duckdns
+                    - digitalocean
+                    - directadmin
+                    - dnsimple
+                    - dnsmadeeasy
+                    - dnsmulti
+                    - dnspod
+                    - domainoffensive
+                    - domeneshop
+                    - dynu
+                    - easydns
+                    - eurodns
+                    - freedns
+                    - gandi
+                    - godaddy
+                    - google
+                    - googledomains
+                    - he
+                    - hetzner
+                    - infomaniak
+                    - inwx
+                    - ionos
+                    - ispconfig
+                    - isset
+                    - joker
+                    - linode
+                    - loopia
+                    - luadns
+                    - namecheap
+                    - netcup
+                    - njalla
+                    - nsone
+                    - oci
+                    - ovh
+                    - plesk
+                    - porkbun
+                    - powerdns
+                    - regru
+                    - rfc2136
+                    - route53
+                    - strato
+                    - timeweb
+                    - transip
+                    - tencentcloud
+                    - vultr
+                    - websupport
+                    type: string
+                  providerCredential:
+                    description: Provider credentials
+                    properties:
+                      secret:
+                        description: Secret resource holds dns challenge provider
+                          credentials
+                        properties:
+                          name:
+                            description: Name of the secret resource
+                            type: string
+                        required:
+                        - name
+                        type: object
+                    required:
+                    - secret
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                required:
+                - provider
+                - providerCredential
+                type: object
+              domainNames:
+                description: Domain Names to request a certificate for
+                items:
+                  pattern: ^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$
+                  type: string
+                maxItems: 10
+                minItems: 1
+                type: array
+              letsEncryptEmail:
+                description: LetsEncrypt Email address to request a certificate for
+                pattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
+                type: string
               token:
                 description: Token resource reference to add to the LetsEncryptCertificate,
                   this is the created auth token
@@ -51,6 +152,7 @@ spec:
                 - name
                 type: object
             required:
+            - domainNames
             - token
             type: object
           status:
@@ -118,10 +220,26 @@ spec:
                   - type
                   type: object
                 type: array
+              domainNames:
+                description: |-
+                  Duplicated Domain Names in status, since once the certificate is created for these domain names
+                  the spec.domainNames will never changed
+                items:
+                  pattern: ^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$
+                  type: string
+                maxItems: 10
+                minItems: 1
+                type: array
+              expiresOn:
+                description: Expiration time of the certificate, value is generated
+                  from controller reconcile
+                type: string
               id:
                 description: LetsEncryptCertificate ID in the Nginx Proxy Manager
                   instance
                 type: integer
+            required:
+            - domainNames
             type: object
         type: object
     served: true

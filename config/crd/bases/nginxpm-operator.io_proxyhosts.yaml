@@ -162,6 +162,11 @@ spec:
                     required:
                     - name
                     type: object
+                  letsEncryptEmail:
+                    description: LetsEncrypt Email address to request a certificate
+                      for
+                    pattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
+                    type: string
                   sslForced:
                     default: true
                     description: Force SSL https, redirect http to https. default
