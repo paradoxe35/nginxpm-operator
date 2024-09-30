@@ -151,7 +151,7 @@ spec:
                     default: true
                     description: Enable http2 support, default is true
                     type: boolean
-                  letsencryptCertificate:
+                  letsEncryptCertificate:
                     description: |-
                       Letsencrypt Certificate name created or managed by the letsencryptCertificate resource
                       If CustomCertificate is provided and LetsencryptCertificate is not provided, the CustomCertificate will be prioritized

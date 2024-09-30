@@ -37,7 +37,7 @@ type SslCustomCertificate struct {
 	Name string `json:"name,omitempty"`
 }
 
-type SslLetsencryptCertificate struct {
+type SslLetsEncryptCertificate struct {
 	// Name of the letsencrypt certificate resource
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
@@ -75,7 +75,7 @@ type Ssl struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional
-	LetsencryptCertificate *SslLetsencryptCertificate `json:"letsencryptCertificate,omitempty"`
+	LetsEncryptCertificate *SslLetsEncryptCertificate `json:"letsEncryptCertificate,omitempty"`
 
 	// Force SSL https, redirect http to https. default is true
 	// +kubebuilder:default:=true

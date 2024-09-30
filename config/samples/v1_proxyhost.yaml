@@ -37,7 +37,7 @@ spec:
     # customCertificate:
     #   name: custom-certificate-sample
 
-    # letsencryptCertificate:
+    # letsEncryptCertificate:
     #   name: letsencrypt-certificate-sample
 
     sslForced: true

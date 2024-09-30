@@ -1,0 +1,23 @@
+# permissions for end users to view letsencryptcertificates.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: nginxpm-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: letsencryptcertificate-viewer-role
+rules:
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - letsencryptcertificates
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - letsencryptcertificates/status
+  verbs:
+  - get

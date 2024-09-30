@@ -15,6 +15,7 @@ rules:
 - apiGroups:
   - nginxpm-operator.io
   resources:
+  - letsencryptcertificates
   - proxyhosts
   - tokens
   verbs:
@@ -28,6 +29,7 @@ rules:
 - apiGroups:
   - nginxpm-operator.io
   resources:
+  - letsencryptcertificates/finalizers
   - proxyhosts/finalizers
   - tokens/finalizers
   verbs:
@@ -35,6 +37,7 @@ rules:
 - apiGroups:
   - nginxpm-operator.io
   resources:
+  - letsencryptcertificates/status
   - proxyhosts/status
   - tokens/status
   verbs:
