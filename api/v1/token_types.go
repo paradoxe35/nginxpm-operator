@@ -52,6 +52,7 @@ type TokenSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Pattern=`^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$`
+	// +required
 	Endpoint string `json:"endpoint,omitempty"`
 
 	// Secret resource reference to add to the token cr
