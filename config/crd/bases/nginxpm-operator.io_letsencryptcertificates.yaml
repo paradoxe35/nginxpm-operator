@@ -108,7 +108,7 @@ spec:
                     - vultr
                     - websupport
                     type: string
-                  providerCredential:
+                  providerCredentials:
                     description: Provider credentials
                     properties:
                       secret:
@@ -127,7 +127,7 @@ spec:
                     x-kubernetes-preserve-unknown-fields: true
                 required:
                 - provider
-                - providerCredential
+                - providerCredentials
                 type: object
               domainNames:
                 description: Domain Names to request a certificate for
