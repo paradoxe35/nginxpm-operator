@@ -43,14 +43,6 @@ import (
 
 const (
 	secretField = ".spec.secret.secretName"
-
-	// typeAvailableToken represents the status of the Deployment reconciliation
-	// typeAvailableToken = "Available"
-
-	// typeDegradedToken represents the status used when the custom resource is deleted and the finalizer operations are yet to occur.
-	// typeDegradedToken = "Degraded"
-	// tokenFinalizer is the name of the finalizer used to delete the custom resource
-	// tokenFinalizer = "nginxpm-operator.io/finalizer"
 )
 
 // TokenReconciler reconciles a Token object
@@ -95,7 +87,7 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
-	fmt.Println("####################### Token ########################: ", nginxpmClient.Expires)
+	fmt.Println("### Client Token Ready and Expires at: ", nginxpmClient.Expires, " ###")
 
 	if token.Status.Token == nil || *token.Status.Token != nginxpmClient.Token {
 		// Update the status of the token
@@ -111,6 +103,8 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 	}
 
+	// Could be better to use the expiration time from the token status,
+	// but this is a quick fix
 	requeueAfter := nginxpmClient.Expires.UTC().Sub(metav1.Now().UTC())
 
 	return ctrl.Result{RequeueAfter: requeueAfter}, nil
@@ -195,7 +189,6 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, Namespace strin
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *TokenReconciler) SetupWithManager(mgr ctrl.Manager) error {
-
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &nginxpmoperatoriov1.Token{}, secretField, func(rawObj client.Object) []string {
 		// Extract the ConfigMap name from the ConfigDeployment Spec, if one is provided
 		configDeployment := rawObj.(*nginxpmoperatoriov1.Token)
@@ -209,7 +202,7 @@ func (r *TokenReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&nginxpmoperatoriov1.Token{}).
-		Owns(&nginxpmoperatoriov1.Token{}).
+		Owns(&corev1.Secret{}).
 		Watches(
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSecret),
