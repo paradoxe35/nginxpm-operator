@@ -15,7 +15,8 @@ spec:
   blockingExploits: true
   websocketSupport: true
   cachingEnabled: false
-  # advancedConfig: use this add advanced configuration to the proxyhost, at your own risk
+  # Add custom configuration to the proxyhost, at your own risk
+  # advancedConfig: ""
 
   forward:
     scheme: http
