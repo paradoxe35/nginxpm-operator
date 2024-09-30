@@ -191,6 +191,11 @@ spec:
           status:
             description: ProxyHostStatus defines the observed state of ProxyHost
             properties:
+              bound:
+                default: false
+                description: Whether the LetsEncryptCertificate was bound with an
+                  existing proxyhost
+                type: boolean
               conditions:
                 items:
                   description: Condition contains details for one aspect of the current
@@ -250,10 +255,6 @@ spec:
               id:
                 description: ProxyHost ID in the Nginx Proxy Manager instance
                 type: integer
-              preExisting:
-                default: false
-                description: Whether the proxyhost was binded or created by the controller
-                type: boolean
             type: object
         type: object
     served: true

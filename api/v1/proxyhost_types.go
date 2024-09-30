@@ -234,12 +234,12 @@ type ProxyHostStatus struct {
 	// ProxyHost ID in the Nginx Proxy Manager instance
 	Id *int16 `json:"id,omitempty"`
 
-	// Whether the proxyhost was binded or created by the controller
+	// Whether the LetsEncryptCertificate was bound with an existing proxyhost
 	// +kubebuilder:default:=false
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=boolean
 	// +optional
-	PreExisting bool `json:"preExisting,omitempty"`
+	Bound bool `json:"bound,omitempty"`
 
 	// Represents the observations of a ProxyHost's current state.
 	// ProxyHost.status.conditions.type are: "Available", "Progressing", and "Degraded"
