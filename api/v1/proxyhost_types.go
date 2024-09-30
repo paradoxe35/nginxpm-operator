@@ -34,7 +34,7 @@ type SslCustomCertificate struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +required
-	Name string `json:"certificate,omitempty"`
+	Name string `json:"name,omitempty"`
 }
 
 type SslLetsencryptCertificate struct {
@@ -82,7 +82,7 @@ type Ssl struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=boolean
 	// +optional
-	SslForced bool `json:"cachingEnabled,omitempty"`
+	SslForced bool `json:"sslForced,omitempty"`
 
 	// Enable http2 support, default is true
 	// +kubebuilder:default:=true
@@ -114,7 +114,7 @@ type ForwardHost struct {
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Pattern=`^((?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,6}|(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9]))$`
 	// +required
-	Name string `json:"name,omitempty"`
+	HostName string `json:"hostName,omitempty"`
 
 	// Service Target Port is the port to forward to
 	// +kubebuilder:validation:Required

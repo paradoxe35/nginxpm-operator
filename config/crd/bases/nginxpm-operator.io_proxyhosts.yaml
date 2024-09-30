@@ -130,11 +130,11 @@ spec:
                       Custom Certificate name created or managed by the customCertificate resource
                       If CustomCertificate is provided and LetsencryptCertificate is not provided, the CustomCertificate will be prioritized
                     properties:
-                      certificate:
+                      name:
                         description: Name of the custom certificate resource
                         type: string
                     required:
-                    - certificate
+                    - name
                     type: object
                   hstsEnabled:
                     default: false

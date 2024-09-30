@@ -6,4 +6,38 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: proxyhost-sample
 spec:
-  # TODO(user): Add fields here
+  token:
+    name: token-sample
+
+  domainNames:
+    - example.com
+
+  blockingExploits: true
+  websocketSupport: true
+  cachingEnabled: false
+  # advancedConfig: use this add advanced configuration to the proxyhost, at your own risk
+
+  forward:
+    serviceName: nginx-service
+    scheme: http
+  # forward:
+  #  scheme: http
+  #  host:
+  #    hostName: 192.168.1.4 # HostName|IP
+  #    port: 80
+
+  ssl:
+    autoCertificateRequest: true # This generates a new certificate or reuses an existing certificate that matches the domain name
+
+    # certificateId: 1 # if you know the certificate id of an existing certificate in the nginx-proxy-manager instance
+
+    # customCertificate:
+    #   name: custom-certificate-sample
+
+    # letsencryptCertificate:
+    #   name: letsencrypt-certificate-sample
+
+    sslForced: true
+    http2Support: true
+    # hstsEnabled: false # More info https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security
+    # hstsSubdomains: false
