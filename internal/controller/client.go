@@ -23,6 +23,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
 )
 
 // Client represents the NGINX Proxy Manager API client.
@@ -53,10 +55,11 @@ func NewClient(httpClient *http.Client, endpoint string) *Client {
 
 // NewClientFromToken creates a new client instance with a pre-existing token.
 // This is useful when you already have a valid token and don't need to authenticate.
-func NewClientFromToken(httpClient *http.Client, endpoint string, token string) *Client {
+func NewClientFromToken(httpClient *http.Client, token *nginxpmoperatoriov1.Token) *Client {
 	return &Client{
-		Endpoint:   endpoint,
-		Token:      token,
+		Endpoint:   token.Spec.Endpoint,
+		Token:      *token.Status.Token,
+		Expires:    token.Status.Expires.Time,
 		httpClient: httpClient,
 	}
 }

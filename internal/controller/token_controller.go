@@ -25,7 +25,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/fields"
@@ -40,14 +39,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
-	// nginxpm "github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
 )
 
 const (
 	secretField = ".spec.secret.secretName"
 
 	// typeAvailableToken represents the status of the Deployment reconciliation
-	typeAvailableToken = "Available"
+	// typeAvailableToken = "Available"
 
 	// typeDegradedToken represents the status used when the custom resource is deleted and the finalizer operations are yet to occur.
 	// typeDegradedToken = "Degraded"
@@ -91,55 +89,26 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
-	// Let's just set the status as Unknown when no status is available
-	if len(token.Status.Conditions) == 0 {
-		meta.SetStatusCondition(&token.Status.Conditions, metav1.Condition{
-			Type:    typeAvailableToken,
-			Status:  metav1.ConditionUnknown,
-			Reason:  "Reconciling",
-			Message: "Starting reconciliation",
-		})
-
-		if err = r.Status().Update(ctx, token); err != nil {
-			log.Error(err, "Failed to update Token status")
-			return ctrl.Result{}, err
-		}
-
-		// Let's re-fetch the token Custom Resource after updating the status
-		// so that we have the latest state of the resource on the cluster and we will avoid
-		// raising the error "the object has been modified, please apply
-		// your changes to the latest version and try again" which would re-trigger the reconciliation
-		// if we try to update it again in the following operations
-		if err := r.Get(ctx, req.NamespacedName, token); err != nil {
-			log.Error(err, "Failed to re-fetch token")
-			return ctrl.Result{}, err
-		}
-	}
-
 	// Let's create a new Nginx Proxy Manager client
 	nginxpmClient, err := r.initNginxPMClient(ctx, req.Namespace, token)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	// Update the status of the token
-	// Set the token and expiration time in the status
-	token.Status.Token = &nginxpmClient.Token
-	token.Status.Expires = &metav1.Time{Time: nginxpmClient.Expires}
+	fmt.Println("####################### Token ########################: ", nginxpmClient.Expires)
 
-	// The following implementation will update the status
-	meta.SetStatusCondition(&token.Status.Conditions, metav1.Condition{
-		Type:    typeAvailableToken,
-		Status:  metav1.ConditionTrue,
-		Reason:  "TokenCreated",
-		Message: fmt.Sprintf("Token with (%s) created successfully", nginxpmClient.Token),
-	})
+	if token.Status.Token == nil || *token.Status.Token != nginxpmClient.Token {
+		// Update the status of the token
+		// Set the token and expiration time in the status
+		token.Status.Token = &nginxpmClient.Token
+		token.Status.Expires = &metav1.Time{Time: nginxpmClient.Expires}
 
-	// Update the status of the token with the new token and expiration time
-	// This will trigger the reconciliation of the token
-	if err := r.Status().Update(ctx, token); err != nil {
-		log.Error(err, "Failed to update Token status")
-		return ctrl.Result{}, err
+		// Update the status of the token with the new token and expiration time
+		// This will trigger the reconciliation of the token
+		if err := r.Status().Update(ctx, token); err != nil {
+			log.Error(err, "Failed to update Token status")
+			return ctrl.Result{}, err
+		}
 	}
 
 	requeueAfter := nginxpmClient.Expires.UTC().Sub(metav1.Now().UTC())
@@ -190,7 +159,7 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, Namespace strin
 	// If the token is valid, we will use it to create new client from
 	if hasValidToken {
 		log.Info("Using token from status")
-		nginxpmClient = NewClientFromToken(httpClient, token.Spec.Endpoint, *token.Status.Token)
+		nginxpmClient = NewClientFromToken(httpClient, token)
 
 		// Check if the connection is established
 		if err := nginxpmClient.CheckConnection(); err != nil {
@@ -214,40 +183,11 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, Namespace strin
 		}
 
 		// Let's create a new token from the identity and secret
-		log.Info("Creating token from identity and secret")
-
-		// The following implementation will update the status
-		meta.SetStatusCondition(&token.Status.Conditions, metav1.Condition{
-			Type:    typeAvailableToken,
-			Status:  metav1.ConditionTrue,
-			Reason:  "CreatingToken",
-			Message: "Creating token from identity and secret",
-		})
-
-		if err := r.Status().Update(ctx, token); err != nil {
-			log.Error(err, "Failed to update Token status")
-			return nil, err
-		}
-
-		// Let's create a new token from the identity and secret
 		if err := CreateClientToken(nginxpmClient, string(identity), string(secretDataValue)); err != nil {
 			log.Error(err, "Failed to create token from identity and secret")
-
-			// The following implementation will update the status
-			meta.SetStatusCondition(&token.Status.Conditions, metav1.Condition{
-				Type:    typeAvailableToken,
-				Status:  metav1.ConditionFalse,
-				Reason:  "FailedToCreateToken",
-				Message: "Failed to create token from identity and secret",
-			})
-
-			if err := r.Status().Update(ctx, token); err != nil {
-				log.Error(err, "Failed to update Token status")
-				return nil, err
-			}
-
 			return nil, err
 		}
+
 	}
 
 	return nginxpmClient, nil
