@@ -1,4 +1,5 @@
 ## Append samples of your project ##
 resources:
 - v1_token.yaml
+- v1_proxyhost.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

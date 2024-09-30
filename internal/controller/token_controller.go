@@ -203,7 +203,7 @@ func (r *TokenReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&nginxpmoperatoriov1.Token{}).
-		Owns(&nginxpmoperatoriov1.Token{}).
+		Owns(&corev1.Secret{}).
 		Watches(
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSecret),

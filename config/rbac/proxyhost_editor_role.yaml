@@ -1,22 +1,16 @@
----
+# permissions for end users to edit proxyhosts.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: manager-role
+  labels:
+    app.kubernetes.io/name: nginxpm-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: proxyhost-editor-role
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - get
-  - list
-  - watch
 - apiGroups:
   - nginxpm-operator.io
   resources:
   - proxyhosts
-  - tokens
   verbs:
   - create
   - delete
@@ -28,16 +22,6 @@ rules:
 - apiGroups:
   - nginxpm-operator.io
   resources:
-  - proxyhosts/finalizers
-  - tokens/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - nginxpm-operator.io
-  resources:
   - proxyhosts/status
-  - tokens/status
   verbs:
   - get
-  - patch
-  - update
