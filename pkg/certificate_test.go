@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -216,6 +217,68 @@ func TestFindCertificateByID(t *testing.T) {
 				}
 
 				compareCertificates(t, tt.expectedCert, cert)
+			}
+		})
+	}
+}
+
+func TestDeleteCertificate(t *testing.T) {
+	tests := []struct {
+		name          string
+		certificateID int
+		serverStatus  int
+		expectError   bool
+	}{
+		{
+			name:          "Successful deletion",
+			certificateID: 1,
+			serverStatus:  http.StatusOK,
+			expectError:   false,
+		},
+		{
+			name:          "Certificate not found",
+			certificateID: 999,
+			serverStatus:  http.StatusNotFound,
+			expectError:   true,
+		},
+		{
+			name:          "Server error",
+			certificateID: 2,
+			serverStatus:  http.StatusInternalServerError,
+			expectError:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != "DELETE" {
+					t.Errorf("Expected 'DELETE' request, got '%s'", r.Method)
+				}
+
+				expectedPath := fmt.Sprintf("/api/nginx/certificates/%d", tt.certificateID)
+				if r.URL.Path != expectedPath {
+					t.Errorf("Expected request to '%s', got '%s'", expectedPath, r.URL.Path)
+				}
+
+				w.WriteHeader(tt.serverStatus)
+			}))
+			defer server.Close()
+
+			client := NewClient(server.Client(), server.URL)
+
+			err := client.DeleteCertificate(tt.certificateID)
+
+			if (err != nil) != tt.expectError {
+				t.Fatalf("Unexpected error status: got error %v, expectError %v", err, tt.expectError)
+			}
+
+			if tt.expectError && err == nil {
+				t.Errorf("Expected an error, but got nil")
+			}
+
+			if !tt.expectError && err != nil {
+				t.Errorf("Expected no error, but got: %v", err)
 			}
 		})
 	}
