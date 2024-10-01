@@ -139,6 +139,7 @@ spec:
                 type: array
               letsEncryptEmail:
                 description: LetsEncrypt Email address to request a certificate for
+                format: email
                 pattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
                 type: string
               token:

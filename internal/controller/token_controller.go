@@ -39,6 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
+	"github.com/paradoxe35/nginxpm-operator/pkg"
 )
 
 const (
@@ -111,7 +112,7 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	return ctrl.Result{RequeueAfter: requeueAfter}, nil
 }
 
-func (r *TokenReconciler) initNginxPMClient(ctx context.Context, req reconcile.Request, token *nginxpmoperatoriov1.Token) (*Client, error) {
+func (r *TokenReconciler) initNginxPMClient(ctx context.Context, req reconcile.Request, token *nginxpmoperatoriov1.Token) (*pkg.Client, error) {
 	log := logger.FromContext(ctx)
 
 	// Get the secret resource associated with the token
@@ -140,7 +141,7 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, req reconcile.R
 	}
 
 	// Let create a new Nginx Proxy Manager client
-	var nginxpmClient *Client
+	var nginxpmClient *pkg.Client
 
 	// Let's create a new HTTP client with a timeout
 	httpClient := &http.Client{
@@ -154,7 +155,7 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, req reconcile.R
 	// If the token is valid, we will use it to create new client from
 	if hasValidToken {
 		log.Info("Using token from status")
-		nginxpmClient = NewClientFromToken(httpClient, token)
+		nginxpmClient = pkg.NewClientFromToken(httpClient, token)
 
 		// Check if the connection is established
 		if err := nginxpmClient.CheckConnection(); err != nil {
@@ -169,7 +170,7 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, req reconcile.R
 		log.Info("Instantiating new nginxpm client and create token")
 
 		// Let's create a new Nginx Proxy Manager client
-		nginxpmClient = NewClient(httpClient, token.Spec.Endpoint)
+		nginxpmClient = pkg.NewClient(httpClient, token.Spec.Endpoint)
 
 		// Check if the connection is established
 		if err := nginxpmClient.CheckConnection(); err != nil {
@@ -178,11 +179,10 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, req reconcile.R
 		}
 
 		// Let's create a new token from the identity and secret
-		if err := CreateClientToken(nginxpmClient, string(identity), string(secretDataValue)); err != nil {
+		if err := pkg.CreateClientToken(nginxpmClient, string(identity), string(secretDataValue)); err != nil {
 			log.Error(err, "Failed to create token from identity and secret")
 			return nil, err
 		}
-
 	}
 
 	return nginxpmClient, nil

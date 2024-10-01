@@ -222,7 +222,7 @@ func (in *LetsEncryptCertificateStatus) DeepCopyInto(out *LetsEncryptCertificate
 	*out = *in
 	if in.Id != nil {
 		in, out := &in.Id, &out.Id
-		*out = new(int16)
+		*out = new(uint16)
 		**out = **in
 	}
 	if in.DomainNames != nil {

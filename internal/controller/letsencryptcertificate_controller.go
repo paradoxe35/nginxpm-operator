@@ -19,12 +19,19 @@ package controller
 import (
 	"context"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
+)
+
+const (
+	letsEncryptCertificateFinalizer = "letsencryptcertificate.finalizers.nginxpm-operator.io"
 )
 
 // LetsEncryptCertificateReconciler reconciles a LetsEncryptCertificate object
@@ -41,7 +48,6 @@ type LetsEncryptCertificateReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
 // the LetsEncryptCertificate object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
@@ -49,11 +55,68 @@ type LetsEncryptCertificateReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/reconcile
 func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	log := log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	letsEncryptCertificate := &nginxpmoperatoriov1.LetsEncryptCertificate{}
+
+	// Fetch the LetsEncryptCertificate instance
+	// The purpose is check if the Custom Resource for the Kind LetsEncryptCertificate
+	// is applied on the cluster if not we return nil to stop the reconciliation
+	err := r.Get(ctx, req.NamespacedName, letsEncryptCertificate)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// If the custom resource is not found then it usually means that it was deleted or not created
+			// In this way, we will stop the reconciliation
+			log.Info("letsEncryptCertificate resource not found. Ignoring since object must be deleted")
+			return ctrl.Result{}, nil
+		}
+		// Error reading the object - requeue the request.
+		log.Error(err, "Failed to get letsEncryptCertificate")
+		return ctrl.Result{}, err
+	}
+
+	// Let's add a finalizer. Then, we can define some operations which should
+	// occur before the custom resource to be deleted.
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/finalizers
+	if !controllerutil.ContainsFinalizer(letsEncryptCertificate, letsEncryptCertificateFinalizer) {
+		log.Info("Adding Finalizer for LetsEncryptCertificate")
+		if ok := controllerutil.AddFinalizer(letsEncryptCertificate, letsEncryptCertificateFinalizer); !ok {
+			log.Error(err, "Failed to add finalizer into the custom resource")
+			return ctrl.Result{Requeue: true}, nil
+		}
+
+		if err = r.Update(ctx, letsEncryptCertificate); err != nil {
+			log.Error(err, "Failed to update custom resource to add finalizer")
+			return ctrl.Result{}, err
+		}
+	}
+
+	// ....
 
 	return ctrl.Result{}, nil
+}
+
+func (r *LetsEncryptCertificateReconciler) updateStatus(letsEncryptCertificate *nginxpmoperatoriov1.LetsEncryptCertificate, ctx context.Context, req ctrl.Request, mutate func(status *nginxpmoperatoriov1.LetsEncryptCertificateStatus)) error {
+	log := log.FromContext(ctx)
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, req.NamespacedName, letsEncryptCertificate)
+		if err != nil {
+			return err
+		}
+
+		mutate(&letsEncryptCertificate.Status)
+
+		// Update the status of the LetsEncryptCertificate
+		return r.Status().Update(ctx, letsEncryptCertificate)
+	})
+
+	if err != nil {
+		log.Error(err, "Failed to update LetsEncryptCertificate status")
+		return err
+	}
+
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

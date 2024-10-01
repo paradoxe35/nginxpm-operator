@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package pkg
 
 import (
 	"bytes"
@@ -46,7 +46,6 @@ type TokenResponse struct {
 // NewClient creates a new instance of the NGINX Proxy Manager client.
 // It takes the API endpoint as a parameter and sets up a default HTTP client with a timeout.
 func NewClient(httpClient *http.Client, endpoint string) *Client {
-
 	return &Client{
 		Endpoint:   endpoint,
 		httpClient: httpClient,
@@ -64,31 +63,9 @@ func NewClientFromToken(httpClient *http.Client, token *nginxpmoperatoriov1.Toke
 	}
 }
 
-// doRequest is a helper method that performs HTTP requests to the API.
-// It sets up common headers, handles authentication, and performs the actual HTTP request.
-func (c *Client) doRequest(method, path string, body io.Reader) (*http.Response, error) {
-	url := c.Endpoint + path
-
-	req, err := http.NewRequest(method, url, body)
-	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("error sending request: %w", err)
-	}
-
-	return resp, nil
-}
-
+// CreateClientToken creates a new token for the client.
+// It takes the identity and secret as parameters and sends a POST request to the /api/tokens endpoint.
+// It returns an error if the request fails or if the response status code is not 200.
 func CreateClientToken(client *Client, identity string, secret string) error {
 	payload := map[string]string{
 		"identity": identity,
@@ -116,8 +93,7 @@ func CreateClientToken(client *Client, identity string, secret string) error {
 	}
 
 	var tokenResponse TokenResponse
-	err = json.Unmarshal(body, &tokenResponse)
-	if err != nil {
+	if err := json.Unmarshal(body, &tokenResponse); err != nil {
 		return fmt.Errorf("[/api/tokens] error unmarshaling response: %w", err)
 	}
 
@@ -126,6 +102,31 @@ func CreateClientToken(client *Client, identity string, secret string) error {
 	client.Expires = tokenResponse.Expires
 
 	return nil
+}
+
+// doRequest is a helper method that performs HTTP requests to the API.
+// It sets up common headers, handles authentication, and performs the actual HTTP request.
+func (c *Client) doRequest(method, path string, body io.Reader) (*http.Response, error) {
+	url := c.Endpoint + path
+
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error sending request: %w", err)
+	}
+
+	return resp, nil
 }
 
 // CheckConnection sends a GET request to the /api endpoint to verify connectivity.
