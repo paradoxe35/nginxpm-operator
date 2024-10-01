@@ -11,7 +11,7 @@ import (
 	"github.com/paradoxe35/nginxpm-operator/pkg/util"
 )
 
-func TestFindExistingCertificate(t *testing.T) {
+func TestFindExistingLetEncryptCertificate(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
 		name           string
@@ -118,7 +118,7 @@ func TestFindExistingCertificate(t *testing.T) {
 	}
 }
 
-func TestFindCertificateByID(t *testing.T) {
+func TestFindLetEncryptCertificateByID(t *testing.T) {
 	now := time.Now()
 	serverResponse := []LetsEncryptCertificate{
 		{
@@ -222,7 +222,114 @@ func TestFindCertificateByID(t *testing.T) {
 	}
 }
 
-func TestDeleteCertificate(t *testing.T) {
+func TestCreateLetEncryptCertificate(t *testing.T) {
+	now := time.Now()
+	tests := []struct {
+		name          string
+		domains       []string
+		existingCerts []LetsEncryptCertificate
+		newCert       *LetsEncryptCertificate
+		expectedCert  *LetsEncryptCertificate
+		expectNewCert bool
+		expectError   bool
+	}{
+		{
+			name:          "New certificate creation",
+			domains:       []string{"example.com", "www.example.com"},
+			existingCerts: []LetsEncryptCertificate{},
+			newCert: &LetsEncryptCertificate{
+				ID:          1,
+				CreatedOn:   now.Format(time.RFC3339),
+				ModifiedOn:  now.Format(time.RFC3339),
+				Provider:    LETSENCRYPT_PROVIDER,
+				NiceName:    "example.com",
+				DomainNames: []string{"example.com", "www.example.com"},
+				ExpiresOn:   now.AddDate(0, 3, 0).Format(time.RFC3339),
+			},
+			expectedCert:  nil, // Will be set to newCert
+			expectNewCert: true,
+			expectError:   false,
+		},
+		{
+			name:    "Existing certificate found",
+			domains: []string{"existing.com"},
+			existingCerts: []LetsEncryptCertificate{
+				{
+					ID:          2,
+					CreatedOn:   now.Format(time.RFC3339),
+					ModifiedOn:  now.Format(time.RFC3339),
+					Provider:    LETSENCRYPT_PROVIDER,
+					NiceName:    "existing.com",
+					DomainNames: []string{"existing.com"},
+					ExpiresOn:   now.AddDate(0, 3, 0).Format(time.RFC3339),
+				},
+			},
+			newCert:       nil,
+			expectedCert:  nil, // Will be set to existing cert
+			expectNewCert: false,
+			expectError:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+
+				switch r.URL.Path {
+				case "/api/nginx/certificates":
+					if r.Method == "GET" {
+						json.NewEncoder(w).Encode(tt.existingCerts)
+					} else if r.Method == "POST" {
+						if tt.expectNewCert {
+							w.WriteHeader(http.StatusCreated)
+							json.NewEncoder(w).Encode(tt.newCert)
+						} else {
+							w.WriteHeader(http.StatusBadRequest)
+						}
+					}
+				default:
+					w.WriteHeader(http.StatusNotFound)
+				}
+			}))
+			defer server.Close()
+
+			client := NewClient(server.Client(), server.URL)
+			cert, err := client.CreateLetEncryptCertificate(CreateLetEncryptCertificateRequest{
+				DomainNames: tt.domains,
+				Provider:    LETSENCRYPT_PROVIDER,
+				Meta: CreateLetEncryptCertificateRequestMeta{
+					DNSChallenge:           false,
+					DNSProvider:            "acmedns",
+					DNSProviderCredentials: "credentials",
+					LetsEncryptAgree:       true,
+					LetsEncryptEmail:       "admin@example.com",
+				},
+			})
+
+			if (err != nil) != tt.expectError {
+				t.Fatalf("Unexpected error status: got error %v, expectError %v", err, tt.expectError)
+			}
+
+			if tt.expectNewCert {
+				if cert == nil {
+					t.Fatalf("Expected new certificate, got nil")
+				}
+				compareCertificates(t, tt.newCert, cert)
+			} else if len(tt.existingCerts) > 0 {
+				if cert == nil {
+					t.Fatalf("Expected existing certificate, got nil")
+				}
+
+				compareCertificates(t, &tt.existingCerts[0], cert)
+			} else if cert != nil {
+				t.Errorf("Expected no certificate, got %+v", cert)
+			}
+		})
+	}
+}
+
+func TestDeleteLetEncryptCertificate(t *testing.T) {
 	tests := []struct {
 		name          string
 		certificateID int

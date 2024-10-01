@@ -23,16 +23,18 @@ type LetsEncryptCertificateMeta struct {
 	LetsEncryptEmail string  `json:"letsencrypt_email"`
 }
 
+type CreateLetEncryptCertificateRequestMeta struct {
+	DNSChallenge           bool   `json:"dns_challenge"`
+	DNSProvider            string `json:"dns_provider"`
+	DNSProviderCredentials string `json:"dns_provider_credentials"`
+	LetsEncryptAgree       bool   `json:"letsencrypt_agree"`
+	LetsEncryptEmail       string `json:"letsencrypt_email"`
+}
+
 type CreateLetEncryptCertificateRequest struct {
-	DomainNames []string `json:"domain_names"`
-	Meta        struct {
-		DNSChallenge           bool   `json:"dns_challenge"`
-		DNSProvider            string `json:"dns_provider"`
-		DNSProviderCredentials string `json:"dns_provider_credentials"`
-		LetsEncryptAgree       bool   `json:"letsencrypt_agree"`
-		LetsEncryptEmail       string `json:"letsencrypt_email"`
-	} `json:"meta"`
-	Provider string `json:"provider"`
+	DomainNames []string                               `json:"domain_names"`
+	Meta        CreateLetEncryptCertificateRequestMeta `json:"meta"`
+	Provider    string                                 `json:"provider"`
 }
 
 type CustomCertificateMeta struct {
@@ -118,10 +120,10 @@ func (c *Client) FindLetEncryptCertificateByID(id uint16) (*LetsEncryptCertifica
 }
 
 // LetEncryptCertificate creates a new certificate for the given domains or returns an existing one if found
-func (c *Client) CreateLetEncryptCertificate(request CreateLetEncryptCertificateRequest) (*LetsEncryptCertificate, error) {
+func (c *Client) CreateLetEncryptCertificate(data CreateLetEncryptCertificateRequest) (*LetsEncryptCertificate, error) {
 	var existingCertificate *LetsEncryptCertificate
 
-	for i, domain := range request.DomainNames {
+	for i, domain := range data.DomainNames {
 		cert, err := c.FindLetEncryptCertificate(domain)
 		if err != nil {
 			return nil, fmt.Errorf("[POST /api/nginx/certificates] error finding existing certificate for domain %s: %w", domain, err)
@@ -143,13 +145,13 @@ func (c *Client) CreateLetEncryptCertificate(request CreateLetEncryptCertificate
 
 	// Create new certificate
 	body := map[string]interface{}{
-		"domain_names": request.DomainNames,
+		"domain_names": data.DomainNames,
 		"meta": map[string]interface{}{
 			"letsencrypt_agree":        true,
-			"letsencrypt_email":        request.Meta.LetsEncryptEmail,
-			"dns_challenge":            request.Meta.DNSChallenge,
-			"dns_provider":             request.Meta.DNSProvider,
-			"dns_provider_credentials": request.Meta.DNSProviderCredentials,
+			"letsencrypt_email":        data.Meta.LetsEncryptEmail,
+			"dns_challenge":            data.Meta.DNSChallenge,
+			"dns_provider":             data.Meta.DNSProvider,
+			"dns_provider_credentials": data.Meta.DNSProviderCredentials,
 		},
 		"provider": LETSENCRYPT_PROVIDER,
 	}
