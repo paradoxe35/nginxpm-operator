@@ -26,13 +26,18 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
 	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
@@ -40,7 +45,9 @@ import (
 )
 
 const (
-	tokenField = ".spec.token.name"
+	LEC_DNS_CHALLENGE_CRED_SECRET_FIELD = ".spec.dnsChallenge.providerCredentials.secret.name"
+
+	LEC_TOKEN_FIELD = ".spec.token.name"
 
 	letsEncryptCertificateFinalizer = "letsencryptcertificate.nginxpm-operator.io/finalizers"
 )
@@ -343,9 +350,75 @@ func (r *LetsEncryptCertificateReconciler) updateStatus(lec *nginxpmoperatoriov1
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *LetsEncryptCertificateReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Add the DNS Challenge Provider Credentials Secret to the indexer
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(), &nginxpmoperatoriov1.LetsEncryptCertificate{}, LEC_DNS_CHALLENGE_CRED_SECRET_FIELD,
+		func(rawObj client.Object) []string {
+			// Extract the Secret name from the Token Spec, if one is provided
+			lec := rawObj.(*nginxpmoperatoriov1.LetsEncryptCertificate)
+			if lec.Spec.DnsChallenge == nil || lec.Spec.DnsChallenge.ProviderCredentials.Secret.Name == "" {
+				return nil
+			}
+
+			return []string{lec.Spec.DnsChallenge.ProviderCredentials.Secret.Name}
+		}); err != nil {
+		return err
+	}
+
+	// Add the Token to the indexer
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &nginxpmoperatoriov1.LetsEncryptCertificate{}, LEC_TOKEN_FIELD, func(rawObj client.Object) []string {
+		// Extract the Secret name from the Token Spec, if one is provided
+		lec := rawObj.(*nginxpmoperatoriov1.LetsEncryptCertificate)
+		if lec.Spec.Token.Name == "" {
+			return nil
+		}
+		return []string{lec.Spec.Token.Name}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&nginxpmoperatoriov1.LetsEncryptCertificate{}).
 		Owns(&nginxpmoperatoriov1.Token{}).
 		Owns(&corev1.Secret{}).
+		Watches(
+			&corev1.Secret{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForObjects(LEC_DNS_CHALLENGE_CRED_SECRET_FIELD)),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&nginxpmoperatoriov1.Token{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForObjects(LEC_TOKEN_FIELD)),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Complete(r)
+}
+
+func (r *LetsEncryptCertificateReconciler) findObjectsForObjects(field string) func(ctx context.Context, obj client.Object) []reconcile.Request {
+	return func(ctx context.Context, object client.Object) []reconcile.Request {
+		attachedObjects := &nginxpmoperatoriov1.LetsEncryptCertificateList{}
+
+		listOps := &client.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector(field, object.GetName()),
+			Namespace:     object.GetNamespace(),
+		}
+
+		err := r.List(ctx, attachedObjects, listOps)
+		if err != nil {
+			return []reconcile.Request{}
+		}
+
+		requests := make([]reconcile.Request, len(attachedObjects.Items))
+		for i, item := range attachedObjects.Items {
+			requests[i] = reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      item.GetName(),
+					Namespace: item.GetNamespace(),
+				},
+			}
+		}
+
+		return requests
+	}
+
 }

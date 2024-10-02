@@ -43,7 +43,7 @@ import (
 )
 
 const (
-	secretField = ".spec.secret.secretName"
+	TOKEN_SECRET_FIELD = ".spec.secret.secretName"
 )
 
 // TokenReconciler reconciles a Token object
@@ -190,13 +190,13 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, req reconcile.R
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *TokenReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &nginxpmoperatoriov1.Token{}, secretField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &nginxpmoperatoriov1.Token{}, TOKEN_SECRET_FIELD, func(rawObj client.Object) []string {
 		// Extract the Secret name from the Token Spec, if one is provided
-		configDeployment := rawObj.(*nginxpmoperatoriov1.Token)
-		if configDeployment.Spec.Secret.SecretName == "" {
+		token := rawObj.(*nginxpmoperatoriov1.Token)
+		if token.Spec.Secret.SecretName == "" {
 			return nil
 		}
-		return []string{configDeployment.Spec.Secret.SecretName}
+		return []string{token.Spec.Secret.SecretName}
 	}); err != nil {
 		return err
 	}
@@ -216,7 +216,7 @@ func (r *TokenReconciler) findObjectsForSecret(ctx context.Context, secret clien
 	attachedSecrets := &nginxpmoperatoriov1.TokenList{}
 
 	listOps := &client.ListOptions{
-		FieldSelector: fields.OneTermEqualSelector(secretField, secret.GetName()),
+		FieldSelector: fields.OneTermEqualSelector(TOKEN_SECRET_FIELD, secret.GetName()),
 		Namespace:     secret.GetNamespace(),
 	}
 
