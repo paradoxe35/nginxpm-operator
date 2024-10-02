@@ -76,6 +76,7 @@ func (c *Client) FindLetEncryptCertificate(domain string) (*LetsEncryptCertifica
 	for _, cert := range certificates {
 		for _, domainName := range cert.DomainNames {
 			if domainName == domain || domainName == fmt.Sprintf("*.%s", rootDomain) {
+				cert.Bound = false
 				return &cert, nil
 			}
 		}
@@ -104,6 +105,7 @@ func (c *Client) FindLetEncryptCertificateByID(id uint16) (*LetsEncryptCertifica
 
 	for _, cert := range certificates {
 		if cert.ID == id {
+			cert.Bound = false
 			return &cert, nil
 		}
 	}
@@ -163,13 +165,15 @@ func (c *Client) CreateLetEncryptCertificate(data CreateLetEncryptCertificateReq
 		return nil, fmt.Errorf("[POST /api/nginx/certificates] unexpected status code when creating certificate: %d", resp.StatusCode)
 	}
 
-	var newCert LetsEncryptCertificate
+	newCert := new(LetsEncryptCertificate)
 
-	if err := json.NewDecoder(resp.Body).Decode(&newCert); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(newCert); err != nil {
 		return nil, fmt.Errorf("[POST /api/nginx/certificates] error decoding response: %w", err)
 	}
 
-	return &newCert, nil
+	newCert.Bound = false
+
+	return newCert, nil
 }
 
 // DeleteCertificate deletes a certificate by its ID
