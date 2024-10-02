@@ -182,14 +182,22 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 
 		hasDnsChallengeEnabled := lec.Spec.DnsChallenge != nil
 
-		// Retrieve the ProviderCredentials secret
-		credentials, err := r.getDnsChallengeProviderCredentials(ctx, req, lec)
-		if err != nil {
-			return err
+		var credentials string
+		var dnsChallengeProvider string
+
+		if hasDnsChallengeEnabled {
+			dnsChallengeProvider = lec.Spec.DnsChallenge.Provider
+
+			// Retrieve the ProviderCredentials secret
+			credentials, err = r.getDnsChallengeProviderCredentials(ctx, req, lec)
+			if err != nil {
+				return err
+			}
+
 		}
 
 		r.Recorder.Event(
-			lec, "Create", "CreatingLetsEncryptCertificate",
+			lec, "Normal", "CreatingLetsEncryptCertificate",
 			fmt.Sprintf("Creating LetsEncryptCertificate for domains %s, ResourceName: %s, Namespace: %s", strings.Join(domains, ","), req.Name, req.Namespace),
 		)
 
@@ -199,8 +207,8 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 				Provider:    nginxpm.LETSENCRYPT_PROVIDER,
 				Meta: nginxpm.CreateLetEncryptCertificateRequestMeta{
 					DNSChallenge:           hasDnsChallengeEnabled,
-					DNSProvider:            lec.Spec.DnsChallenge.Provider,
-					DNSProviderCredentials: *credentials,
+					DNSProvider:            dnsChallengeProvider,
+					DNSProviderCredentials: credentials,
 					LetsEncryptAgree:       true,
 					LetsEncryptEmail:       lec.Spec.LetsEncryptEmail,
 				},
@@ -211,7 +219,7 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 			log.Error(err, "Failed to create LetsEncryptCertificate")
 
 			r.Recorder.Event(
-				lec, "Error", "CreateLetsEncryptCertificate",
+				lec, "Warning", "CreateLetsEncryptCertificate",
 				fmt.Sprintf("Failed to create LetsEncryptCertificate for domains %s, ResourceName: %s, Namespace: %s", strings.Join(domains, ","), req.Name, req.Namespace),
 			)
 
@@ -219,7 +227,7 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 		}
 
 		r.Recorder.Event(
-			lec, "Create", "CreatedLetsEncryptCertificate",
+			lec, "Normal", "CreatedLetsEncryptCertificate",
 			fmt.Sprintf("Created LetsEncryptCertificate for domains %s, ResourceName: %s, Namespace: %s", strings.Join(domains, ","), req.Name, req.Namespace),
 		)
 
@@ -240,8 +248,14 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 	})
 }
 
-func (r *LetsEncryptCertificateReconciler) getDnsChallengeProviderCredentials(ctx context.Context, req ctrl.Request, lec *nginxpmoperatoriov1.LetsEncryptCertificate) (*string, error) {
+func (r *LetsEncryptCertificateReconciler) getDnsChallengeProviderCredentials(ctx context.Context, req ctrl.Request, lec *nginxpmoperatoriov1.LetsEncryptCertificate) (string, error) {
 	log := log.FromContext(ctx)
+
+	var credentialsValue string
+
+	if lec.Spec.DnsChallenge == nil {
+		return credentialsValue, nil
+	}
 
 	secret := &corev1.Secret{}
 	// Retrieve the ProviderCredentials secret
@@ -251,10 +265,10 @@ func (r *LetsEncryptCertificateReconciler) getDnsChallengeProviderCredentials(ct
 		log.Error(err, "Secret resource not found, please check the secret resource name")
 
 		r.Recorder.Event(
-			lec, "Error", "GetDnsChallengeProviderCredentials",
+			lec, "Warning", "GetDnsChallengeProviderCredentials",
 			fmt.Sprintf("Failed to get secret resource, ResourceName: %s, Namespace: %s", secretName, req.Namespace),
 		)
-		return nil, err
+		return credentialsValue, err
 	}
 
 	// Let's check if the secret resource is valid
@@ -262,12 +276,12 @@ func (r *LetsEncryptCertificateReconciler) getDnsChallengeProviderCredentials(ct
 	if !ok {
 		err := errors.New("failed to get secret from secret")
 		log.Error(err, "failed to get secret from secret")
-		return nil, err
+		return credentialsValue, err
 	}
 
-	credentialsValue := string(credentials)
+	credentialsValue = string(credentials)
 
-	return &credentialsValue, nil
+	return credentialsValue, nil
 }
 
 // initNginxPMClient will create a new Nginx Proxy Manager client from the token resource
@@ -285,7 +299,7 @@ func (r *LetsEncryptCertificateReconciler) initNginxPMClient(ctx context.Context
 		log.Error(err, "Failed to get token resource")
 
 		r.Recorder.Event(
-			lec, "Error", "GetToken",
+			lec, "Warning", "GetToken",
 			fmt.Sprintf("Failed to get token resource, ResourceName: %s, Namespace: %s", tokenName.Name, tokenName.Namespace),
 		)
 		return nil, err
@@ -299,7 +313,7 @@ func (r *LetsEncryptCertificateReconciler) initNginxPMClient(ctx context.Context
 		log.Error(err, "Token access check failed")
 
 		r.Recorder.Event(
-			lec, "Error", "CheckTokenAccess",
+			lec, "Warning", "CheckTokenAccess",
 			fmt.Sprintf("Failed to check token access, ResourceName: %s, Namespace: %s", tokenName.Name, tokenName.Namespace),
 		)
 		return nil, err
@@ -435,5 +449,4 @@ func (r *LetsEncryptCertificateReconciler) findObjectsForObjects(field string) f
 
 		return requests
 	}
-
 }
