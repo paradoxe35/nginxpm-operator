@@ -14,7 +14,20 @@ spec:
     singular: letsencryptcertificate
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .status.id
+      name: ID
+      type: integer
+    - jsonPath: .spec.domainNames
+      name: DomainNames
+      type: array
+    - jsonPath: .status.bound
+      name: Bound
+      type: boolean
+    - jsonPath: .status.expiresOn
+      name: ExpiresOn
+      type: string
+    name: v1
     schema:
       openAPIV3Schema:
         description: LetsEncryptCertificate is the Schema for the letsencryptcertificates
