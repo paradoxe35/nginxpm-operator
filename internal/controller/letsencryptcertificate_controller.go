@@ -114,6 +114,11 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 			return ctrl.Result{}, err
 		}
 
+		// Stop reconciliation if the resource is marked for deletion and the client can't be created
+		if isMarkedToBeDeleted {
+			return ctrl.Result{}, nil
+		}
+
 		return ctrl.Result{}, err
 	}
 
