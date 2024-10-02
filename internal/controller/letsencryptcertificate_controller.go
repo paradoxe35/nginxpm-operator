@@ -178,7 +178,7 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 		hasDnsChallengeEnabled := lec.Spec.DnsChallenge != nil
 
 		// Retrieve the ProviderCredentials secret
-		credentials, err := r.getDnsChallengeProviderCredentialsSecret(ctx, req, lec)
+		credentials, err := r.getDnsChallengeProviderCredentials(ctx, req, lec)
 		if err != nil {
 			return err
 		}
@@ -225,7 +225,7 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 	})
 }
 
-func (r *LetsEncryptCertificateReconciler) getDnsChallengeProviderCredentialsSecret(ctx context.Context, req ctrl.Request, lec *nginxpmoperatoriov1.LetsEncryptCertificate) (*string, error) {
+func (r *LetsEncryptCertificateReconciler) getDnsChallengeProviderCredentials(ctx context.Context, req ctrl.Request, lec *nginxpmoperatoriov1.LetsEncryptCertificate) (*string, error) {
 	log := log.FromContext(ctx)
 
 	secret := &corev1.Secret{}
@@ -236,7 +236,7 @@ func (r *LetsEncryptCertificateReconciler) getDnsChallengeProviderCredentialsSec
 		log.Error(err, "Secret resource not found, please check the secret resource name")
 
 		r.Recorder.Event(
-			lec, "Error", "GetDnsChallengeProviderCredentialsSecret",
+			lec, "Error", "GetDnsChallengeProviderCredentials",
 			fmt.Sprintf("Failed to get secret resource, ResourceName: %s, Namespace: %s", secretName, req.Namespace),
 		)
 		return nil, err
