@@ -82,12 +82,12 @@ type LetsEncryptCertificateSpec struct {
 	DomainNames []DomainName `json:"domainNames,omitempty"`
 
 	// LetsEncrypt Email address to request a certificate for
-	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Format:=email
 	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
-	// +optional
-	LetsEncryptEmail *string `json:"letsEncryptEmail,omitempty"`
+	// +required
+	LetsEncryptEmail string `json:"letsEncryptEmail,omitempty"`
 
 	// Use DNS challenge
 	// +kubebuilder:validation:Optional
@@ -118,7 +118,7 @@ type LetsEncryptCertificateStatus struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=array
 	// +required
-	DomainNames []DomainName `json:"domainNames,omitempty"`
+	DomainNames []string `json:"domainNames,omitempty"`
 
 	// Expiration time of the certificate, value is generated from controller reconcile
 	// +optional

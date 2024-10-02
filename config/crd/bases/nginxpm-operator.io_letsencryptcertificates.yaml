@@ -159,6 +159,7 @@ spec:
                 type: object
             required:
             - domainNames
+            - letsEncryptEmail
             - token
             type: object
           status:
@@ -231,7 +232,6 @@ spec:
                   Duplicated Domain Names in status, since once the certificate is created for these domain names
                   the spec.domainNames will never changed
                 items:
-                  pattern: ^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$
                   type: string
                 maxItems: 10
                 minItems: 1

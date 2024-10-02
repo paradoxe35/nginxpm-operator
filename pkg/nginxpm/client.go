@@ -146,3 +146,19 @@ func (c *Client) CheckConnection() error {
 
 	return nil
 }
+
+// Check token user is valid
+// It returns an error if it fails.
+func (c *Client) CheckTokenAccess() error {
+	resp, err := c.doRequest(http.MethodGet, "/api/users/me", nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("[/api/users/me] unexpected status code: %d", resp.StatusCode)
+	}
+
+	return nil
+}

@@ -195,11 +195,6 @@ func (in *LetsEncryptCertificateSpec) DeepCopyInto(out *LetsEncryptCertificateSp
 		*out = make([]DomainName, len(*in))
 		copy(*out, *in)
 	}
-	if in.LetsEncryptEmail != nil {
-		in, out := &in.LetsEncryptEmail, &out.LetsEncryptEmail
-		*out = new(string)
-		**out = **in
-	}
 	if in.DnsChallenge != nil {
 		in, out := &in.DnsChallenge, &out.DnsChallenge
 		*out = new(DnsChallenge)
@@ -227,7 +222,7 @@ func (in *LetsEncryptCertificateStatus) DeepCopyInto(out *LetsEncryptCertificate
 	}
 	if in.DomainNames != nil {
 		in, out := &in.DomainNames, &out.DomainNames
-		*out = make([]DomainName, len(*in))
+		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
 	if in.ExpiresOn != nil {

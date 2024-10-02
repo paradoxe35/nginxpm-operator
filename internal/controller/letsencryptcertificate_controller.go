@@ -18,9 +18,16 @@ package controller
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,16 +35,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
+	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
-	letsEncryptCertificateFinalizer = "letsencryptcertificate.finalizers.nginxpm-operator.io"
+	tokenField = ".spec.token.name"
+
+	letsEncryptCertificateFinalizer = "letsencryptcertificate.nginxpm-operator.io/finalizers"
 )
 
 // LetsEncryptCertificateReconciler reconciles a LetsEncryptCertificate object
 type LetsEncryptCertificateReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=letsencryptcertificates,verbs=get;list;watch;create;update;patch;delete
@@ -45,6 +57,7 @@ type LetsEncryptCertificateReconciler struct {
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=letsencryptcertificates/finalizers,verbs=update
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=tokens,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -57,12 +70,12 @@ type LetsEncryptCertificateReconciler struct {
 func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
-	letsEncryptCertificate := &nginxpmoperatoriov1.LetsEncryptCertificate{}
+	lec := &nginxpmoperatoriov1.LetsEncryptCertificate{}
 
 	// Fetch the LetsEncryptCertificate instance
 	// The purpose is check if the Custom Resource for the Kind LetsEncryptCertificate
 	// is applied on the cluster if not we return nil to stop the reconciliation
-	err := r.Get(ctx, req.NamespacedName, letsEncryptCertificate)
+	err := r.Get(ctx, req.NamespacedName, lec)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// If the custom resource is not found then it usually means that it was deleted or not created
@@ -75,40 +88,249 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 		return ctrl.Result{}, err
 	}
 
+	isMarkedToBeDeleted := !lec.ObjectMeta.DeletionTimestamp.IsZero()
+
 	// Let's add a finalizer. Then, we can define some operations which should
 	// occur before the custom resource to be deleted.
-	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/finalizers
-	if !controllerutil.ContainsFinalizer(letsEncryptCertificate, letsEncryptCertificateFinalizer) {
-		log.Info("Adding Finalizer for LetsEncryptCertificate")
-		if ok := controllerutil.AddFinalizer(letsEncryptCertificate, letsEncryptCertificateFinalizer); !ok {
-			log.Error(err, "Failed to add finalizer into the custom resource")
-			return ctrl.Result{Requeue: true}, nil
-		}
-
-		if err = r.Update(ctx, letsEncryptCertificate); err != nil {
-			log.Error(err, "Failed to update custom resource to add finalizer")
+	if !isMarkedToBeDeleted {
+		if err := r.addFinalizer(ctx, lec); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
-	// ....
+	// Create a new Nginx Proxy Manager client
+	// If the client can't be created, we will remove the finalizer
+	nginxpmClient, err := r.initNginxPMClient(ctx, lec)
+	if err != nil {
+		// If the can't initialize the client, we will remove the finalizer
+		if err := r.removeFinalizer(ctx, lec); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		return ctrl.Result{}, err
+	}
+
+	// If the resource is marked for deletion
+	// Delete the LetsEncryptCertificate record in the Nginx Proxy Manager instance before deleting the resource
+	if isMarkedToBeDeleted {
+		if controllerutil.ContainsFinalizer(lec, letsEncryptCertificateFinalizer) {
+			log.Info("Performing Finalizer Operations for LetsEncryptCertificate")
+
+			// Delete the LetsEncryptCertificate record in the Nginx Proxy Manager instance
+			// If the LetsEncryptCertificate is bound, we will not delete the record
+			if lec.Status.Id != nil && !lec.Status.Bound {
+				log.Info("Deleting LetsEncryptCertificate record in Nginx Proxy Manager instance")
+				nginxpmClient.DeleteCertificate(int(*lec.Status.Id))
+			}
+
+			// Remove the finalizer
+			if err := r.removeFinalizer(ctx, lec); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+
+		return ctrl.Result{}, nil
+	}
+
+	// Create Certificate or update the existing one
+	err = r.createCertificate(ctx, req, lec, nginxpmClient)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }
 
-func (r *LetsEncryptCertificateReconciler) updateStatus(letsEncryptCertificate *nginxpmoperatoriov1.LetsEncryptCertificate, ctx context.Context, req ctrl.Request, mutate func(status *nginxpmoperatoriov1.LetsEncryptCertificateStatus)) error {
+func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context, req ctrl.Request, lec *nginxpmoperatoriov1.LetsEncryptCertificate, nginxpmClient *nginxpm.Client) error {
 	log := log.FromContext(ctx)
 
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := r.Get(ctx, req.NamespacedName, letsEncryptCertificate)
+	var certificate *nginxpm.LetsEncryptCertificate
+	var err error
+
+	// Convert domain names to []string
+	domains := make([]string, len(lec.Spec.DomainNames))
+	for i, domain := range lec.Spec.DomainNames {
+		domains[i] = string(domain)
+	}
+
+	// Let's check if the LetsEncryptCertificate is already created
+	if lec.Status.Id != nil {
+		certificate, err = nginxpmClient.FindLetEncryptCertificateByID(*lec.Status.Id)
+		if err != nil {
+			log.Error(err, "Failed to find LetsEncryptCertificate by ID")
+			return err
+		}
+
+		return nil
+	}
+
+	// Let's create a new LetsEncryptCertificate from the LetsEncryptCertificate resource
+	if lec.Status.Id == nil {
+		log.Info("Creating LetsEncryptCertificate")
+
+		hasDnsChallengeEnabled := lec.Spec.DnsChallenge != nil
+
+		// Retrieve the ProviderCredentials secret
+		credentials, err := r.getDnsChallengeProviderCredentialsSecret(ctx, req, lec)
 		if err != nil {
 			return err
 		}
 
-		mutate(&letsEncryptCertificate.Status)
+		certificate, err = nginxpmClient.CreateLetEncryptCertificate(
+			nginxpm.CreateLetEncryptCertificateRequest{
+				DomainNames: domains,
+				Provider:    nginxpm.LETSENCRYPT_PROVIDER,
+				Meta: nginxpm.CreateLetEncryptCertificateRequestMeta{
+					DNSChallenge:           hasDnsChallengeEnabled,
+					DNSProvider:            lec.Spec.DnsChallenge.Provider,
+					DNSProviderCredentials: *credentials,
+					LetsEncryptAgree:       true,
+					LetsEncryptEmail:       lec.Spec.LetsEncryptEmail,
+				},
+			},
+		)
 
-		// Update the status of the LetsEncryptCertificate
-		return r.Status().Update(ctx, letsEncryptCertificate)
+		if err != nil {
+			log.Error(err, "Failed to create LetsEncryptCertificate")
+
+			r.Recorder.Event(
+				lec, "Error", "CreateLetsEncryptCertificate",
+				fmt.Sprintf("Failed to create LetsEncryptCertificate for domains %s, ResourceName: %s, Namespace: %s", strings.Join(domains, ","), req.Name, req.Namespace),
+			)
+
+			return err
+		}
+
+		// Update bound status only if the LetsEncryptCertificate is created
+		return r.updateStatus(lec, ctx, req, func(status *nginxpmoperatoriov1.LetsEncryptCertificateStatus) {
+			status.Bound = certificate.Bound
+			status.Id = &certificate.ID
+			status.DomainNames = certificate.DomainNames
+			status.ExpiresOn = &certificate.ExpiresOn
+		})
+	}
+
+	// Update the LetsEncryptCertificate status
+	return r.updateStatus(lec, ctx, req, func(status *nginxpmoperatoriov1.LetsEncryptCertificateStatus) {
+		status.Id = &certificate.ID
+		status.DomainNames = certificate.DomainNames
+		status.ExpiresOn = &certificate.ExpiresOn
+	})
+}
+
+func (r *LetsEncryptCertificateReconciler) getDnsChallengeProviderCredentialsSecret(ctx context.Context, req ctrl.Request, lec *nginxpmoperatoriov1.LetsEncryptCertificate) (*string, error) {
+	log := log.FromContext(ctx)
+
+	secret := &corev1.Secret{}
+	// Retrieve the ProviderCredentials secret
+	secretName := lec.Spec.DnsChallenge.ProviderCredentials.Secret.Name
+	if err := r.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: secretName}, secret); err != nil {
+		// If the secret resource is not found, we will not be able to create the token
+		log.Error(err, "Secret resource not found, please check the secret resource name")
+
+		r.Recorder.Event(
+			lec, "Error", "GetDnsChallengeProviderCredentialsSecret",
+			fmt.Sprintf("Failed to get secret resource, ResourceName: %s, Namespace: %s", secretName, req.Namespace),
+		)
+		return nil, err
+	}
+
+	// Let's check if the secret resource is valid
+	credentials, ok := secret.Data["credentials"]
+	if !ok {
+		err := errors.New("failed to get secret from secret")
+		log.Error(err, "failed to get secret from secret")
+		return nil, err
+	}
+
+	credentialsValue := string(credentials)
+
+	return &credentialsValue, nil
+}
+
+// initNginxPMClient will create a new Nginx Proxy Manager client from the token resource
+func (r *LetsEncryptCertificateReconciler) initNginxPMClient(ctx context.Context, lec *nginxpmoperatoriov1.LetsEncryptCertificate) (*nginxpm.Client, error) {
+	log := log.FromContext(ctx)
+
+	token := &nginxpmoperatoriov1.Token{}
+	tokenName := types.NamespacedName{
+		Namespace: lec.Spec.Token.Namespace,
+		Name:      lec.Spec.Token.Name,
+	}
+
+	// Get the token resource
+	if err := r.Get(ctx, tokenName, token); err != nil {
+		log.Error(err, "Failed to get token resource")
+
+		r.Recorder.Event(
+			lec, "Error", "GetToken",
+			fmt.Sprintf("Failed to get token resource, ResourceName: %s, Namespace: %s", tokenName.Name, tokenName.Namespace),
+		)
+		return nil, err
+	}
+
+	// Create a new Nginx Proxy Manager client
+	nginxpmClient := nginxpm.NewClientFromToken(&http.Client{Timeout: time.Duration(5) * time.Second}, token)
+
+	// Check if the connection is established
+	if err := nginxpmClient.CheckTokenAccess(); err != nil {
+		log.Error(err, "Token access check failed")
+
+		r.Recorder.Event(
+			lec, "Error", "CheckTokenAccess",
+			fmt.Sprintf("Failed to check token access, ResourceName: %s, Namespace: %s", tokenName.Name, tokenName.Namespace),
+		)
+		return nil, err
+	}
+
+	return nginxpmClient, nil
+}
+
+// removeFinalizer will remove the finalizer from the LetsEncryptCertificate resource
+func (r *LetsEncryptCertificateReconciler) removeFinalizer(ctx context.Context, lec *nginxpmoperatoriov1.LetsEncryptCertificate) error {
+	log := log.FromContext(ctx)
+
+	if controllerutil.ContainsFinalizer(lec, letsEncryptCertificateFinalizer) {
+		controllerutil.RemoveFinalizer(lec, letsEncryptCertificateFinalizer)
+
+		if err := r.Update(ctx, lec); err != nil {
+			log.Error(err, "Failed to update custom resource to remove finalizer")
+			return err
+		}
+	}
+
+	return nil
+}
+
+// addFinalizer will add a finalizer to the LetsEncryptCertificate resource
+func (r *LetsEncryptCertificateReconciler) addFinalizer(ctx context.Context, lec *nginxpmoperatoriov1.LetsEncryptCertificate) error {
+	log := log.FromContext(ctx)
+
+	if !controllerutil.ContainsFinalizer(lec, letsEncryptCertificateFinalizer) {
+		controllerutil.AddFinalizer(lec, letsEncryptCertificateFinalizer)
+
+		if err := r.Update(ctx, lec); err != nil {
+			log.Error(err, "Failed to update custom resource to add finalizer")
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *LetsEncryptCertificateReconciler) updateStatus(lec *nginxpmoperatoriov1.LetsEncryptCertificate, ctx context.Context, req ctrl.Request, mutate func(status *nginxpmoperatoriov1.LetsEncryptCertificateStatus)) error {
+	log := log.FromContext(ctx)
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, req.NamespacedName, lec)
+		if err != nil {
+			return err
+		}
+
+		mutate(&lec.Status)
+
+		// Update the object status
+		return r.Status().Update(ctx, lec)
 	})
 
 	if err != nil {
@@ -123,5 +345,7 @@ func (r *LetsEncryptCertificateReconciler) updateStatus(letsEncryptCertificate *
 func (r *LetsEncryptCertificateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&nginxpmoperatoriov1.LetsEncryptCertificate{}).
+		Owns(&nginxpmoperatoriov1.Token{}).
+		Owns(&corev1.Secret{}).
 		Complete(r)
 }

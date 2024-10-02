@@ -191,7 +191,7 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, req reconcile.R
 // SetupWithManager sets up the controller with the Manager.
 func (r *TokenReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &nginxpmoperatoriov1.Token{}, secretField, func(rawObj client.Object) []string {
-		// Extract the ConfigMap name from the ConfigDeployment Spec, if one is provided
+		// Extract the Secret name from the Token Spec, if one is provided
 		configDeployment := rawObj.(*nginxpmoperatoriov1.Token)
 		if configDeployment.Spec.Secret.SecretName == "" {
 			return nil
