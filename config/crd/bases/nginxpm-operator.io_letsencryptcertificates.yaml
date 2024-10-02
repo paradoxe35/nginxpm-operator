@@ -20,7 +20,7 @@ spec:
       type: integer
     - jsonPath: .spec.domainNames
       name: DomainNames
-      type: array
+      type: string
     - jsonPath: .status.bound
       name: Bound
       type: boolean

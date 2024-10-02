@@ -139,7 +139,7 @@ type LetsEncryptCertificateStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="ID",type="integer",JSONPath=".status.id"
-// +kubebuilder:printcolumn:name="DomainNames",type="array",JSONPath=".spec.domainNames"
+// +kubebuilder:printcolumn:name="DomainNames",type="string",JSONPath=".spec.domainNames"
 // +kubebuilder:printcolumn:name="Bound",type="boolean",JSONPath=".status.bound"
 // +kubebuilder:printcolumn:name="ExpiresOn",type="string",JSONPath=".status.expiresOn"
 
