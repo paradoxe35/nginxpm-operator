@@ -180,8 +180,13 @@ spec:
                   name:
                     description: Name of the token resource
                     type: string
+                  namespace:
+                    description: Name of the token resource
+                    pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
+                    type: string
                 required:
                 - name
+                - namespace
                 type: object
               websocketSupport:
                 default: true

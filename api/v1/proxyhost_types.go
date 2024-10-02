@@ -169,6 +169,13 @@ type TokenName struct {
 	// Name of the token resource
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern=`^[a-z]([-a-z0-9]*[a-z0-9])?$`
+	// +required
+	Namespace string `json:"namespace,omitempty"`
+
+	// Name of the token resource
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=string
 	// +required
 	Name string `json:"name,omitempty"`
 }
