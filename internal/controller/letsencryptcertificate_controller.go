@@ -145,15 +145,15 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 	}
 
 	// Create Certificate or update the existing one
-	err = r.createCertificate(ctx, req, lec, nginxpmClient)
+	result, err := r.createCertificate(ctx, req, lec, nginxpmClient)
 	if err != nil {
-		return ctrl.Result{}, err
+		return result, err
 	}
 
 	return ctrl.Result{}, nil
 }
 
-func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context, req ctrl.Request, lec *nginxpmoperatoriov1.LetsEncryptCertificate, nginxpmClient *nginxpm.Client) error {
+func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context, req ctrl.Request, lec *nginxpmoperatoriov1.LetsEncryptCertificate, nginxpmClient *nginxpm.Client) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
 	var certificate *nginxpm.LetsEncryptCertificate
@@ -170,10 +170,10 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 		certificate, err = nginxpmClient.FindLetEncryptCertificateByID(*lec.Status.Id)
 		if err != nil {
 			log.Error(err, "Failed to find LetsEncryptCertificate by ID")
-			return err
+			return ctrl.Result{}, err
 		}
 
-		return nil
+		return ctrl.Result{}, nil
 	}
 
 	// Let's create a new LetsEncryptCertificate from the LetsEncryptCertificate resource
@@ -191,7 +191,7 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 			// Retrieve the ProviderCredentials secret
 			credentials, err = r.getDnsChallengeProviderCredentials(ctx, req, lec)
 			if err != nil {
-				return err
+				return ctrl.Result{}, err
 			}
 
 		}
@@ -223,7 +223,7 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 				fmt.Sprintf("Failed to create LetsEncryptCertificate for domains %s, ResourceName: %s, Namespace: %s", strings.Join(domains, ","), req.Name, req.Namespace),
 			)
 
-			return err
+			return ctrl.Result{RequeueAfter: time.Minute * 2}, err
 		}
 
 		r.Recorder.Event(
@@ -232,7 +232,7 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 		)
 
 		// Update bound status only if the LetsEncryptCertificate is created
-		return r.updateStatus(lec, ctx, req, func(status *nginxpmoperatoriov1.LetsEncryptCertificateStatus) {
+		return ctrl.Result{}, r.updateStatus(lec, ctx, req, func(status *nginxpmoperatoriov1.LetsEncryptCertificateStatus) {
 			status.Bound = certificate.Bound
 			status.Id = &certificate.ID
 			status.DomainNames = certificate.DomainNames
@@ -241,7 +241,7 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 	}
 
 	// Update the LetsEncryptCertificate status
-	return r.updateStatus(lec, ctx, req, func(status *nginxpmoperatoriov1.LetsEncryptCertificateStatus) {
+	return ctrl.Result{}, r.updateStatus(lec, ctx, req, func(status *nginxpmoperatoriov1.LetsEncryptCertificateStatus) {
 		status.Id = &certificate.ID
 		status.DomainNames = certificate.DomainNames
 		status.ExpiresOn = &certificate.ExpiresOn
