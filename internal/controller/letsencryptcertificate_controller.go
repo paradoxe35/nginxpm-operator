@@ -183,6 +183,11 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 			return err
 		}
 
+		r.Recorder.Event(
+			lec, "Create", "CreatingLetsEncryptCertificate",
+			fmt.Sprintf("Creating LetsEncryptCertificate for domains %s, ResourceName: %s, Namespace: %s", strings.Join(domains, ","), req.Name, req.Namespace),
+		)
+
 		certificate, err = nginxpmClient.CreateLetEncryptCertificate(
 			nginxpm.CreateLetEncryptCertificateRequest{
 				DomainNames: domains,
@@ -207,6 +212,11 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 
 			return err
 		}
+
+		r.Recorder.Event(
+			lec, "Create", "CreatedLetsEncryptCertificate",
+			fmt.Sprintf("Created LetsEncryptCertificate for domains %s, ResourceName: %s, Namespace: %s", strings.Join(domains, ","), req.Name, req.Namespace),
+		)
 
 		// Update bound status only if the LetsEncryptCertificate is created
 		return r.updateStatus(lec, ctx, req, func(status *nginxpmoperatoriov1.LetsEncryptCertificateStatus) {
