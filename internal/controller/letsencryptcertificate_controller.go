@@ -227,7 +227,7 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 				fmt.Sprintf("Failed to create LetsEncryptCertificate for domains %s, ResourceName: %s, Namespace: %s", strings.Join(domains, ","), req.Name, req.Namespace),
 			)
 
-			return ctrl.Result{RequeueAfter: time.Minute * 2}, err
+			return ctrl.Result{RequeueAfter: time.Minute * 2}, nil
 		}
 
 		r.Recorder.Event(
