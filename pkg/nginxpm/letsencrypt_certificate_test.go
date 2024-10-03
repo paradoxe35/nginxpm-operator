@@ -128,7 +128,7 @@ func TestFindExistingLetEncryptCertificate(t *testing.T) {
 				if cert == nil {
 					t.Fatalf("Expected certificate, got nil")
 				}
-				compareCertificates(t, tt.expectedCert, cert)
+				compareLetsEncryptCertificates(t, tt.expectedCert, cert)
 			}
 		})
 	}
@@ -232,7 +232,7 @@ func TestFindLetEncryptCertificateByID(t *testing.T) {
 					t.Errorf("Expected certificate ID %d, got %d", tt.expectedCert.ID, cert.ID)
 				}
 
-				compareCertificates(t, tt.expectedCert, cert)
+				compareLetsEncryptCertificates(t, tt.expectedCert, cert)
 			}
 		})
 	}
@@ -331,13 +331,13 @@ func TestCreateLetEncryptCertificate(t *testing.T) {
 				if cert == nil {
 					t.Fatalf("Expected new certificate, got nil")
 				}
-				compareCertificates(t, tt.newCert, cert)
+				compareLetsEncryptCertificates(t, tt.newCert, cert)
 			} else if len(tt.existingCerts) > 0 {
 				if cert == nil {
 					t.Fatalf("Expected existing certificate, got nil")
 				}
 
-				compareCertificates(t, &tt.existingCerts[0], cert)
+				compareLetsEncryptCertificates(t, &tt.existingCerts[0], cert)
 			} else if cert != nil {
 				t.Errorf("Expected no certificate, got %+v", cert)
 			}
@@ -407,7 +407,7 @@ func TestDeleteLetEncryptCertificate(t *testing.T) {
 	}
 }
 
-func compareCertificates(t *testing.T, expected, actual *LetsEncryptCertificate) {
+func compareLetsEncryptCertificates(t *testing.T, expected, actual *LetsEncryptCertificate) {
 	if expected.ID != actual.ID {
 		t.Errorf("Expected certificate ID %d, got %d", expected.ID, actual.ID)
 	}

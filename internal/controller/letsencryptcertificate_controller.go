@@ -100,7 +100,7 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 	// Let's add a finalizer. Then, we can define some operations which should
 	// occur before the custom resource to be deleted.
 	if !isMarkedToBeDeleted {
-		if err := r.addFinalizer(ctx, lec); err != nil {
+		if err := AddFinalizer(r, ctx, lec); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
@@ -110,7 +110,7 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 	nginxpmClient, err := r.initNginxPMClient(ctx, lec)
 	if err != nil {
 		// If the can't initialize the client, we will remove the finalizer
-		if err := r.removeFinalizer(ctx, lec); err != nil {
+		if err := RemoveFinalizer(r, ctx, lec); err != nil {
 			return ctrl.Result{}, err
 		}
 
@@ -140,7 +140,7 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 			}
 
 			// Remove the finalizer
-			if err := r.removeFinalizer(ctx, lec); err != nil {
+			if err := RemoveFinalizer(r, ctx, lec); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
@@ -324,38 +324,6 @@ func (r *LetsEncryptCertificateReconciler) initNginxPMClient(ctx context.Context
 	}
 
 	return nginxpmClient, nil
-}
-
-// removeFinalizer will remove the finalizer from the LetsEncryptCertificate resource
-func (r *LetsEncryptCertificateReconciler) removeFinalizer(ctx context.Context, lec *nginxpmoperatoriov1.LetsEncryptCertificate) error {
-	log := log.FromContext(ctx)
-
-	if controllerutil.ContainsFinalizer(lec, letsEncryptCertificateFinalizer) {
-		controllerutil.RemoveFinalizer(lec, letsEncryptCertificateFinalizer)
-
-		if err := r.Update(ctx, lec); err != nil {
-			log.Error(err, "Failed to update custom resource to remove finalizer")
-			return err
-		}
-	}
-
-	return nil
-}
-
-// addFinalizer will add a finalizer to the LetsEncryptCertificate resource
-func (r *LetsEncryptCertificateReconciler) addFinalizer(ctx context.Context, lec *nginxpmoperatoriov1.LetsEncryptCertificate) error {
-	log := log.FromContext(ctx)
-
-	if !controllerutil.ContainsFinalizer(lec, letsEncryptCertificateFinalizer) {
-		controllerutil.AddFinalizer(lec, letsEncryptCertificateFinalizer)
-
-		if err := r.Update(ctx, lec); err != nil {
-			log.Error(err, "Failed to update custom resource to add finalizer")
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (r *LetsEncryptCertificateReconciler) updateStatus(lec *nginxpmoperatoriov1.LetsEncryptCertificate, ctx context.Context, req ctrl.Request, mutate func(status *nginxpmoperatoriov1.LetsEncryptCertificateStatus)) error {

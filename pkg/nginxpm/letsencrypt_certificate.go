@@ -60,17 +60,17 @@ func (c *Client) FindLetEncryptCertificate(domain string) (*LetsEncryptCertifica
 	resp, err := c.doRequest("GET", fmt.Sprintf("/api/nginx/certificates?query=%s", query), nil)
 
 	if err != nil {
-		return nil, fmt.Errorf("[/api/nginx/certificates] error querying certificates: %w", err)
+		return nil, fmt.Errorf("[FindLetEncryptCertificate] error querying certificates: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("[/api/nginx/certificates] unexpected status code: %d", resp.StatusCode)
+		return nil, fmt.Errorf("[FindLetEncryptCertificate] unexpected status code: %d", resp.StatusCode)
 	}
 
 	var certificates []LetsEncryptCertificate
 	if err := json.NewDecoder(resp.Body).Decode(&certificates); err != nil {
-		return nil, fmt.Errorf("[/api/nginx/certificates] error decoding response: %w", err)
+		return nil, fmt.Errorf("[FindLetEncryptCertificate] error decoding response: %w", err)
 	}
 
 	for _, cert := range certificates {
@@ -90,17 +90,17 @@ func (c *Client) FindLetEncryptCertificateByID(id uint16) (*LetsEncryptCertifica
 	resp, err := c.doRequest("GET", "/api/nginx/certificates", nil)
 
 	if err != nil {
-		return nil, fmt.Errorf("[/api/nginx/certificates] error querying certificates: %w", err)
+		return nil, fmt.Errorf("[FindLetEncryptCertificateByID] error querying certificates: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("[/api/nginx/certificates] unexpected status code: %d", resp.StatusCode)
+		return nil, fmt.Errorf("[FindLetEncryptCertificateByID] unexpected status code: %d", resp.StatusCode)
 	}
 
 	var certificates []LetsEncryptCertificate
 	if err := json.NewDecoder(resp.Body).Decode(&certificates); err != nil {
-		return nil, fmt.Errorf("[/api/nginx/certificates] error decoding response: %w", err)
+		return nil, fmt.Errorf("[FindLetEncryptCertificateByID] error decoding response: %w", err)
 	}
 
 	for _, cert := range certificates {
@@ -120,7 +120,7 @@ func (c *Client) CreateLetEncryptCertificate(data CreateLetEncryptCertificateReq
 	for i, domain := range data.DomainNames {
 		cert, err := c.FindLetEncryptCertificate(domain)
 		if err != nil {
-			return nil, fmt.Errorf("[POST /api/nginx/certificates] error finding existing certificate for domain %s: %w", domain, err)
+			return nil, fmt.Errorf("[CreateLetEncryptCertificate] error finding existing certificate for domain %s: %w", domain, err)
 		}
 
 		if cert != nil && existingCertificate != nil && existingCertificate.ID != cert.ID && i > 0 {
@@ -152,23 +152,23 @@ func (c *Client) CreateLetEncryptCertificate(data CreateLetEncryptCertificateReq
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
-		return nil, fmt.Errorf("[POST /api/nginx/certificates] error marshaling request body: %w", err)
+		return nil, fmt.Errorf("[CreateLetEncryptCertificate] error marshaling request body: %w", err)
 	}
 
 	resp, err := c.doRequest("POST", "/api/nginx/certificates", bytes.NewBuffer(jsonBody))
 	if err != nil {
-		return nil, fmt.Errorf("[POST /api/nginx/certificates] error creating certificate: %w", err)
+		return nil, fmt.Errorf("[CreateLetEncryptCertificate] error creating certificate: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("[POST /api/nginx/certificates] unexpected status code when creating certificate: %d", resp.StatusCode)
+		return nil, fmt.Errorf("[CreateLetEncryptCertificate] unexpected status code when creating certificate: %d", resp.StatusCode)
 	}
 
 	newCert := new(LetsEncryptCertificate)
 
 	if err := json.NewDecoder(resp.Body).Decode(newCert); err != nil {
-		return nil, fmt.Errorf("[POST /api/nginx/certificates] error decoding response: %w", err)
+		return nil, fmt.Errorf("[CreateLetEncryptCertificate] error decoding response: %w", err)
 	}
 
 	newCert.Bound = false
@@ -180,12 +180,12 @@ func (c *Client) CreateLetEncryptCertificate(data CreateLetEncryptCertificateReq
 func (c *Client) DeleteCertificate(id int) error {
 	resp, err := c.doRequest("DELETE", fmt.Sprintf("/api/nginx/certificates/%d", id), nil)
 	if err != nil {
-		return fmt.Errorf("[DELETE /api/nginx/certificates/%d] error deleting certificate: %w", id, err)
+		return fmt.Errorf("[DeleteCertificate %d] error deleting certificate: %w", id, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("[DELETE /api/nginx/certificates/%d] unexpected status code: %d", id, resp.StatusCode)
+		return fmt.Errorf("[DeleteCertificate %d] unexpected status code: %d", id, resp.StatusCode)
 	}
 
 	return nil
