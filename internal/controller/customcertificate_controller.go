@@ -18,12 +18,15 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -47,6 +50,11 @@ type CustomCertificateReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
+}
+
+type CustomCertificateKeys struct {
+	Certificate    []byte
+	CertificateKey []byte
 }
 
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=customcertificates,verbs=get;list;watch;create;update;patch;delete
@@ -145,12 +153,123 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	return ctrl.Result{}, nil
 }
 
-func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req ctrl.Request, lec *nginxpmoperatoriov1.CustomCertificate, nginxpmClient *nginxpm.Client) (ctrl.Result, error) {
+func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req ctrl.Request, cc *nginxpmoperatoriov1.CustomCertificate, nginxpmClient *nginxpm.Client) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
-	// Code here .....
+	var certificate *nginxpm.CustomCertificate
+	var err error
 
-	return ctrl.Result{}, nil
+	// Let's check if the CustomCertificate is already created
+	if cc.Status.Id != nil {
+		certificate, err = nginxpmClient.FindCustomCertificateByID(*cc.Status.Id)
+		if err != nil {
+			log.Error(err, "Failed to find CustomCertificate by ID")
+
+			r.updateStatus(cc, ctx, req, func(status *nginxpmoperatoriov1.CustomCertificateStatus) {
+				*status.Status = "Failed to find CustomCertificate by ID"
+			})
+
+			return ctrl.Result{}, err
+		}
+
+		return ctrl.Result{}, nil
+	}
+
+	// Let's create a new CustomCertificate from the CustomCertificate resource
+	if cc.Status.Id == nil {
+		log.Info("Creating CustomCertificate")
+
+		// Retrieve the certificate and certificate key from the secret
+		certificateKeys, err := r.getCertificateKeys(ctx, req, cc)
+		if err != nil {
+			r.updateStatus(cc, ctx, req, func(status *nginxpmoperatoriov1.CustomCertificateStatus) {
+				*status.Status = "Failed to retrieve certificate and certificate key"
+			})
+
+			return ctrl.Result{}, err
+		}
+
+		var niceName string = req.Name
+		if cc.Spec.NiceName != nil && len(*cc.Spec.NiceName) > 0 {
+			niceName = *cc.Spec.NiceName
+		}
+
+		r.Recorder.Event(
+			cc, "Normal", "CreatingCustomCertificate",
+			fmt.Sprintf("Creating CustomCertificate, Cert Name: %s, Namespace: %s", niceName, req.Namespace),
+		)
+
+		certificate, err = nginxpmClient.CreateCustomCertificate(
+			nginxpm.CreateCustomCertificateRequest{
+				NiceName:       niceName,
+				Provider:       nginxpm.CUSTOM_PROVIDER,
+				Certificate:    certificateKeys.Certificate,
+				CertificateKey: certificateKeys.CertificateKey,
+			},
+		)
+
+		if err != nil {
+			log.Error(err, "Failed to create CustomCertificate")
+
+			r.Recorder.Event(
+				cc, "Warning", "CreateCustomCertificate",
+				fmt.Sprintf("Failed to create CustomCertificate, Cert Name: %s, Namespace: %s", niceName, req.Namespace),
+			)
+
+			r.updateStatus(cc, ctx, req, func(status *nginxpmoperatoriov1.CustomCertificateStatus) {
+				*status.Status = "Failed to create CustomCertificate"
+			})
+
+			return ctrl.Result{}, err
+		}
+
+		r.Recorder.Event(
+			cc, "Normal", "CreatedCustomCertificate",
+			fmt.Sprintf("Created CustomCertificate, Cert Name: %s, Namespace: %s", niceName, req.Namespace),
+		)
+	}
+
+	return ctrl.Result{}, r.updateStatus(cc, ctx, req, func(status *nginxpmoperatoriov1.CustomCertificateStatus) {
+		status.Id = &certificate.ID
+		status.ExpiresOn = &certificate.ExpiresOn
+		*status.Status = "Certificate uploaded"
+	})
+}
+
+func (r *CustomCertificateReconciler) getCertificateKeys(ctx context.Context, req ctrl.Request, lec *nginxpmoperatoriov1.CustomCertificate) (*CustomCertificateKeys, error) {
+	log := log.FromContext(ctx)
+
+	secret := &corev1.Secret{}
+	// Retrieve the ProviderCredentials secret
+	secretName := lec.Spec.Certificate.Secret.Name
+	if err := r.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: secretName}, secret); err != nil {
+		// If the secret resource is not found, we will not be able to create the token
+		log.Error(err, "Secret resource not found, please check the secret resource name")
+
+		r.Recorder.Event(
+			lec, "Warning", "getCertificateKeys",
+			fmt.Sprintf("Failed to get secret resource, ResourceName: %s, Namespace: %s", secretName, req.Namespace),
+		)
+		return nil, err
+	}
+
+	// Get the certificate from the secret data
+	certificate, ok := secret.Data["certificate"]
+	if !ok {
+		err := errors.New("failed to get [certificate] field from secret")
+		log.Error(err, "failed to get [certificate] field from secret")
+		return nil, err
+	}
+
+	// Get the certificate key from the secret data
+	certificateKey, ok := secret.Data["certificate_key"]
+	if !ok {
+		err := errors.New("failed to get [certificate_key] field from secret")
+		log.Error(err, "failed to get [certificate_key] field from secret")
+		return nil, err
+	}
+
+	return &CustomCertificateKeys{Certificate: certificate, CertificateKey: certificateKey}, nil
 }
 
 // initNginxPMClient will create a new Nginx Proxy Manager client from the token resource
@@ -189,6 +308,29 @@ func (r *CustomCertificateReconciler) initNginxPMClient(ctx context.Context, cc 
 	}
 
 	return nginxpmClient, nil
+}
+
+func (r *CustomCertificateReconciler) updateStatus(lec *nginxpmoperatoriov1.CustomCertificate, ctx context.Context, req ctrl.Request, mutate func(status *nginxpmoperatoriov1.CustomCertificateStatus)) error {
+	log := log.FromContext(ctx)
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, req.NamespacedName, lec)
+		if err != nil {
+			return err
+		}
+
+		mutate(&lec.Status)
+
+		// Update the object status
+		return r.Status().Update(ctx, lec)
+	})
+
+	if err != nil {
+		log.Error(err, "Failed to update CustomCertificate status")
+		return err
+	}
+
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

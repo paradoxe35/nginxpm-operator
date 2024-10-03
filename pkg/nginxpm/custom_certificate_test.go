@@ -101,7 +101,7 @@ func TestValidateCertificate(t *testing.T) {
 
 			client := NewClient(server.Client(), server.URL)
 
-			response, err := client.ValidateCertificate([]byte(tt.certificateContent), []byte(tt.certificateKey))
+			response, err := client.ValidateCustomCertificate([]byte(tt.certificateContent), []byte(tt.certificateKey))
 
 			if (err != nil) != tt.expectError {
 				t.Fatalf("Unexpected error status: got error %v, expectError %v", err, tt.expectError)
@@ -298,7 +298,7 @@ func TestUploadCertificate(t *testing.T) {
 
 			client := NewClient(server.Client(), server.URL)
 
-			response, err := client.UploadCertificate(tt.certificateID, []byte(tt.certificateContent), []byte(tt.certificateKey))
+			response, err := client.UploadCustomCertificate(tt.certificateID, []byte(tt.certificateContent), []byte(tt.certificateKey))
 
 			if (err != nil) != tt.expectError {
 				t.Fatalf("Unexpected error status: got error %v, expectError %v", err, tt.expectError)
