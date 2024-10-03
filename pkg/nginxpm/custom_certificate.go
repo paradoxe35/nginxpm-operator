@@ -106,7 +106,7 @@ func (c *Client) certificateFilesFromBytes(certificateContent, certificateKeyCon
 	}
 
 	// Add certificate key file
-	part, err = writer.CreateFormFile("certificate_key", "certificate_key.pem")
+	part, err = writer.CreateFormFile("certificate_key", "certificate_key.key")
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating form file for certificate key: %w", err)
 	}
@@ -135,7 +135,9 @@ func (c *Client) ValidateCustomCertificate(certificateContent, certificateKeyCon
 		return nil, fmt.Errorf("[ValidateCertificate] error creating request: %w", err)
 	}
 
+	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Authorization", "Bearer "+c.Token)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -160,7 +162,7 @@ func (c *Client) ValidateCustomCertificate(certificateContent, certificateKeyCon
 }
 
 // UploadCertificate uploads a validated certificate and its key to a specific certificate ID
-func (c *Client) UploadCustomCertificate(id int, certificateContent, certificateKeyContent []byte) (*CertificateUploadResponse, error) {
+func (c *Client) UploadCustomCertificate(id uint16, certificateContent, certificateKeyContent []byte) (*CertificateUploadResponse, error) {
 	body, writer, err := c.certificateFilesFromBytes(certificateContent, certificateKeyContent)
 	if err != nil {
 		return nil, fmt.Errorf("[UploadCertificate-{id}] err: %w", err)
@@ -172,7 +174,9 @@ func (c *Client) UploadCustomCertificate(id int, certificateContent, certificate
 		return nil, fmt.Errorf("[UploadCertificate-{id}] error creating request: %w", err)
 	}
 
+	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Authorization", "Bearer "+c.Token)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -236,7 +240,7 @@ func (c *Client) CreateCustomCertificate(data CreateCustomCertificateRequest) (*
 	}
 
 	// Upload certificate and key
-	_, err = c.UploadCustomCertificate(int(emptyCert.ID), data.Certificate, data.CertificateKey)
+	_, err = c.UploadCustomCertificate(emptyCert.ID, data.Certificate, data.CertificateKey)
 	if err != nil {
 		return nil, fmt.Errorf("error uploading certificate and key: %w", err)
 	}

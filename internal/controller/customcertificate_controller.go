@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -171,7 +172,8 @@ func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req
 			log.Error(err, "Failed to find CustomCertificate by ID")
 
 			r.updateStatus(cc, ctx, req, func(status *nginxpmoperatoriov1.CustomCertificateStatus) {
-				*status.Status = "Failed to find CustomCertificate by ID"
+				msg := "Failed to find CustomCertificate by ID"
+				status.Status = &msg
 			})
 
 			return ctrl.Result{}, err
@@ -188,7 +190,8 @@ func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req
 		certificateKeys, err := r.getCertificateKeys(ctx, req, cc)
 		if err != nil {
 			r.updateStatus(cc, ctx, req, func(status *nginxpmoperatoriov1.CustomCertificateStatus) {
-				*status.Status = "Failed to retrieve certificate and certificate key"
+				msg := "Failed to retrieve certificate and certificate key"
+				status.Status = &msg
 			})
 
 			return ctrl.Result{}, err
@@ -222,10 +225,11 @@ func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req
 			)
 
 			r.updateStatus(cc, ctx, req, func(status *nginxpmoperatoriov1.CustomCertificateStatus) {
-				*status.Status = "Failed to create CustomCertificate"
+				msg := "Failed to create CustomCertificate"
+				status.Status = &msg
 			})
 
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: time.Minute * 1}, nil
 		}
 
 		r.Recorder.Event(
@@ -235,9 +239,11 @@ func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req
 	}
 
 	return ctrl.Result{}, r.updateStatus(cc, ctx, req, func(status *nginxpmoperatoriov1.CustomCertificateStatus) {
+		msg := "Certificate ready"
+
 		status.Id = &certificate.ID
 		status.ExpiresOn = &certificate.ExpiresOn
-		*status.Status = "Certificate ready"
+		status.Status = &msg
 	})
 }
 

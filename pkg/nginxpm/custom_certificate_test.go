@@ -76,6 +76,11 @@ func TestValidateCertificate(t *testing.T) {
 					t.Errorf("Expected Content-Type starting with 'multipart/form-data', got '%s'", contentType)
 				}
 
+				authorization := r.Header.Get("Authorization")
+				if !strings.HasPrefix(authorization, "Bearer") {
+					t.Errorf("Expected Authorization starting with 'Bearer', got '%s'", authorization)
+				}
+
 				err := r.ParseMultipartForm(10 << 20) // 10 MB
 				if err != nil {
 					t.Fatalf("Error parsing multipart form: %v", err)
@@ -226,7 +231,7 @@ func TestCreateEmptyCustomCertificate(t *testing.T) {
 func TestUploadCertificate(t *testing.T) {
 	tests := []struct {
 		name               string
-		certificateID      int
+		certificateID      uint16
 		certificateContent string
 		certificateKey     string
 		serverResponse     CertificateUploadResponse
@@ -271,6 +276,11 @@ func TestUploadCertificate(t *testing.T) {
 				contentType := r.Header.Get("Content-Type")
 				if !strings.HasPrefix(contentType, "multipart/form-data") {
 					t.Errorf("Expected Content-Type starting with 'multipart/form-data', got '%s'", contentType)
+				}
+
+				authorization := r.Header.Get("Authorization")
+				if !strings.HasPrefix(authorization, "Bearer") {
+					t.Errorf("Expected Authorization starting with 'Bearer', got '%s'", authorization)
 				}
 
 				err := r.ParseMultipartForm(10 << 20) // 10 MB
