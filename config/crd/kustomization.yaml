@@ -5,6 +5,7 @@ resources:
 - bases/nginxpm-operator.io_tokens.yaml
 - bases/nginxpm-operator.io_proxyhosts.yaml
 - bases/nginxpm-operator.io_letsencryptcertificates.yaml
+- bases/nginxpm-operator.io_customcertificates.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:
@@ -17,6 +18,7 @@ patches:
 #- path: patches/cainjection_in_tokens.yaml
 #- path: patches/cainjection_in_proxyhosts.yaml
 #- path: patches/cainjection_in_letsencryptcertificates.yaml
+#- path: patches/cainjection_in_customcertificates.yaml
 # +kubebuilder:scaffold:crdkustomizecainjectionpatch
 
 # [WEBHOOK] To enable webhook, uncomment the following section

@@ -1,0 +1,27 @@
+# permissions for end users to edit customcertificates.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: nginxpm-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: customcertificate-editor-role
+rules:
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - customcertificates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - customcertificates/status
+  verbs:
+  - get

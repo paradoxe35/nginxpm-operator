@@ -1,0 +1,25 @@
+apiVersion: nginxpm-operator.io/v1
+kind: CustomCertificate
+metadata:
+  labels:
+    app.kubernetes.io/name: nginxpm-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: customcertificate-sample
+spec:
+  token:
+    name: token-sample
+    namespace: nginxpm-operator-system
+  niceName: example-certificate # Optional
+  certificate:
+    secret:
+      name: certificate-sample
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: certificate-sample
+type: Opaque
+data:
+  certificate: YWRtaW4=
+  certificate_key: YWRtaW4=

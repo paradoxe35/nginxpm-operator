@@ -67,7 +67,7 @@ type LetsEncryptCertificateSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Token resource reference to add to the LetsEncryptCertificate, this is the created auth token
+	// Token resource reference to add to the LetsEncryptCertificate requests
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=object
 	// +required
@@ -120,19 +120,11 @@ type LetsEncryptCertificateStatus struct {
 	// +required
 	DomainNames []string `json:"domainNames,omitempty"`
 
-	// Expiration time of the certificate, value is generated from controller reconcile
+	// Expiration time of the certificate
 	// +optional
 	ExpiresOn *string `json:"expiresOn,omitempty"`
 
 	// Represents the observations of a LetsEncryptCertificate's current state.
-	// LetsEncryptCertificate.status.conditions.type are: "Available", "Progressing", and "Degraded"
-	// LetsEncryptCertificate.status.conditions.status are one of True, False, Unknown.
-	// LetsEncryptCertificate.status.conditions.reason the value should be a CamelCase string and producers of specific
-	// condition types may define expected values and meanings for this field, and whether the values
-	// are considered a guaranteed API.
-	// LetsEncryptCertificate.status.conditions.Message is a human readable message indicating details about the transition.
-	// For further information see: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
-
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 

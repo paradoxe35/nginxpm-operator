@@ -4,34 +4,30 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.1
-  name: letsencryptcertificates.nginxpm-operator.io
+  name: customcertificates.nginxpm-operator.io
 spec:
   group: nginxpm-operator.io
   names:
-    kind: LetsEncryptCertificate
-    listKind: LetsEncryptCertificateList
-    plural: letsencryptcertificates
-    singular: letsencryptcertificate
+    kind: CustomCertificate
+    listKind: CustomCertificateList
+    plural: customcertificates
+    singular: customcertificate
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
     - jsonPath: .status.id
       name: ID
       type: integer
-    - jsonPath: .spec.domainNames
-      name: DomainNames
-      type: string
-    - jsonPath: .status.bound
-      name: Bound
-      type: boolean
     - jsonPath: .status.expiresOn
       name: ExpiresOn
+      type: string
+    - jsonPath: .status.status
+      name: Status
       type: string
     name: v1
     schema:
       openAPIV3Schema:
-        description: LetsEncryptCertificate is the Schema for the letsencryptcertificates
-          API
+        description: CustomCertificate is the Schema for the customcertificates API
         properties:
           apiVersion:
             description: |-
@@ -51,112 +47,30 @@ spec:
           metadata:
             type: object
           spec:
-            description: LetsEncryptCertificateSpec defines the desired state of LetsEncryptCertificate
+            description: CustomCertificateSpec defines the desired state of CustomCertificate
             properties:
-              dnsChallenge:
-                description: Use DNS challenge
+              certificate:
+                description: Certificate credential secret name
                 properties:
-                  propagationSeconds:
-                    default: 0
-                    description: Propagation seconds
-                    type: integer
-                  provider:
-                    description: DNS Provider to use
-                    enum:
-                    - acmedns
-                    - aliyun
-                    - azure
-                    - bunny
-                    - cloudflare
-                    - cloudns
-                    - cloudxns
-                    - constellix
-                    - corenetworks
-                    - cpanel
-                    - desec
-                    - duckdns
-                    - digitalocean
-                    - directadmin
-                    - dnsimple
-                    - dnsmadeeasy
-                    - dnsmulti
-                    - dnspod
-                    - domainoffensive
-                    - domeneshop
-                    - dynu
-                    - easydns
-                    - eurodns
-                    - freedns
-                    - gandi
-                    - godaddy
-                    - google
-                    - googledomains
-                    - he
-                    - hetzner
-                    - infomaniak
-                    - inwx
-                    - ionos
-                    - ispconfig
-                    - isset
-                    - joker
-                    - linode
-                    - loopia
-                    - luadns
-                    - namecheap
-                    - netcup
-                    - njalla
-                    - nsone
-                    - oci
-                    - ovh
-                    - plesk
-                    - porkbun
-                    - powerdns
-                    - regru
-                    - rfc2136
-                    - route53
-                    - strato
-                    - timeweb
-                    - transip
-                    - tencentcloud
-                    - vultr
-                    - websupport
-                    type: string
-                  providerCredentials:
-                    description: Provider credentials
+                  secret:
+                    description: Secret resource holds certificate values
                     properties:
-                      secret:
-                        description: Secret resource holds dns challenge provider
-                          credentials
-                        properties:
-                          name:
-                            description: Name of the secret resource
-                            type: string
-                        required:
-                        - name
-                        type: object
+                      name:
+                        description: Name of the secret resource
+                        type: string
                     required:
-                    - secret
+                    - name
                     type: object
-                    x-kubernetes-preserve-unknown-fields: true
                 required:
-                - provider
-                - providerCredentials
+                - secret
                 type: object
-              domainNames:
-                description: Domain Names to request a certificate for
-                items:
-                  pattern: ^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$
-                  type: string
-                maxItems: 10
-                minItems: 1
-                type: array
-              letsEncryptEmail:
-                description: LetsEncrypt Email address to request a certificate for
-                format: email
-                pattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
+              niceName:
+                description: NiceName of the CustomCertificate (If not provided, the
+                  resource name will be used)
+                maxLength: 64
                 type: string
               token:
-                description: Token resource reference to add to the LetsEncryptCertificate
+                description: Token resource reference to add to the CustomCertificate
                   requests
                 properties:
                   name:
@@ -171,21 +85,14 @@ spec:
                 - namespace
                 type: object
             required:
-            - domainNames
-            - letsEncryptEmail
+            - certificate
             - token
             type: object
           status:
-            description: LetsEncryptCertificateStatus defines the observed state of
-              LetsEncryptCertificate
+            description: CustomCertificateStatus defines the observed state of CustomCertificate
             properties:
-              bound:
-                default: false
-                description: Whether the LetsEncryptCertificate was bound with an
-                  existing certificate
-                type: boolean
               conditions:
-                description: Represents the observations of a LetsEncryptCertificate's
+                description: Represents the observations of a CustomCertificateStatus's
                   current state.
                 items:
                   description: Condition contains details for one aspect of the current
@@ -242,24 +149,16 @@ spec:
                   - type
                   type: object
                 type: array
-              domainNames:
-                description: |-
-                  Duplicated Domain Names in status, since once the certificate is created for these domain names
-                  the spec.domainNames will never changed
-                items:
-                  type: string
-                maxItems: 10
-                minItems: 1
-                type: array
               expiresOn:
                 description: Expiration time of the certificate
                 type: string
               id:
-                description: LetsEncryptCertificate ID in the Nginx Proxy Manager
+                description: CustomCertificateStatus ID in the Nginx Proxy Manager
                   instance
                 type: integer
-            required:
-            - domainNames
+              status:
+                description: Status of the certificate
+                type: string
             type: object
         type: object
     served: true
