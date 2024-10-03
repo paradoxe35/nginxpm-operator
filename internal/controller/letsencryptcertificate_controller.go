@@ -119,7 +119,8 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 			return ctrl.Result{}, nil
 		}
 
-		return ctrl.Result{}, err
+		log.Error(err, "Failed to initialize the client, will retry in 30 seconds")
+		return ctrl.Result{RequeueAfter: time.Second * 30}, nil
 	}
 
 	// If the resource is marked for deletion
