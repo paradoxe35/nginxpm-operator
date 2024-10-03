@@ -216,7 +216,7 @@ func (c *Client) FindCustomCertificateByID(id uint16) (*CustomCertificate, error
 	}
 
 	for _, cert := range certificates {
-		if cert.ID == id {
+		if cert.ID == id && cert.Provider == CUSTOM_PROVIDER {
 			cert.Bound = false
 			return &cert, nil
 		}

@@ -75,7 +75,9 @@ func (c *Client) FindLetEncryptCertificate(domain string) (*LetsEncryptCertifica
 
 	for _, cert := range certificates {
 		for _, domainName := range cert.DomainNames {
-			if domainName == domain || domainName == fmt.Sprintf("*.%s", rootDomain) {
+			matchedDomain := domainName == domain || domainName == fmt.Sprintf("*.%s", rootDomain)
+
+			if matchedDomain && cert.Provider == LETSENCRYPT_PROVIDER {
 				cert.Bound = false
 				return &cert, nil
 			}
@@ -104,7 +106,7 @@ func (c *Client) FindLetEncryptCertificateByID(id uint16) (*LetsEncryptCertifica
 	}
 
 	for _, cert := range certificates {
-		if cert.ID == id {
+		if cert.ID == id && cert.Provider == LETSENCRYPT_PROVIDER {
 			cert.Bound = false
 			return &cert, nil
 		}
