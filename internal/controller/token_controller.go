@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -40,6 +39,7 @@ import (
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
 	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
+	"github.com/paradoxe35/nginxpm-operator/pkg/util"
 )
 
 const (
@@ -143,11 +143,6 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, req reconcile.R
 	// Let create a new Nginx Proxy Manager client
 	var nginxpmClient *nginxpm.Client
 
-	// Let's create a new HTTP client with a timeout
-	httpClient := &http.Client{
-		Timeout: time.Duration(5) * time.Second,
-	}
-
 	// If the token is not empty, we will use it to create new client from
 	expiredAt := token.Status.Expires
 	hasValidToken := token.Status.Token != nil && expiredAt != nil && expiredAt.UTC().After(time.Now().UTC())
@@ -155,7 +150,7 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, req reconcile.R
 	// If the token is valid, we will use it to create new client from
 	if hasValidToken {
 		log.Info("Using token from status")
-		nginxpmClient = nginxpm.NewClientFromToken(httpClient, token)
+		nginxpmClient = nginxpm.NewClientFromToken(util.NewHttpClient(), token)
 
 		// Check if the connection is established
 		if err := nginxpmClient.CheckConnection(); err != nil {
@@ -170,7 +165,7 @@ func (r *TokenReconciler) initNginxPMClient(ctx context.Context, req reconcile.R
 		log.Info("Instantiating new nginxpm client and create token")
 
 		// Let's create a new Nginx Proxy Manager client
-		nginxpmClient = nginxpm.NewClient(httpClient, token.Spec.Endpoint)
+		nginxpmClient = nginxpm.NewClient(util.NewHttpClient(), token.Spec.Endpoint)
 
 		// Check if the connection is established
 		if err := nginxpmClient.CheckConnection(); err != nil {

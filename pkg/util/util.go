@@ -1,6 +1,10 @@
 package util
 
-import "strings"
+import (
+	"net/http"
+	"strings"
+	"time"
+)
 
 // ExtractRootDomain extracts the root domain from a given domain string.
 // If the domain has two or fewer parts, it returns the entire domain.
@@ -13,4 +17,10 @@ func ExtractRootDomain(domain string) string {
 		return domain
 	}
 	return strings.Join(parts[1:], ".")
+}
+
+func NewHttpClient() *http.Client {
+	return &http.Client{
+		Timeout: time.Duration(45) * time.Second,
+	}
 }

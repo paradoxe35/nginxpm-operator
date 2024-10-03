@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
@@ -41,6 +40,7 @@ import (
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
 	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
+	"github.com/paradoxe35/nginxpm-operator/pkg/util"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -310,7 +310,7 @@ func (r *LetsEncryptCertificateReconciler) initNginxPMClient(ctx context.Context
 	}
 
 	// Create a new Nginx Proxy Manager client
-	nginxpmClient := nginxpm.NewClientFromToken(&http.Client{Timeout: time.Duration(5) * time.Second}, token)
+	nginxpmClient := nginxpm.NewClientFromToken(util.NewHttpClient(), token)
 
 	// Check if the connection is established
 	if err := nginxpmClient.CheckTokenAccess(); err != nil {
