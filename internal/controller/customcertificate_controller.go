@@ -23,14 +23,19 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
 	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
@@ -232,7 +237,7 @@ func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req
 	return ctrl.Result{}, r.updateStatus(cc, ctx, req, func(status *nginxpmoperatoriov1.CustomCertificateStatus) {
 		status.Id = &certificate.ID
 		status.ExpiresOn = &certificate.ExpiresOn
-		*status.Status = "Certificate uploaded"
+		*status.Status = "Certificate ready"
 	})
 }
 
@@ -310,19 +315,19 @@ func (r *CustomCertificateReconciler) initNginxPMClient(ctx context.Context, cc 
 	return nginxpmClient, nil
 }
 
-func (r *CustomCertificateReconciler) updateStatus(lec *nginxpmoperatoriov1.CustomCertificate, ctx context.Context, req ctrl.Request, mutate func(status *nginxpmoperatoriov1.CustomCertificateStatus)) error {
+func (r *CustomCertificateReconciler) updateStatus(cc *nginxpmoperatoriov1.CustomCertificate, ctx context.Context, req ctrl.Request, mutate func(status *nginxpmoperatoriov1.CustomCertificateStatus)) error {
 	log := log.FromContext(ctx)
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := r.Get(ctx, req.NamespacedName, lec)
+		err := r.Get(ctx, req.NamespacedName, cc)
 		if err != nil {
 			return err
 		}
 
-		mutate(&lec.Status)
+		mutate(&cc.Status)
 
 		// Update the object status
-		return r.Status().Update(ctx, lec)
+		return r.Status().Update(ctx, cc)
 	})
 
 	if err != nil {
@@ -335,7 +340,74 @@ func (r *CustomCertificateReconciler) updateStatus(lec *nginxpmoperatoriov1.Cust
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *CustomCertificateReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Add certificate secret to the indexer
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(), &nginxpmoperatoriov1.CustomCertificate{}, LEC_DNS_CHALLENGE_CRED_SECRET_FIELD,
+		func(rawObj client.Object) []string {
+			// Extract the Secret name from the Token Spec, if one is provided
+			cc := rawObj.(*nginxpmoperatoriov1.CustomCertificate)
+			if cc.Spec.Certificate.Secret.Name == "" {
+				return nil
+			}
+
+			return []string{cc.Spec.Certificate.Secret.Name}
+		}); err != nil {
+		return err
+	}
+
+	// Add the Token to the indexer
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &nginxpmoperatoriov1.CustomCertificate{}, LEC_TOKEN_FIELD, func(rawObj client.Object) []string {
+		// Extract the Secret name from the Token Spec, if one is provided
+		cc := rawObj.(*nginxpmoperatoriov1.CustomCertificate)
+		if cc.Spec.Token.Name == "" {
+			return nil
+		}
+		return []string{cc.Spec.Token.Name}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&nginxpmoperatoriov1.CustomCertificate{}).
+		Owns(&nginxpmoperatoriov1.Token{}).
+		Owns(&corev1.Secret{}).
+		Watches(
+			&corev1.Secret{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForObjects(CC_CERTIFICATE_FIELD)),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&nginxpmoperatoriov1.Token{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForObjects(CC_TOKEN_FIELD)),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Complete(r)
+}
+
+func (r *CustomCertificateReconciler) findObjectsForObjects(field string) func(ctx context.Context, obj client.Object) []reconcile.Request {
+	return func(ctx context.Context, object client.Object) []reconcile.Request {
+		attachedObjects := &nginxpmoperatoriov1.CustomCertificateList{}
+
+		listOps := &client.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector(field, object.GetName()),
+			Namespace:     object.GetNamespace(),
+		}
+
+		err := r.List(ctx, attachedObjects, listOps)
+		if err != nil {
+			return []reconcile.Request{}
+		}
+
+		requests := make([]reconcile.Request, len(attachedObjects.Items))
+		for i, item := range attachedObjects.Items {
+			requests[i] = reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      item.GetName(),
+					Namespace: item.GetNamespace(),
+				},
+			}
+		}
+
+		return requests
+	}
 }
