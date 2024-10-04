@@ -104,7 +104,7 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	// Let's add a finalizer. Then, we can define some operations which should
 	// occur before the custom resource to be deleted.
 	if !isMarkedToBeDeleted {
-		if err := AddFinalizer(r, ctx, cc); err != nil {
+		if err := AddFinalizer(r, ctx, customCertificateFinalizer, cc); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
@@ -114,7 +114,7 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	nginxpmClient, err := r.initNginxPMClient(ctx, cc)
 	if err != nil {
 		// If the can't initialize the client, we will remove the finalizer
-		if err := RemoveFinalizer(r, ctx, cc); err != nil {
+		if err := RemoveFinalizer(r, ctx, customCertificateFinalizer, cc); err != nil {
 			return ctrl.Result{}, err
 		}
 
@@ -124,7 +124,7 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 
 		log.Error(err, "Failed to initialize the client, will retry in 30 seconds")
-		return ctrl.Result{RequeueAfter: time.Second * 30}, nil
+		return ctrl.Result{RequeueAfter: time.Duration(30) * time.Second}, nil
 	}
 
 	// If the resource is marked for deletion
@@ -144,7 +144,7 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			}
 
 			// Remove the finalizer
-			if err := RemoveFinalizer(r, ctx, cc); err != nil {
+			if err := RemoveFinalizer(r, ctx, customCertificateFinalizer, cc); err != nil {
 				return ctrl.Result{}, err
 			}
 		}

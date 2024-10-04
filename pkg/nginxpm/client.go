@@ -55,10 +55,20 @@ func NewClient(httpClient *http.Client, endpoint string) *Client {
 // NewClientFromToken creates a new client instance with a pre-existing token.
 // This is useful when you already have a valid token and don't need to authenticate.
 func NewClientFromToken(httpClient *http.Client, token *nginxpmoperatoriov1.Token) *Client {
+	var tokenValue string
+	if token.Status.Token != nil {
+		tokenValue = *token.Status.Token
+	}
+
+	var expiresValue time.Time
+	if token.Status.Expires != nil {
+		expiresValue = token.Status.Expires.Time
+	}
+
 	return &Client{
 		Endpoint:   token.Spec.Endpoint,
-		Token:      *token.Status.Token,
-		Expires:    token.Status.Expires.Time,
+		Token:      tokenValue,
+		Expires:    expiresValue,
 		httpClient: httpClient,
 	}
 }

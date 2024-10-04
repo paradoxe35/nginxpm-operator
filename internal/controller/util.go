@@ -25,11 +25,11 @@ import (
 )
 
 // RemoveFinalizer will remove the finalizer from the object
-func RemoveFinalizer(r client.Writer, ctx context.Context, object client.Object) error {
+func RemoveFinalizer(r client.Writer, ctx context.Context, finalizer string, object client.Object) error {
 	log := log.FromContext(ctx)
 
-	if controllerutil.ContainsFinalizer(object, customCertificateFinalizer) {
-		controllerutil.RemoveFinalizer(object, customCertificateFinalizer)
+	if controllerutil.ContainsFinalizer(object, finalizer) {
+		controllerutil.RemoveFinalizer(object, finalizer)
 
 		if err := r.Update(ctx, object); err != nil {
 			log.Error(err, "Failed to update custom resource to remove finalizer")
@@ -41,11 +41,11 @@ func RemoveFinalizer(r client.Writer, ctx context.Context, object client.Object)
 }
 
 // AddFinalizer will add a finalizer to the object
-func AddFinalizer(r client.Writer, ctx context.Context, object client.Object) error {
+func AddFinalizer(r client.Writer, ctx context.Context, finalizer string, object client.Object) error {
 	log := log.FromContext(ctx)
 
-	if !controllerutil.ContainsFinalizer(object, customCertificateFinalizer) {
-		controllerutil.AddFinalizer(object, customCertificateFinalizer)
+	if !controllerutil.ContainsFinalizer(object, finalizer) {
+		controllerutil.AddFinalizer(object, finalizer)
 
 		if err := r.Update(ctx, object); err != nil {
 			log.Error(err, "Failed to update custom resource to add finalizer")
