@@ -15,10 +15,19 @@ rules:
   - ""
   resources:
   - secrets
+  - services
   verbs:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - services/status
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - nginxpm-operator.io
   resources:

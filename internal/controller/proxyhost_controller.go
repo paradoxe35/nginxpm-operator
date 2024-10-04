@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,6 +38,15 @@ type ProxyHostReconciler struct {
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=proxyhosts/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=proxyhosts/finalizers,verbs=update
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=tokens,verbs=get;list;watch
+// +kubebuilder:rbac:groups=nginxpm-operator.io,resources=tokens/status,verbs=get
+// +kubebuilder:rbac:groups=nginxpm-operator.io,resources=customcertificates,verbs=get;list;watch
+// +kubebuilder:rbac:groups=nginxpm-operator.io,resources=customcertificates/status,verbs=get
+// +kubebuilder:rbac:groups=nginxpm-operator.io,resources=letsencryptcertificates,verbs=get;list;watch
+// +kubebuilder:rbac:groups=nginxpm-operator.io,resources=letsencryptcertificates/status,verbs=get
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=services/status,verbs=get
+// +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -58,5 +68,10 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&nginxpmoperatoriov1.ProxyHost{}).
+		Owns(&corev1.Secret{}).
+		Owns(&corev1.Service{}).
+		Owns(&nginxpmoperatoriov1.Token{}).
+		Owns(&nginxpmoperatoriov1.CustomCertificate{}).
+		Owns(&nginxpmoperatoriov1.LetsEncryptCertificate{}).
 		Complete(r)
 }

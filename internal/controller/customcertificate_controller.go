@@ -67,6 +67,7 @@ type CustomCertificateKeys struct {
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=customcertificates/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=customcertificates/finalizers,verbs=update
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=tokens,verbs=get;list;watch
+// +kubebuilder:rbac:groups=nginxpm-operator.io,resources=tokens/status,verbs=get
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 
