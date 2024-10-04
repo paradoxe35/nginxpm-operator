@@ -197,26 +197,52 @@ func (c *Client) UploadCustomCertificate(id uint16, certificateContent, certific
 	return &uploadResponse, nil
 }
 
-// FindCertificateByID retrieves a certificate by its ID
-func (c *Client) FindCustomCertificateByID(id uint16) (*CustomCertificate, error) {
+func (c *Client) GetCustomCertificates() ([]CustomCertificate, error) {
 	resp, err := c.doRequest("GET", "/api/nginx/certificates", nil)
 
 	if err != nil {
-		return nil, fmt.Errorf("[FindCustomCertificateByID] error querying certificates: %w", err)
+		return nil, fmt.Errorf("[GetCustomCertificates] error querying certificates: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("[FindCustomCertificateByID] unexpected status code: %d", resp.StatusCode)
+		return nil, fmt.Errorf("[GetCustomCertificates] unexpected status code: %d", resp.StatusCode)
 	}
 
 	var certificates []CustomCertificate
 	if err := json.NewDecoder(resp.Body).Decode(&certificates); err != nil {
-		return nil, fmt.Errorf("[FindCustomCertificateByID] error decoding response: %w", err)
+		return nil, fmt.Errorf("[GetCustomCertificates] error decoding response: %w", err)
+	}
+
+	return certificates, nil
+}
+
+// FindCertificateByID retrieves a certificate by its ID
+func (c *Client) FindCustomCertificateByID(id uint16) (*CustomCertificate, error) {
+	certificates, err := c.GetCustomCertificates()
+	if err != nil {
+		return nil, err
 	}
 
 	for _, cert := range certificates {
 		if cert.ID == id && cert.Provider == CUSTOM_PROVIDER {
+			cert.Bound = false
+			return &cert, nil
+		}
+	}
+
+	return nil, nil // No matching certificate found
+}
+
+// FindCustomCertificateByName retrieves a certificate by its ID
+func (c *Client) FindCustomCertificateByName(name string) (*CustomCertificate, error) {
+	certificates, err := c.GetCustomCertificates()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, cert := range certificates {
+		if cert.NiceName == name && cert.Provider == CUSTOM_PROVIDER {
 			cert.Bound = false
 			return &cert, nil
 		}
