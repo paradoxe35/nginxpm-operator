@@ -37,7 +37,7 @@ type TokenName struct {
 	// +required
 	Namespace string `json:"namespace,omitempty"`
 
-	// Name of the token resource
+	// Namespace of the token resource
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +required
@@ -50,6 +50,13 @@ type SslCustomCertificate struct {
 	// +kubebuilder:validation:Type=string
 	// +required
 	Name string `json:"name,omitempty"`
+
+	// Namespace of the custom certificate resource
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern=`^[a-z]([-a-z0-9]*[a-z0-9])?$`
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
 }
 
 type SslLetsEncryptCertificate struct {
@@ -58,6 +65,13 @@ type SslLetsEncryptCertificate struct {
 	// +kubebuilder:validation:Type=string
 	// +required
 	Name string `json:"name,omitempty"`
+
+	// Namespace of the letsencrypt certificate resource
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern=`^[a-z]([-a-z0-9]*[a-z0-9])?$`
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
 }
 
 type Ssl struct {
@@ -156,6 +170,13 @@ type ForwardService struct {
 	// +kubebuilder:validation:Type=string
 	// +required
 	Name string `json:"name,omitempty"`
+
+	// Namespace of the service resource to forward to
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern=`^[a-z]([-a-z0-9]*[a-z0-9])?$`
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
 }
 
 type Forward struct {

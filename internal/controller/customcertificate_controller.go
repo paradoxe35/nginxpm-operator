@@ -353,8 +353,11 @@ func (r *CustomCertificateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// Add certificate secret to the indexer
 	if err := mgr.GetFieldIndexer().IndexField(
 		context.Background(),
+
 		&nginxpmoperatoriov1.CustomCertificate{},
+
 		CC_CERTIFICATE_FIELD,
+
 		func(rawObj client.Object) []string {
 			// Extract the Secret name from the Token Spec, if one is provided
 			cc := rawObj.(*nginxpmoperatoriov1.CustomCertificate)

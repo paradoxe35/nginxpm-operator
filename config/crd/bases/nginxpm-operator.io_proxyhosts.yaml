@@ -105,6 +105,11 @@ spec:
                               maxLength: 255
                               minLength: 1
                               type: string
+                            namespace:
+                              description: Namespace of the service resource to forward
+                                to
+                              pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
+                              type: string
                           required:
                           - name
                           type: object
@@ -178,6 +183,11 @@ spec:
                         maxLength: 255
                         minLength: 1
                         type: string
+                      namespace:
+                        description: Namespace of the service resource to forward
+                          to
+                        pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
+                        type: string
                     required:
                     - name
                     type: object
@@ -210,6 +220,10 @@ spec:
                       name:
                         description: Name of the custom certificate resource
                         type: string
+                      namespace:
+                        description: Namespace of the custom certificate resource
+                        pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
+                        type: string
                     required:
                     - name
                     type: object
@@ -233,6 +247,10 @@ spec:
                       name:
                         description: Name of the letsencrypt certificate resource
                         type: string
+                      namespace:
+                        description: Namespace of the letsencrypt certificate resource
+                        pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
+                        type: string
                     required:
                     - name
                     type: object
@@ -252,7 +270,7 @@ spec:
                   is the created auth token
                 properties:
                   name:
-                    description: Name of the token resource
+                    description: Namespace of the token resource
                     type: string
                   namespace:
                     description: Name of the token resource

@@ -26,8 +26,6 @@ rules:
   - services/status
   verbs:
   - get
-  - patch
-  - update
 - apiGroups:
   - nginxpm-operator.io
   resources:

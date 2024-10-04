@@ -28,6 +28,16 @@ import (
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
 )
 
+const (
+	proxyHostFinalizer = "proxyhost.nginxpm-operator.io/finalizers"
+
+	PH_TOKEN_FIELD = ".spec.token.name"
+
+	PH_CUSTOM_CERTIFICATE_FIELD = ".spec.ssl.customCertificate.name"
+
+	PH_LETSENCRYPT_CERTIFICATE_FIELD = ".spec.ssl.letsEncryptCertificate.name"
+)
+
 // ProxyHostReconciler reconciles a ProxyHost object
 type ProxyHostReconciler struct {
 	client.Client

@@ -74,7 +74,7 @@ spec:
                   requests
                 properties:
                   name:
-                    description: Name of the token resource
+                    description: Namespace of the token resource
                     type: string
                   namespace:
                     description: Name of the token resource
