@@ -84,6 +84,7 @@ spec:
                           type: object
                         path:
                           description: Add a path for sub-folder forwarding
+                          pattern: ^\/([a-zA-Z0-9._~-]+\/?)*$
                           type: string
                         scheme:
                           description: Scheme is the scheme to use for the forwarding,
@@ -162,6 +163,7 @@ spec:
                     type: object
                   path:
                     description: Add a path for sub-folder forwarding
+                    pattern: ^\/([a-zA-Z0-9._~-]+\/?)*$
                     type: string
                   scheme:
                     description: Scheme is the scheme to use for the forwarding, (http

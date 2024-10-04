@@ -36,6 +36,10 @@ const (
 	PH_CUSTOM_CERTIFICATE_FIELD = ".spec.ssl.customCertificate.name"
 
 	PH_LETSENCRYPT_CERTIFICATE_FIELD = ".spec.ssl.letsEncryptCertificate.name"
+
+	PH_FORWARD_SERVICE_FIELD = ".spec.forward.service.name"
+
+	PH_CUSTOM_LOCATION_FORWARD_FIELD = ".spec.customLocations.forward.service.name"
 )
 
 // ProxyHostReconciler reconciles a ProxyHost object

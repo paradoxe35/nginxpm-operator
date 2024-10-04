@@ -203,6 +203,7 @@ type Forward struct {
 	// Add a path for sub-folder forwarding
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern=`^\/([a-zA-Z0-9._~-]+\/?)*$`
 	// +optional
 	Path string `json:"path,omitempty"`
 
