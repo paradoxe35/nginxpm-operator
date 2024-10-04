@@ -29,6 +29,21 @@ import (
 // +required
 type DomainName string
 
+type TokenName struct {
+	// Name of the token resource
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern=`^[a-z]([-a-z0-9]*[a-z0-9])?$`
+	// +required
+	Namespace string `json:"namespace,omitempty"`
+
+	// Name of the token resource
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=string
+	// +required
+	Name string `json:"name,omitempty"`
+}
+
 type SslCustomCertificate struct {
 	// Name of the custom certificate resource
 	// +kubebuilder:validation:Required
@@ -128,7 +143,7 @@ type ForwardHost struct {
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Pattern=`^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$`
 	// +required
-	Port string `json:"port,omitempty"`
+	HostPort string `json:"hostPort,omitempty"`
 }
 
 type ForwardService struct {
@@ -163,21 +178,33 @@ type Forward struct {
 	// +kubebuilder:validation:Type=object
 	// +optional
 	Host *ForwardHost `json:"host,omitempty"`
+
+	// Add a path for sub-folder forwarding
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +optional
+	Path string `json:"path,omitempty"`
+
+	// AdvancedConfig is the advanced configuration for the proxyhost, at your own risk
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +optional
+	AdvancedConfig string `json:"advancedConfig,omitempty"`
 }
 
-type TokenName struct {
-	// Name of the token resource
+type CustomLocation struct {
+	// Define location Location path
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
-	// +kubebuilder:validation:Pattern=`^[a-z]([-a-z0-9]*[a-z0-9])?$`
+	// +kubebuilder:validation:Pattern=`^\/([a-zA-Z0-9._~-]+\/?)*$`
 	// +required
-	Namespace string `json:"namespace,omitempty"`
+	LocationPath string `json:"locationPath,omitempty"`
 
-	// Name of the token resource
+	// The Service forward configuration for the custom location
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Type=object
 	// +required
-	Name string `json:"name,omitempty"`
+	Forward Forward `json:"forward,omitempty"`
 }
 
 // ProxyHostSpec defines the desired state of ProxyHost
@@ -233,11 +260,11 @@ type ProxyHostSpec struct {
 	// +required
 	Forward Forward `json:"forward,omitempty"`
 
-	// AdvancedConfig is the advanced configuration for the proxyhost, at your own risk
+	// CustomLocations is the list of custom locations to add to the proxyhost
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Type=array
 	// +optional
-	AdvancedConfig string `json:"advancedConfig,omitempty"`
+	CustomLocations []CustomLocation `json:"customLocations,omitempty"`
 }
 
 // ProxyHostStatus defines the observed state of ProxyHost

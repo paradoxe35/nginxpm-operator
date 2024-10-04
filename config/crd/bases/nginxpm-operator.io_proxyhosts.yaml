@@ -39,10 +39,6 @@ spec:
           spec:
             description: ProxyHostSpec defines the desired state of ProxyHost
             properties:
-              advancedConfig:
-                description: AdvancedConfig is the advanced configuration for the
-                  proxyhost, at your own risk
-                type: string
               blockExploits:
                 default: true
                 description: BlockExploits is the flag to enable or disable blocking
@@ -53,6 +49,77 @@ spec:
                 description: CachingEnabled is the flag to enable or disable caching,
                   default is false
                 type: boolean
+              customLocations:
+                description: CustomLocations is the list of custom locations to add
+                  to the proxyhost
+                items:
+                  properties:
+                    forward:
+                      description: The Service forward configuration for the custom
+                        location
+                      properties:
+                        advancedConfig:
+                          description: AdvancedConfig is the advanced configuration
+                            for the proxyhost, at your own risk
+                          type: string
+                        host:
+                          description: Host configuration, the Service configuration
+                            is the preferred way
+                          properties:
+                            hostName:
+                              description: The host to forward to (This must be a
+                                valid DNS name or IP address)
+                              maxLength: 255
+                              minLength: 1
+                              pattern: ^((([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)\.)*[a-zA-Z]{2,63}|((25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)|(([0-9a-fA-F]{1,4}:){7}([0-9a-fA-F]{1,4}|:))|(::([0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}))$
+                              type: string
+                            hostPort:
+                              description: Service Target Port is the port to forward
+                                to
+                              pattern: ^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$
+                              type: string
+                          required:
+                          - hostName
+                          - hostPort
+                          type: object
+                        path:
+                          description: Add a path for sub-folder forwarding
+                          type: string
+                        scheme:
+                          description: Scheme is the scheme to use for the forwarding,
+                            (http or https)
+                          enum:
+                          - http
+                          - https
+                          type: string
+                        service:
+                          description: |-
+                            Service resource reference to forward to
+                            This is the preferred way to forward to a service than the host configuration
+                          properties:
+                            name:
+                              description: |-
+                                Name of the service resource to forward to
+                                IP and port of the service will be used as the forwarding target
+                                Only ClusterIP and LoadBalancer services are supported
+                              maxLength: 255
+                              minLength: 1
+                              type: string
+                          required:
+                          - name
+                          type: object
+                      required:
+                      - scheme
+                      type: object
+                    locationPath:
+                      description: Define location Location path
+                      pattern: ^\/([a-zA-Z0-9._~-]+\/?)*$
+                      type: string
+                  required:
+                  - forward
+                  - locationPath
+                  type: object
+                type: array
               domainNames:
                 description: DomainNames is the list of domain names to add to the
                   proxyhost
@@ -65,6 +132,10 @@ spec:
               forward:
                 description: The Service forward configuration for the proxyhost
                 properties:
+                  advancedConfig:
+                    description: AdvancedConfig is the advanced configuration for
+                      the proxyhost, at your own risk
+                    type: string
                   host:
                     description: Host configuration, the Service configuration is
                       the preferred way
@@ -76,14 +147,17 @@ spec:
                         minLength: 1
                         pattern: ^((([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)\.)*[a-zA-Z]{2,63}|((25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)|(([0-9a-fA-F]{1,4}:){7}([0-9a-fA-F]{1,4}|:))|(::([0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}))$
                         type: string
-                      port:
+                      hostPort:
                         description: Service Target Port is the port to forward to
                         pattern: ^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$
                         type: string
                     required:
                     - hostName
-                    - port
+                    - hostPort
                     type: object
+                  path:
+                    description: Add a path for sub-folder forwarding
+                    type: string
                   scheme:
                     description: Scheme is the scheme to use for the forwarding, (http
                       or https)
