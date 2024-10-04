@@ -18,12 +18,22 @@ package controller
 
 import (
 	"context"
+	"fmt"
+	"slices"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
 )
@@ -45,7 +55,8 @@ const (
 // ProxyHostReconciler reconciles a ProxyHost object
 type ProxyHostReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=proxyhosts,verbs=get;list;watch;create;update;patch;delete
@@ -71,21 +82,231 @@ type ProxyHostReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/reconcile
 func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	log := log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	ph := &nginxpmoperatoriov1.ProxyHost{}
+
+	// Fetch the ProxyHost instance
+	err := r.Get(ctx, req.NamespacedName, ph)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// If the custom resource is not found then it usually means that it was deleted or not created
+			// In this way, we will stop the reconciliation
+			log.Info("proxyHost resource not found. Ignoring since object must be deleted")
+			return ctrl.Result{}, nil
+		}
+		// Error reading the object - requeue the request.
+		log.Error(err, "Failed to get proxyHost")
+		return ctrl.Result{}, err
+	}
+
+	isMarkedToBeDeleted := !ph.ObjectMeta.DeletionTimestamp.IsZero()
+
+	// Let's add a finalizer. Then, we can define some operations which should
+	// occur before the custom resource to be deleted.
+	if !isMarkedToBeDeleted {
+		if err := AddFinalizer(r, ctx, proxyHostFinalizer, ph); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	// Create a new Nginx Proxy Manager client
+	nginxpmClient, err := InitNginxPMClient(ctx, r, ph.Spec.Token.Name, ph.Spec.Token.Namespace)
+	if err != nil {
+		// Stop reconciliation if the resource is marked for deletion and the client can't be created
+		if isMarkedToBeDeleted {
+			// Remove the finalizer
+			if err := RemoveFinalizer(r, ctx, proxyHostFinalizer, ph); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{}, nil
+		} else {
+			r.Recorder.Event(
+				ph, "Warning", "InitNginxPMClient",
+				fmt.Sprintf("Failed to init nginxpm client, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+			)
+		}
+
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Add the Token to the indexer
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+
+		&nginxpmoperatoriov1.ProxyHost{},
+
+		PH_TOKEN_FIELD,
+
+		func(rawObj client.Object) []string {
+			// Extract the Secret name from the Token Spec, if one is provided
+			ph := rawObj.(*nginxpmoperatoriov1.ProxyHost)
+			if ph.Spec.Token.Name == "" {
+				return nil
+			}
+			return []string{ph.Spec.Token.Name}
+		}); err != nil {
+		return err
+	}
+
+	// Add the CustomCertificate to the indexer
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+
+		&nginxpmoperatoriov1.ProxyHost{},
+
+		PH_CUSTOM_CERTIFICATE_FIELD,
+
+		func(rawObj client.Object) []string {
+			// Extract the Secret name from the Token Spec, if one is provided
+			ph := rawObj.(*nginxpmoperatoriov1.ProxyHost)
+			if ph.Spec.Ssl.CustomCertificate == nil || ph.Spec.Ssl.CustomCertificate.Name == "" {
+				return nil
+			}
+			return []string{ph.Spec.Ssl.CustomCertificate.Name}
+		}); err != nil {
+		return err
+	}
+
+	// Add the LetsEncryptCertificate to the indexer
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+
+		&nginxpmoperatoriov1.ProxyHost{},
+
+		PH_LETSENCRYPT_CERTIFICATE_FIELD,
+
+		func(rawObj client.Object) []string {
+			// Extract the Secret name from the Token Spec, if one is provided
+			ph := rawObj.(*nginxpmoperatoriov1.ProxyHost)
+			if ph.Spec.Ssl.LetsEncryptCertificate == nil || ph.Spec.Ssl.LetsEncryptCertificate.Name == "" {
+				return nil
+			}
+			return []string{ph.Spec.Ssl.LetsEncryptCertificate.Name}
+		}); err != nil {
+		return err
+	}
+
+	// Add the Forward Service to the indexer
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+
+		&nginxpmoperatoriov1.ProxyHost{},
+
+		PH_FORWARD_SERVICE_FIELD,
+
+		func(rawObj client.Object) []string {
+			// Extract the Secret name from the Token Spec, if one is provided
+			ph := rawObj.(*nginxpmoperatoriov1.ProxyHost)
+			if ph.Spec.Forward.Service == nil || ph.Spec.Forward.Service.Name == "" {
+				return nil
+			}
+			return []string{ph.Spec.Forward.Service.Name}
+		}); err != nil {
+		return err
+	}
+
+	// Add the CustomLocation Forward Service to the indexer
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+
+		&nginxpmoperatoriov1.ProxyHost{},
+
+		PH_CUSTOM_LOCATION_FORWARD_FIELD,
+
+		func(rawObj client.Object) []string {
+			// Extract the Secret name from the Token Spec, if one is provided
+			ph := rawObj.(*nginxpmoperatoriov1.ProxyHost)
+			if len(ph.Spec.CustomLocations) == 0 {
+				return nil
+			}
+
+			var fieldsList []string
+
+			for _, location := range ph.Spec.CustomLocations {
+				if location.Forward.Service == nil || location.Forward.Service.Name == "" {
+					continue
+				}
+
+				// Append if not already present
+				if !slices.Contains(fieldsList, location.Forward.Service.Name) {
+					fieldsList = append(fieldsList, location.Forward.Service.Name)
+				}
+			}
+
+			if len(fieldsList) == 0 {
+				return nil
+			}
+
+			return fieldsList
+		}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&nginxpmoperatoriov1.ProxyHost{}).
-		Owns(&corev1.Secret{}).
-		Owns(&corev1.Service{}).
 		Owns(&nginxpmoperatoriov1.Token{}).
 		Owns(&nginxpmoperatoriov1.CustomCertificate{}).
 		Owns(&nginxpmoperatoriov1.LetsEncryptCertificate{}).
+		Owns(&corev1.Service{}).
+		Watches(
+			&nginxpmoperatoriov1.Token{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForObjects(PH_TOKEN_FIELD)),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&nginxpmoperatoriov1.CustomCertificate{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForObjects(PH_CUSTOM_CERTIFICATE_FIELD)),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&nginxpmoperatoriov1.LetsEncryptCertificate{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForObjects(PH_LETSENCRYPT_CERTIFICATE_FIELD)),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&corev1.Service{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForObjects(PH_FORWARD_SERVICE_FIELD)),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&corev1.Service{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForObjects(PH_CUSTOM_LOCATION_FORWARD_FIELD)),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Complete(r)
+}
+
+func (r *ProxyHostReconciler) findObjectsForObjects(field string) func(ctx context.Context, obj client.Object) []reconcile.Request {
+	return func(ctx context.Context, object client.Object) []reconcile.Request {
+		attachedObjects := &nginxpmoperatoriov1.ProxyHostList{}
+
+		listOps := &client.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector(field, object.GetName()),
+			Namespace:     object.GetNamespace(),
+		}
+
+		err := r.List(ctx, attachedObjects, listOps)
+		if err != nil {
+			return []reconcile.Request{}
+		}
+
+		requests := make([]reconcile.Request, len(attachedObjects.Items))
+		for i, item := range attachedObjects.Items {
+			requests[i] = reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      item.GetName(),
+					Namespace: item.GetNamespace(),
+				},
+			}
+		}
+
+		return requests
+	}
 }

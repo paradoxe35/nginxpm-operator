@@ -19,6 +19,11 @@ package controller
 import (
 	"context"
 
+	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
+	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
+	"github.com/paradoxe35/nginxpm-operator/pkg/util"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -51,6 +56,58 @@ func AddFinalizer(r client.Writer, ctx context.Context, finalizer string, object
 			log.Error(err, "Failed to update custom resource to add finalizer")
 			return err
 		}
+	}
+
+	return nil
+}
+
+func InitNginxPMClient(ctx context.Context, r client.Reader, name string, namespace string) (*nginxpm.Client, error) {
+	log := log.FromContext(ctx)
+
+	token := &nginxpmoperatoriov1.Token{}
+	tokenName := types.NamespacedName{
+		Namespace: namespace,
+		Name:      name,
+	}
+
+	// Get the token resource
+	if err := r.Get(ctx, tokenName, token); err != nil {
+		log.Error(err, "Failed to get token resource")
+		return nil, err
+	}
+
+	// Create a new Nginx Proxy Manager client
+	nginxpmClient := nginxpm.NewClientFromToken(util.NewHttpClient(), token)
+
+	// Check if the connection is established
+	if err := nginxpmClient.CheckTokenAccess(); err != nil {
+		log.Error(err, "Token access check failed")
+		return nil, err
+	}
+
+	log.Info("NginxPM client initialized successfully")
+
+	return nginxpmClient, nil
+}
+
+func UpdateStatus(ctx context.Context, r client.Client, object client.Object, namespacedName types.NamespacedName, mutate func()) error {
+	log := log.FromContext(ctx)
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, namespacedName, object)
+		if err != nil {
+			return err
+		}
+
+		mutate()
+
+		// Update the object status
+		return r.Status().Update(ctx, object)
+	})
+
+	if err != nil {
+		log.Error(err, "Failed to update resource status")
+		return err
 	}
 
 	return nil

@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,7 +39,6 @@ import (
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
 	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
-	"github.com/paradoxe35/nginxpm-operator/pkg/util"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -108,7 +106,7 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 
 	// Create a new Nginx Proxy Manager client
 	// If the client can't be created, we will remove the finalizer
-	nginxpmClient, err := r.initNginxPMClient(ctx, lec)
+	nginxpmClient, err := InitNginxPMClient(ctx, r, lec.Spec.Token.Name, lec.Spec.Token.Namespace)
 	if err != nil {
 		// Stop reconciliation if the resource is marked for deletion and the client can't be created
 		if isMarkedToBeDeleted {
@@ -118,6 +116,11 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 			}
 
 			return ctrl.Result{}, nil
+		} else {
+			r.Recorder.Event(
+				lec, "Warning", "InitNginxPMClient",
+				fmt.Sprintf("Failed to init nginxpm client, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+			)
 		}
 
 		return ctrl.Result{}, err
@@ -237,19 +240,19 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 		)
 
 		// Update bound status only if the LetsEncryptCertificate is created
-		return ctrl.Result{}, r.updateStatus(lec, ctx, req, func(status *nginxpmoperatoriov1.LetsEncryptCertificateStatus) {
-			status.Bound = certificate.Bound
-			status.Id = &certificate.ID
-			status.DomainNames = certificate.DomainNames
-			status.ExpiresOn = &certificate.ExpiresOn
+		return ctrl.Result{}, UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
+			lec.Status.Bound = certificate.Bound
+			lec.Status.Id = &certificate.ID
+			lec.Status.DomainNames = certificate.DomainNames
+			lec.Status.ExpiresOn = &certificate.ExpiresOn
 		})
 	}
 
 	// Update the LetsEncryptCertificate status
-	return ctrl.Result{}, r.updateStatus(lec, ctx, req, func(status *nginxpmoperatoriov1.LetsEncryptCertificateStatus) {
-		status.Id = &certificate.ID
-		status.DomainNames = certificate.DomainNames
-		status.ExpiresOn = &certificate.ExpiresOn
+	return ctrl.Result{}, UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
+		lec.Status.Id = &certificate.ID
+		lec.Status.DomainNames = certificate.DomainNames
+		lec.Status.ExpiresOn = &certificate.ExpiresOn
 	})
 }
 
@@ -287,69 +290,6 @@ func (r *LetsEncryptCertificateReconciler) getDnsChallengeProviderCredentials(ct
 	credentialsValue = string(credentials)
 
 	return credentialsValue, nil
-}
-
-// initNginxPMClient will create a new Nginx Proxy Manager client from the token resource
-func (r *LetsEncryptCertificateReconciler) initNginxPMClient(ctx context.Context, lec *nginxpmoperatoriov1.LetsEncryptCertificate) (*nginxpm.Client, error) {
-	log := log.FromContext(ctx)
-
-	token := &nginxpmoperatoriov1.Token{}
-	tokenName := types.NamespacedName{
-		Namespace: lec.Spec.Token.Namespace,
-		Name:      lec.Spec.Token.Name,
-	}
-
-	// Get the token resource
-	if err := r.Get(ctx, tokenName, token); err != nil {
-		log.Error(err, "Failed to get token resource")
-
-		r.Recorder.Event(
-			lec, "Warning", "GetToken",
-			fmt.Sprintf("Failed to get token resource, ResourceName: %s, Namespace: %s", tokenName.Name, tokenName.Namespace),
-		)
-		return nil, err
-	}
-
-	// Create a new Nginx Proxy Manager client
-	nginxpmClient := nginxpm.NewClientFromToken(util.NewHttpClient(), token)
-
-	// Check if the connection is established
-	if err := nginxpmClient.CheckTokenAccess(); err != nil {
-		log.Error(err, "Token access check failed")
-
-		r.Recorder.Event(
-			lec, "Warning", "CheckTokenAccess",
-			fmt.Sprintf("Failed to check token access, ResourceName: %s, Namespace: %s", tokenName.Name, tokenName.Namespace),
-		)
-		return nil, err
-	}
-
-	log.Info("NginxPM client initialized successfully")
-
-	return nginxpmClient, nil
-}
-
-func (r *LetsEncryptCertificateReconciler) updateStatus(lec *nginxpmoperatoriov1.LetsEncryptCertificate, ctx context.Context, req ctrl.Request, mutate func(status *nginxpmoperatoriov1.LetsEncryptCertificateStatus)) error {
-	log := log.FromContext(ctx)
-
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := r.Get(ctx, req.NamespacedName, lec)
-		if err != nil {
-			return err
-		}
-
-		mutate(&lec.Status)
-
-		// Update the object status
-		return r.Status().Update(ctx, lec)
-	})
-
-	if err != nil {
-		log.Error(err, "Failed to update LetsEncryptCertificate status")
-		return err
-	}
-
-	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

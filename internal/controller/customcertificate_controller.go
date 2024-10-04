@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,7 +39,6 @@ import (
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
 	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
-	"github.com/paradoxe35/nginxpm-operator/pkg/util"
 )
 
 const (
@@ -112,7 +110,7 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	// Create a new Nginx Proxy Manager client
 	// If the client can't be created, we will remove the finalizer
-	nginxpmClient, err := r.initNginxPMClient(ctx, cc)
+	nginxpmClient, err := InitNginxPMClient(ctx, r, cc.Spec.Token.Name, cc.Spec.Token.Namespace)
 	if err != nil {
 		// Stop reconciliation if the resource is marked for deletion and the client can't be created
 		if isMarkedToBeDeleted {
@@ -122,6 +120,11 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			}
 
 			return ctrl.Result{}, nil
+		} else {
+			r.Recorder.Event(
+				cc, "Warning", "InitNginxPMClient",
+				fmt.Sprintf("Failed to init nginxpm client, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+			)
 		}
 
 		return ctrl.Result{}, err
@@ -173,9 +176,9 @@ func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req
 		if err != nil {
 			log.Error(err, "Failed to find CustomCertificate by ID")
 
-			r.updateStatus(cc, ctx, req, func(status *nginxpmoperatoriov1.CustomCertificateStatus) {
+			UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
 				msg := "Failed to find CustomCertificate by ID"
-				status.Status = &msg
+				cc.Status.Status = &msg
 			})
 
 			return ctrl.Result{}, err
@@ -191,9 +194,9 @@ func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req
 		// Retrieve the certificate and certificate key from the secret
 		certificateKeys, err := r.getCertificateKeys(ctx, req, cc)
 		if err != nil {
-			r.updateStatus(cc, ctx, req, func(status *nginxpmoperatoriov1.CustomCertificateStatus) {
+			UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
 				msg := "Failed to retrieve certificate and certificate key"
-				status.Status = &msg
+				cc.Status.Status = &msg
 			})
 
 			return ctrl.Result{}, err
@@ -226,9 +229,9 @@ func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req
 				fmt.Sprintf("Failed to create CustomCertificate, Cert Name: %s, Namespace: %s", niceName, req.Namespace),
 			)
 
-			r.updateStatus(cc, ctx, req, func(status *nginxpmoperatoriov1.CustomCertificateStatus) {
+			UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
 				msg := "Failed to create CustomCertificate"
-				status.Status = &msg
+				cc.Status.Status = &msg
 			})
 
 			return ctrl.Result{RequeueAfter: time.Minute * 1}, nil
@@ -240,12 +243,12 @@ func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req
 		)
 	}
 
-	return ctrl.Result{}, r.updateStatus(cc, ctx, req, func(status *nginxpmoperatoriov1.CustomCertificateStatus) {
+	return ctrl.Result{}, UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
 		msg := "Certificate ready"
 
-		status.Id = &certificate.ID
-		status.ExpiresOn = &certificate.ExpiresOn
-		status.Status = &msg
+		cc.Status.Id = &certificate.ID
+		cc.Status.ExpiresOn = &certificate.ExpiresOn
+		cc.Status.Status = &msg
 	})
 }
 
@@ -283,69 +286,6 @@ func (r *CustomCertificateReconciler) getCertificateKeys(ctx context.Context, re
 	}
 
 	return &CustomCertificateKeys{Certificate: certificate, CertificateKey: certificateKey}, nil
-}
-
-// initNginxPMClient will create a new Nginx Proxy Manager client from the token resource
-func (r *CustomCertificateReconciler) initNginxPMClient(ctx context.Context, cc *nginxpmoperatoriov1.CustomCertificate) (*nginxpm.Client, error) {
-	log := log.FromContext(ctx)
-
-	token := &nginxpmoperatoriov1.Token{}
-	tokenName := types.NamespacedName{
-		Namespace: cc.Spec.Token.Namespace,
-		Name:      cc.Spec.Token.Name,
-	}
-
-	// Get the token resource
-	if err := r.Get(ctx, tokenName, token); err != nil {
-		log.Error(err, "Failed to get token resource")
-
-		r.Recorder.Event(
-			cc, "Warning", "GetToken",
-			fmt.Sprintf("Failed to get token resource, ResourceName: %s, Namespace: %s", tokenName.Name, tokenName.Namespace),
-		)
-		return nil, err
-	}
-
-	// Create a new Nginx Proxy Manager client
-	nginxpmClient := nginxpm.NewClientFromToken(util.NewHttpClient(), token)
-
-	// Check if the connection is established
-	if err := nginxpmClient.CheckTokenAccess(); err != nil {
-		log.Error(err, "Token access check failed")
-
-		r.Recorder.Event(
-			cc, "Warning", "CheckTokenAccess",
-			fmt.Sprintf("Failed to check token access, ResourceName: %s, Namespace: %s", tokenName.Name, tokenName.Namespace),
-		)
-		return nil, err
-	}
-
-	log.Info("NginxPM client initialized successfully")
-
-	return nginxpmClient, nil
-}
-
-func (r *CustomCertificateReconciler) updateStatus(cc *nginxpmoperatoriov1.CustomCertificate, ctx context.Context, req ctrl.Request, mutate func(status *nginxpmoperatoriov1.CustomCertificateStatus)) error {
-	log := log.FromContext(ctx)
-
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := r.Get(ctx, req.NamespacedName, cc)
-		if err != nil {
-			return err
-		}
-
-		mutate(&cc.Status)
-
-		// Update the object status
-		return r.Status().Update(ctx, cc)
-	})
-
-	if err != nil {
-		log.Error(err, "Failed to update CustomCertificate status")
-		return err
-	}
-
-	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
