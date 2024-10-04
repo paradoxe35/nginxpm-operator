@@ -8,26 +8,35 @@ metadata:
 spec:
   token:
     name: token-sample
+    namespace: default
 
   domainNames:
     - example.com
 
-  blockingExploits: true
+  blockExploits: true
   websocketSupport: true
   cachingEnabled: false
   # Add custom configuration to the proxyhost, at your own risk
   # advancedConfig: ""
+  customLocations:
+    - locationPath: /
+      forward:
+        scheme: http
+        service:
+          name: nginx-service
+        # Or you can use the host configuration
+        # host:
+        #   hostName: 192.168.1.4 # HostName|IP
+        #   hostPort: "80"
 
   forward:
     scheme: http
     service:
       name: nginx-service
-  # Or you can use the host configuration
-  # forward:
-  #  scheme: http
-  #  host:
-  #    hostName: 192.168.1.4 # HostName|IP
-  #    port: 80
+    # Or you can use the host configuration
+    # host:
+    #   hostName: 192.168.1.4 # HostName|IP
+    #   hostPort: "80"
 
   ssl:
     autoCertificateRequest: true # This generates a new certificate or reuses an existing certificate that matches the domain name
