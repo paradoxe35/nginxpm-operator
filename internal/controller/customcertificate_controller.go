@@ -244,18 +244,18 @@ func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req
 	})
 }
 
-func (r *CustomCertificateReconciler) getCertificateKeys(ctx context.Context, req ctrl.Request, lec *nginxpmoperatoriov1.CustomCertificate) (*CustomCertificateKeys, error) {
+func (r *CustomCertificateReconciler) getCertificateKeys(ctx context.Context, req ctrl.Request, cc *nginxpmoperatoriov1.CustomCertificate) (*CustomCertificateKeys, error) {
 	log := log.FromContext(ctx)
 
 	secret := &corev1.Secret{}
 	// Retrieve the ProviderCredentials secret
-	secretName := lec.Spec.Certificate.Secret.Name
+	secretName := cc.Spec.Certificate.Secret.Name
 	if err := r.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: secretName}, secret); err != nil {
 		// If the secret resource is not found, we will not be able to create the token
 		log.Error(err, "Secret resource not found, please check the secret resource name")
 
 		r.Recorder.Event(
-			lec, "Warning", "getCertificateKeys",
+			cc, "Warning", "getCertificateKeys",
 			fmt.Sprintf("Failed to get secret resource, ResourceName: %s, Namespace: %s", secretName, req.Namespace),
 		)
 		return nil, err
@@ -347,7 +347,9 @@ func (r *CustomCertificateReconciler) updateStatus(cc *nginxpmoperatoriov1.Custo
 func (r *CustomCertificateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// Add certificate secret to the indexer
 	if err := mgr.GetFieldIndexer().IndexField(
-		context.Background(), &nginxpmoperatoriov1.CustomCertificate{}, LEC_DNS_CHALLENGE_CRED_SECRET_FIELD,
+		context.Background(),
+		&nginxpmoperatoriov1.CustomCertificate{},
+		CC_CERTIFICATE_FIELD,
 		func(rawObj client.Object) []string {
 			// Extract the Secret name from the Token Spec, if one is provided
 			cc := rawObj.(*nginxpmoperatoriov1.CustomCertificate)
@@ -361,14 +363,18 @@ func (r *CustomCertificateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	// Add the Token to the indexer
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &nginxpmoperatoriov1.CustomCertificate{}, LEC_TOKEN_FIELD, func(rawObj client.Object) []string {
-		// Extract the Secret name from the Token Spec, if one is provided
-		cc := rawObj.(*nginxpmoperatoriov1.CustomCertificate)
-		if cc.Spec.Token.Name == "" {
-			return nil
-		}
-		return []string{cc.Spec.Token.Name}
-	}); err != nil {
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+		&nginxpmoperatoriov1.CustomCertificate{},
+		CC_TOKEN_FIELD,
+		func(rawObj client.Object) []string {
+			// Extract the Secret name from the Token Spec, if one is provided
+			cc := rawObj.(*nginxpmoperatoriov1.CustomCertificate)
+			if cc.Spec.Token.Name == "" {
+				return nil
+			}
+			return []string{cc.Spec.Token.Name}
+		}); err != nil {
 		return err
 	}
 
