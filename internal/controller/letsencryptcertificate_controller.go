@@ -109,18 +109,15 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 	// If the client can't be created, we will remove the finalizer
 	nginxpmClient, err := r.initNginxPMClient(ctx, lec)
 	if err != nil {
-		// If the can't initialize the client, we will remove the finalizer
-		if err := RemoveFinalizer(r, ctx, letsEncryptCertificateFinalizer, lec); err != nil {
-			return ctrl.Result{}, err
-		}
-
 		// Stop reconciliation if the resource is marked for deletion and the client can't be created
 		if isMarkedToBeDeleted {
+			RemoveFinalizer(r, ctx, letsEncryptCertificateFinalizer, lec)
+
 			return ctrl.Result{}, nil
 		}
 
-		log.Error(err, "Failed to initialize the client, will retry in 30 seconds")
-		return ctrl.Result{RequeueAfter: time.Duration(30) * time.Second}, nil
+		log.Error(err, "Failed to initialize the client, will retry in 1 minute")
+		return ctrl.Result{RequeueAfter: time.Minute * 1}, nil
 	}
 
 	// If the resource is marked for deletion
@@ -323,6 +320,8 @@ func (r *LetsEncryptCertificateReconciler) initNginxPMClient(ctx context.Context
 		)
 		return nil, err
 	}
+
+	log.Info("NginxPM client initialized successfully")
 
 	return nginxpmClient, nil
 }
