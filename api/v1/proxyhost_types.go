@@ -248,6 +248,13 @@ type ProxyHostSpec struct {
 	// +required
 	DomainNames []DomainName `json:"domainNames,omitempty"`
 
+	// Bind existing proxyhost that matches the domain names
+	// +kubebuilder:default:=true
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=boolean
+	// +optional
+	BindExisting bool `json:"bindExisting,omitempty"`
+
 	// CachingEnabled is the flag to enable or disable caching, default is false
 	// +kubebuilder:default:=false
 	// +kubebuilder:validation:Optional
@@ -297,7 +304,7 @@ type ProxyHostStatus struct {
 	// ProxyHost ID in the Nginx Proxy Manager instance
 	Id *int16 `json:"id,omitempty"`
 
-	// Whether the LetsEncryptCertificate was bound with an existing proxyhost
+	// Whether the ProxyHost was bound with an existing proxyhost
 	// +kubebuilder:default:=false
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=boolean

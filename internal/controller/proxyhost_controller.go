@@ -30,6 +30,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -129,6 +130,31 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 
 		return ctrl.Result{}, err
+	}
+
+	// Delete the ProxyHost record in the Nginx Proxy Manager instance before deleting the resource
+	if isMarkedToBeDeleted {
+		if controllerutil.ContainsFinalizer(ph, proxyHostFinalizer) {
+			log.Info("Performing Finalizer Operations for ProxyHost")
+
+			// Delete the ProxyHost record in the Nginx Proxy Manager instance
+			// If the ProxyHost is bound, we will not delete the record
+			if ph.Status.Id != nil && !ph.Status.Bound {
+				log.Info("Deleting ProxyHost record in Nginx Proxy Manager instance")
+				err := nginxpmClient.DeleteProxyHost(int(*ph.Status.Id))
+
+				if err != nil {
+					log.Error(err, "Failed to delete ProxyHost record in Nginx Proxy Manager instance")
+				}
+			}
+
+			// Remove the finalizer
+			if err := RemoveFinalizer(r, ctx, proxyHostFinalizer, ph); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+
+		return ctrl.Result{}, nil
 	}
 
 	return ctrl.Result{}, nil
