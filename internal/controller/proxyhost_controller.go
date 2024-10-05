@@ -268,6 +268,8 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	if certificateID != nil {
 		certId := int(*certificateID)
 		input.CertificateID = &certId
+
+		log.Info("Certificate ID found, applied to proxy host")
 	} else {
 		log.Info("No certificate found, ignoring certificate operation")
 		input.CertificateID = nil
@@ -313,6 +315,8 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 // ############################################# CUSTOM LOCATION OPERATION ######################################
 
 func (r *ProxyHostReconciler) constructCustomLocation(ctx context.Context, req ctrl.Request, ph *nginxpmoperatoriov1.ProxyHost) ([]nginxpm.ProxyHostLocation, error) {
+	log := log.FromContext(ctx)
+
 	customLocations := make([]nginxpm.ProxyHostLocation, len(ph.Spec.CustomLocations))
 
 	for i, location := range ph.Spec.CustomLocations {
@@ -329,6 +333,8 @@ func (r *ProxyHostReconciler) constructCustomLocation(ctx context.Context, req c
 			ForwardPort:    forward.Port,
 		}
 	}
+
+	log.Info("CustomLocations found, applying to proxy host")
 
 	return customLocations, nil
 }
@@ -349,6 +355,8 @@ func (r *ProxyHostReconciler) makeForward(ctx context.Context, req ctrl.Request,
 
 	// When forward service is provided
 	if forward.Service != nil && forward.Host == nil {
+		log.Info(fmt.Sprintf("Service resource is provided, finding service from Service resource, label: %s", label))
+
 		service := &corev1.Service{}
 
 		// If namespace is not provided, use the namespace of the proxyhost
@@ -417,6 +425,8 @@ func (r *ProxyHostReconciler) makeForward(ctx context.Context, req ctrl.Request,
 
 	// When forward host is provided
 	if forward.Host != nil {
+		log.Info(fmt.Sprintf("Host configuration is provided, applying to proxy host, label: %s", label))
+
 		proxyHostForward = &ProxyHostForward{
 			Scheme:         forward.Scheme,
 			Host:           forward.Host.HostName,
@@ -443,6 +453,7 @@ func (r *ProxyHostReconciler) makeCertificate(ctx context.Context, req ctrl.Requ
 
 	// if LetsEncryptCertificate is provided, then find the certificate from Let's Encrypt resource
 	if ph.Spec.Ssl.LetsEncryptCertificate != nil {
+		log.Info("LetsEncryptCertificate is provided, finding certificate from LetsEncryptCertificate resource")
 		certificate, err = r.getLetsEncryptCertificateFromReference(ctx, req, ph.Spec.Ssl.LetsEncryptCertificate, nginxpmClient)
 		if err != nil {
 			return nil, err
@@ -451,6 +462,7 @@ func (r *ProxyHostReconciler) makeCertificate(ctx context.Context, req ctrl.Requ
 
 	// if CustomCertificate is provided, then find the certificate from CustomCertificate resource
 	if ph.Spec.Ssl.CustomCertificate != nil {
+		log.Info("CustomCertificate is provided, finding certificate from CustomCertificate resource")
 		certificate, err = r.getCustomCertificateFromReference(ctx, req, ph.Spec.Ssl.CustomCertificate, nginxpmClient)
 		if err != nil {
 			return nil, err
@@ -459,6 +471,7 @@ func (r *ProxyHostReconciler) makeCertificate(ctx context.Context, req ctrl.Requ
 
 	// if CertificateId is provided, then find the certificate from the ID
 	if ph.Spec.Ssl.CertificateId != nil {
+		log.Info("CertificateId is provided, finding certificate from ID")
 		certificate, err = r.getCertificateFromID(ctx, *ph.Spec.Ssl.CertificateId, nginxpmClient)
 		if err != nil {
 			return nil, err
@@ -468,6 +481,7 @@ func (r *ProxyHostReconciler) makeCertificate(ctx context.Context, req ctrl.Requ
 	// If None of the above is provided and AutoCertificateRequest is enabled,
 	// then we find or create a new certificate from Let's Encrypt
 	if ph.Spec.Ssl.AutoCertificateRequest && certificate == nil {
+		log.Info("Since no LetsEncryptCertificate, CustomCertificate, or CertificateId is provided, AutoCertificateRequest is enabled, finding or creating certificate")
 		certificate, err = r.findOrCreateCertificate(ctx, ph, nginxpmClient)
 		if err != nil {
 			return nil, err
