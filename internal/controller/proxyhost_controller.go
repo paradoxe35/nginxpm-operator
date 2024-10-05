@@ -285,6 +285,8 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 			log.Error(err, "Failed to update proxy host")
 			return err
 		}
+
+		log.Info("ProxyHost updated successfully")
 	} else {
 		// Create proxy host
 		proxyHost, err = nginxpmClient.CreateProxyHost(input)
@@ -297,6 +299,8 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 			log.Error(err, "Failed to create proxy host")
 			return err
 		}
+
+		log.Info("ProxyHost created successfully")
 	}
 
 	return UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {

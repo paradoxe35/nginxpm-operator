@@ -23,33 +23,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"time"
 )
 
 // ProxyHost represents the structure of a proxy host as returned by the API
 type ProxyHost struct {
-	ID                    int                 `json:"id"`
-	CreatedOn             time.Time           `json:"created_on"`
-	ModifiedOn            time.Time           `json:"modified_on"`
-	DomainNames           []string            `json:"domain_names"`
-	ForwardHost           string              `json:"forward_host"`
-	ForwardPort           int                 `json:"forward_port"`
-	AccessListID          int                 `json:"access_list_id"`
-	CertificateID         int                 `json:"certificate_id"`
-	SSLForced             int                 `json:"ssl_forced"`
-	CachingEnabled        int                 `json:"caching_enabled"`
-	BlockExploits         int                 `json:"block_exploits"`
-	AdvancedConfig        string              `json:"advanced_config"`
-	Meta                  ProxyHostMeta       `json:"meta"`
-	Bound                 bool                `json:"bound"`
-	AllowWebsocketUpgrade int                 `json:"allow_websocket_upgrade"`
-	HTTP2Support          int                 `json:"http2_support"`
-	ForwardScheme         string              `json:"forward_scheme"`
-	Enabled               int                 `json:"enabled"`
-	Locations             []ProxyHostLocation `json:"locations"`
-	HSTSEnabled           int                 `json:"hsts_enabled"`
-	HSTSSubdomains        int                 `json:"hsts_subdomains"`
-	IPv6                  bool                `json:"ipv6"`
+	ID          int      `json:"id"`
+	DomainNames []string `json:"domain_names"`
+	Bound       bool     `json:"bound"`
 }
 
 // ProxyMeta represents the meta information for a proxy host
