@@ -574,18 +574,23 @@ func (r *ProxyHostReconciler) findOrCreateCertificate(ctx context.Context, ph *n
 	ssl := ph.Spec.Ssl
 
 	letsEncryptEmail := DEFAULT_EMAIL
-	if *ssl.LetsEncryptEmail != "" {
+	if ssl.LetsEncryptEmail != nil && *ssl.LetsEncryptEmail != "" {
 		letsEncryptEmail = *ssl.LetsEncryptEmail
 	}
 
 	certificate, err := nginxpmClient.FindCertificateByDomain(domains)
 	if err != nil {
-		log.Error(err, "Failed to find certificate by domain")
+		log.Error(err, "[autoCertificateRequest] Failed to find certificate by domain")
 		return nil, err
+	}
+
+	if certificate != nil {
+		log.Info("[autoCertificateRequest] Certificate found, applying to proxy host")
 	}
 
 	// If certificate is not found, we will create a new one
 	if certificate == nil {
+		log.Info("[autoCertificateRequest] Certificate not found, creating new certificate...")
 		lecCertificate, err := nginxpmClient.CreateLetEncryptCertificate(nginxpm.CreateLetEncryptCertificateRequest{
 			DomainNames: domains,
 			Meta: nginxpm.CreateLetEncryptCertificateRequestMeta{
@@ -595,7 +600,7 @@ func (r *ProxyHostReconciler) findOrCreateCertificate(ctx context.Context, ph *n
 			},
 		})
 		if err != nil {
-			log.Error(err, "Failed to create certificate")
+			log.Error(err, "[autoCertificateRequest] Failed to create certificate")
 			return nil, err
 		}
 
