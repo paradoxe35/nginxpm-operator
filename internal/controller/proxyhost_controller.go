@@ -394,8 +394,13 @@ func (r *ProxyHostReconciler) makeForward(ctx context.Context, req ctrl.Request,
 			servicePort = *forward.Service.Port
 		} else {
 			servicePort = matchPort(service.Spec.Ports, "http")
+
 			if forward.Scheme == "https" || servicePort == 0 {
 				servicePort = matchPort(service.Spec.Ports, "https")
+			}
+
+			if servicePort == 0 && len(service.Spec.Ports) > 0 {
+				servicePort = service.Spec.Ports[0].Port
 			}
 		}
 
