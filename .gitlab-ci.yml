@@ -1,7 +1,3 @@
-default:
-  tags:
-    - smatflow-projects-runner
-
 stages:
   - manifests-dist
   - release
