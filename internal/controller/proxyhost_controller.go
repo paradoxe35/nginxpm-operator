@@ -200,7 +200,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 			return err
 		}
 
-	} else if ph.Spec.BindExisting {
+	} else {
 		// If bindExisting is enabled, we search for the proxy host by domain
 		proxyHost, _ = nginxpmClient.FindProxyHostByDomain(domains)
 

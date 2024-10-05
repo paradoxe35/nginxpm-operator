@@ -254,13 +254,6 @@ type ProxyHostSpec struct {
 	// +required
 	DomainNames []DomainName `json:"domainNames,omitempty"`
 
-	// Bind existing proxyhost that matches the domain names
-	// +kubebuilder:default:=true
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Type=boolean
-	// +optional
-	BindExisting bool `json:"bindExisting,omitempty"`
-
 	// CachingEnabled is the flag to enable or disable caching, default is false
 	// +kubebuilder:default:=false
 	// +kubebuilder:validation:Optional
@@ -333,6 +326,10 @@ type ProxyHostStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="ID",type="integer",JSONPath=".status.id"
+// +kubebuilder:printcolumn:name="CertificateId",type="string",JSONPath=".status.certificateId"
+// +kubebuilder:printcolumn:name="DomainNames",type="string",JSONPath=".spec.domainNames"
+// +kubebuilder:printcolumn:name="Bound",type="boolean",JSONPath=".status.bound"
 
 // ProxyHost is the Schema for the proxyhosts API
 type ProxyHost struct {

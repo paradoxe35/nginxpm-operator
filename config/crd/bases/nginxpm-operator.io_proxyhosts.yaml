@@ -14,7 +14,20 @@ spec:
     singular: proxyhost
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .status.id
+      name: ID
+      type: integer
+    - jsonPath: .status.certificateId
+      name: CertificateId
+      type: string
+    - jsonPath: .spec.domainNames
+      name: DomainNames
+      type: string
+    - jsonPath: .status.bound
+      name: Bound
+      type: boolean
+    name: v1
     schema:
       openAPIV3Schema:
         description: ProxyHost is the Schema for the proxyhosts API
@@ -39,10 +52,6 @@ spec:
           spec:
             description: ProxyHostSpec defines the desired state of ProxyHost
             properties:
-              bindExisting:
-                default: true
-                description: Bind existing proxyhost that matches the domain names
-                type: boolean
               blockExploits:
                 default: true
                 description: BlockExploits is the flag to enable or disable blocking

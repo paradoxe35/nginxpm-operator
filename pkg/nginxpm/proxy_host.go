@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -227,7 +228,9 @@ func (c *Client) CreateProxyHost(input CreateProxyHostInput) (*ProxyHost, error)
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("[CreateProxyHost] unexpected status code when creating proxy host: %d", resp.StatusCode)
+		respBody, _ := io.ReadAll(resp.Body)
+
+		return nil, fmt.Errorf("[CreateProxyHost] unexpected status code when creating proxy host: %d, body: %s", resp.StatusCode, string(respBody))
 	}
 
 	var newProxyHost ProxyHost

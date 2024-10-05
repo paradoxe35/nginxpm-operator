@@ -27,6 +27,12 @@ import (
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
 )
 
+// APIError represents an error returned by the API
+type APIError struct {
+	StatusCode int
+	Body       string
+}
+
 // Client represents the NGINX Proxy Manager API client.
 // It contains the HTTP client, API endpoint, and authentication token.
 type Client struct {
@@ -41,6 +47,10 @@ type Client struct {
 type TokenResponse struct {
 	Token   string    `json:"token"`
 	Expires time.Time `json:"expires"`
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("API error: status code %d, body: %s", e.StatusCode, e.Body)
 }
 
 // NewClient creates a new instance of the NGINX Proxy Manager client.
