@@ -17,6 +17,7 @@ limitations under the License.
 package nginxpm
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -26,31 +27,32 @@ import (
 
 // ProxyHost represents the structure of a proxy host as returned by the API
 type ProxyHost struct {
-	ID                    uint16     `json:"id"`
-	CreatedOn             time.Time  `json:"created_on"`
-	ModifiedOn            time.Time  `json:"modified_on"`
-	DomainNames           []string   `json:"domain_names"`
-	ForwardHost           string     `json:"forward_host"`
-	ForwardPort           int        `json:"forward_port"`
-	AccessListID          int        `json:"access_list_id"`
-	CertificateID         int        `json:"certificate_id"`
-	SSLForced             int        `json:"ssl_forced"`
-	CachingEnabled        int        `json:"caching_enabled"`
-	BlockExploits         int        `json:"block_exploits"`
-	AdvancedConfig        string     `json:"advanced_config"`
-	Meta                  ProxyMeta  `json:"meta"`
-	AllowWebsocketUpgrade int        `json:"allow_websocket_upgrade"`
-	HTTP2Support          int        `json:"http2_support"`
-	ForwardScheme         string     `json:"forward_scheme"`
-	Enabled               int        `json:"enabled"`
-	Locations             []Location `json:"locations"`
-	HSTSEnabled           int        `json:"hsts_enabled"`
-	HSTSSubdomains        int        `json:"hsts_subdomains"`
-	IPv6                  bool       `json:"ipv6"`
+	ID                    uint16              `json:"id"`
+	CreatedOn             time.Time           `json:"created_on"`
+	ModifiedOn            time.Time           `json:"modified_on"`
+	DomainNames           []string            `json:"domain_names"`
+	ForwardHost           string              `json:"forward_host"`
+	ForwardPort           int                 `json:"forward_port"`
+	AccessListID          int                 `json:"access_list_id"`
+	CertificateID         int                 `json:"certificate_id"`
+	SSLForced             int                 `json:"ssl_forced"`
+	CachingEnabled        int                 `json:"caching_enabled"`
+	BlockExploits         int                 `json:"block_exploits"`
+	AdvancedConfig        string              `json:"advanced_config"`
+	Meta                  ProxyHostMeta       `json:"meta"`
+	Bound                 bool                `json:"bound"`
+	AllowWebsocketUpgrade int                 `json:"allow_websocket_upgrade"`
+	HTTP2Support          int                 `json:"http2_support"`
+	ForwardScheme         string              `json:"forward_scheme"`
+	Enabled               int                 `json:"enabled"`
+	Locations             []ProxyHostLocation `json:"locations"`
+	HSTSEnabled           int                 `json:"hsts_enabled"`
+	HSTSSubdomains        int                 `json:"hsts_subdomains"`
+	IPv6                  bool                `json:"ipv6"`
 }
 
 // ProxyMeta represents the meta information for a proxy host
-type ProxyMeta struct {
+type ProxyHostMeta struct {
 	LetsEncryptAgree bool    `json:"letsencrypt_agree"`
 	DNSChallenge     bool    `json:"dns_challenge"`
 	NginxOnline      bool    `json:"nginx_online"`
@@ -58,7 +60,7 @@ type ProxyMeta struct {
 }
 
 // Location represents a location configuration for a proxy host
-type Location struct {
+type ProxyHostLocation struct {
 	Path           string `json:"path"`
 	AdvancedConfig string `json:"advanced_config"`
 	ForwardScheme  string `json:"forward_scheme"`
@@ -159,4 +161,109 @@ func (c *Client) FindProxyHostByID(id uint16) (*ProxyHost, error) {
 	}
 
 	return nil, nil // No matching proxy host found
+}
+
+type CreateProxyHostInput struct {
+	DomainNames           []string
+	ForwardHost           string
+	ForwardScheme         string
+	ForwardPort           int
+	BlockExploits         bool
+	AllowWebsocketUpgrade bool
+	AccessListID          string
+	CertificateID         *int
+	SSLForced             bool
+	HTTP2Support          bool
+	HSTSEnabled           bool
+	AdvancedConfig        string
+	Locations             []ProxyHostLocation
+	CachingEnabled        bool
+	HSTSSubdomains        bool
+}
+
+func proxyHostRequestBody(input CreateProxyHostInput) map[string]interface{} {
+	certificateID := 0
+	if input.CertificateID != nil {
+		certificateID = *input.CertificateID
+	}
+
+	body := map[string]interface{}{
+		"domain_names":            input.DomainNames,
+		"forward_host":            input.ForwardHost,
+		"forward_scheme":          input.ForwardScheme,
+		"forward_port":            input.ForwardPort,
+		"block_exploits":          input.BlockExploits,
+		"allow_websocket_upgrade": input.AllowWebsocketUpgrade,
+		"access_list_id":          "0",
+		"certificate_id":          certificateID,
+		"ssl_forced":              input.SSLForced,
+		"http2_support":           input.HTTP2Support,
+		"hsts_enabled":            input.HSTSEnabled,
+		"meta": map[string]interface{}{
+			"letsencrypt_agree": false,
+			"dns_challenge":     false,
+		},
+		"advanced_config": input.AdvancedConfig,
+		"locations":       input.Locations,
+		"caching_enabled": input.CachingEnabled,
+		"hsts_subdomains": input.HSTSSubdomains,
+	}
+
+	return body
+}
+
+// CreateProxyHost creates a new proxy host
+func (c *Client) CreateProxyHost(input CreateProxyHostInput) (*ProxyHost, error) {
+	body := proxyHostRequestBody(input)
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("[CreateProxyHost] error marshaling request body: %w", err)
+	}
+
+	resp, err := c.doRequest("POST", "/api/nginx/proxy-hosts", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("[CreateProxyHost] error creating proxy host: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("[CreateProxyHost] unexpected status code when creating proxy host: %d", resp.StatusCode)
+	}
+
+	var newProxyHost ProxyHost
+	err = json.NewDecoder(resp.Body).Decode(&newProxyHost)
+	if err != nil {
+		return nil, fmt.Errorf("[CreateProxyHost] error decoding response: %w", err)
+	}
+
+	return &newProxyHost, nil
+}
+
+// UpdateProxyHost updates an existing proxy host
+func (c *Client) UpdateProxyHost(id int, input CreateProxyHostInput) (*ProxyHost, error) {
+	body := proxyHostRequestBody(input)
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("[UpdateProxyHost] error marshaling request body: %w", err)
+	}
+
+	resp, err := c.doRequest("PUT", fmt.Sprintf("/api/nginx/proxy-hosts/%d", id), bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("[UpdateProxyHost] error updating proxy host: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("[UpdateProxyHost] unexpected status code when updating proxy host: %d", resp.StatusCode)
+	}
+
+	var updatedProxyHost ProxyHost
+	err = json.NewDecoder(resp.Body).Decode(&updatedProxyHost)
+	if err != nil {
+		return nil, fmt.Errorf("[UpdateProxyHost] error decoding response: %w", err)
+	}
+
+	return &updatedProxyHost, nil
 }

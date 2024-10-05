@@ -50,7 +50,7 @@ spec:
                 description: Endpoint of a Nginx Proxy manager instance
                 maxLength: 255
                 minLength: 1
-                pattern: ^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$
+                pattern: ^(https?):\/\/([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(:[0-9]{1,5})?$
                 type: string
               secret:
                 description: Secret resource reference to add to the token cr

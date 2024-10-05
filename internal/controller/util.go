@@ -61,17 +61,17 @@ func AddFinalizer(r client.Writer, ctx context.Context, finalizer string, object
 	return nil
 }
 
-func InitNginxPMClient(ctx context.Context, r client.Reader, name string, namespace string) (*nginxpm.Client, error) {
+func InitNginxPMClient(ctx context.Context, r client.Reader, tokenName string, tokenNamespace string) (*nginxpm.Client, error) {
 	log := log.FromContext(ctx)
 
 	token := &nginxpmoperatoriov1.Token{}
-	tokenName := types.NamespacedName{
-		Namespace: namespace,
-		Name:      name,
+	tokenNamespaced := types.NamespacedName{
+		Namespace: tokenNamespace,
+		Name:      tokenName,
 	}
 
 	// Get the token resource
-	if err := r.Get(ctx, tokenName, token); err != nil {
+	if err := r.Get(ctx, tokenNamespaced, token); err != nil {
 		log.Error(err, "Failed to get token resource")
 		return nil, err
 	}

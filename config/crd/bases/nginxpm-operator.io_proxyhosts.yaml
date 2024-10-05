@@ -201,17 +201,12 @@ spec:
                 - scheme
                 type: object
               ssl:
-                default:
-                  autoCertificateRequest: true
                 description: Ssl configuration for the proxyhost, default is autoCertificateRequest:true
                 properties:
                   autoCertificateRequest:
-                    default: true
-                    description: |-
-                      AutoCertificateRequest is the flag to enable or disable auto certificate request, default is true
-                      Determines if the controller will request a certificate from Let's Encrypt
-                      If no CertificateId, CustomCertificate or LetsencryptCertificate is provided and AutoCertificateRequest is false
-                      the SSL state will be set to disabled
+                    default: false
+                    description: When true, will request a certificate from Let's
+                      Encrypt automatically
                     type: boolean
                   certificateId:
                     description: |-
@@ -301,8 +296,7 @@ spec:
             properties:
               bound:
                 default: false
-                description: Whether the LetsEncryptCertificate was bound with an
-                  existing proxyhost
+                description: Whether the ProxyHost was bound with an existing proxyhost
                 type: boolean
               conditions:
                 items:

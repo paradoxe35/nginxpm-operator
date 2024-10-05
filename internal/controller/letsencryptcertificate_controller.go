@@ -212,7 +212,6 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 		certificate, err = nginxpmClient.CreateLetEncryptCertificate(
 			nginxpm.CreateLetEncryptCertificateRequest{
 				DomainNames: domains,
-				Provider:    nginxpm.LETSENCRYPT_PROVIDER,
 				Meta: nginxpm.CreateLetEncryptCertificateRequestMeta{
 					DNSChallenge:           hasDnsChallengeEnabled,
 					DNSProvider:            dnsChallengeProvider,

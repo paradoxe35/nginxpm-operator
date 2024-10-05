@@ -45,7 +45,6 @@ type CreateLetEncryptCertificateRequestMeta struct {
 type CreateLetEncryptCertificateRequest struct {
 	DomainNames []string                               `json:"domain_names"`
 	Meta        CreateLetEncryptCertificateRequestMeta `json:"meta"`
-	Provider    string                                 `json:"provider"`
 }
 
 type LetsEncryptCertificate certificate[LetsEncryptCertificateMeta]

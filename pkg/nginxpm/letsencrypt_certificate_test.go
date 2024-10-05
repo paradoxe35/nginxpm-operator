@@ -313,7 +313,6 @@ func TestCreateLetEncryptCertificate(t *testing.T) {
 			client := NewClient(server.Client(), server.URL)
 			cert, err := client.CreateLetEncryptCertificate(CreateLetEncryptCertificateRequest{
 				DomainNames: tt.domains,
-				Provider:    LETSENCRYPT_PROVIDER,
 				Meta: CreateLetEncryptCertificateRequestMeta{
 					DNSChallenge:           false,
 					DNSProvider:            "acmedns",

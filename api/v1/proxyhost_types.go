@@ -75,22 +75,19 @@ type SslLetsEncryptCertificate struct {
 }
 
 type Ssl struct {
-	// AutoCertificateRequest is the flag to enable or disable auto certificate request, default is true
-	// Determines if the controller will request a certificate from Let's Encrypt
-	// If no CertificateId, CustomCertificate or LetsencryptCertificate is provided and AutoCertificateRequest is false
-	// the SSL state will be set to disabled
-	// +kubebuilder:default:=true
+	// When true, will request a certificate from Let's Encrypt automatically
+	// +kubebuilder:default:=false
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=boolean
 	// +optional
 	AutoCertificateRequest bool `json:"autoCertificateRequest,omitempty"`
 
-	// Bind existing certificate id to the proxyhost
-	// This will be considered only if CustomCertificate or LetsencryptCertificate is not provided
+	// Letsencrypt Certificate name created or managed by the letsencryptCertificate resource
+	// If CustomCertificate is provided and LetsencryptCertificate is not provided, the CustomCertificate will be prioritized
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Type=integer
+	// +kubebuilder:validation:Type=object
 	// +optional
-	CertificateId *int16 `json:"certificateId,omitempty"`
+	LetsEncryptCertificate *SslLetsEncryptCertificate `json:"letsEncryptCertificate,omitempty"`
 
 	// Custom Certificate name created or managed by the customCertificate resource
 	// If CustomCertificate is provided and LetsencryptCertificate is not provided, the CustomCertificate will be prioritized
@@ -99,12 +96,12 @@ type Ssl struct {
 	// +optional
 	CustomCertificate *SslCustomCertificate `json:"customCertificate,omitempty"`
 
-	// Letsencrypt Certificate name created or managed by the letsencryptCertificate resource
-	// If CustomCertificate is provided and LetsencryptCertificate is not provided, the CustomCertificate will be prioritized
+	// Bind existing certificate id to the proxyhost
+	// This will be considered only if CustomCertificate or LetsencryptCertificate is not provided
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Type=object
+	// +kubebuilder:validation:Type=integer
 	// +optional
-	LetsEncryptCertificate *SslLetsEncryptCertificate `json:"letsEncryptCertificate,omitempty"`
+	CertificateId *uint16 `json:"certificateId,omitempty"`
 
 	// LetsEncrypt Email address to request a certificate for
 	// +kubebuilder:validation:Optional
@@ -277,7 +274,6 @@ type ProxyHostSpec struct {
 	WebsocketSupport bool `json:"websocketSupport,omitempty"`
 
 	// Ssl configuration for the proxyhost, default is autoCertificateRequest:true
-	// +kubebuilder:default:={autoCertificateRequest:true}
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional
@@ -302,7 +298,7 @@ type ProxyHostStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// ProxyHost ID in the Nginx Proxy Manager instance
-	Id *int16 `json:"id,omitempty"`
+	Id *uint16 `json:"id,omitempty"`
 
 	// Whether the ProxyHost was bound with an existing proxyhost
 	// +kubebuilder:default:=false
