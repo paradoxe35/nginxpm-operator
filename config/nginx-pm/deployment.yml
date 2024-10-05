@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-pm
+  namespace: nginx-pm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-pm
+  template:
+    metadata:
+      labels:
+        app: nginx-pm
+    spec:
+      containers:
+        - name: nginx-pm
+          image: jc21/nginx-proxy-manager:latest
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          ports:
+            - containerPort: 81
+            - containerPort: 80
+            - containerPort: 443
+          volumeMounts:
+            - mountPath: "/data"
+              name: nginx-pm-data
+            - mountPath: "/etc/letsencrypt"
+              name: nginx-pm-letsencrypt
+      volumes:
+        - name: nginx-pm-data
+          persistentVolumeClaim:
+            claimName: nginx-pm-data
+        - name: nginx-pm-letsencrypt
+          persistentVolumeClaim:
+            claimName: nginx-pm-letsencrypt
