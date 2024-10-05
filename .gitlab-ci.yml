@@ -47,6 +47,7 @@ release:
 build-images:
   image: docker:27.3.1
   stage: build-images
+  needs: [release]
   services:
     - docker:27.3.1-dind
   rules:
@@ -61,5 +62,7 @@ build-images:
     - echo "$CI_COMMIT_TAG_MESSAGE"
   script:
     - echo "Build Images, and create release"
-    - make docker-publish
+    - make docker-build docker-push IMG=$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+    - make deploy IMG=$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+    - make deploy IMG=$CI_REGISTRY_IMAGE:latest
   when: manual
