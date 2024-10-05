@@ -525,6 +525,11 @@ func (in *ProxyHostStatus) DeepCopyInto(out *ProxyHostStatus) {
 		*out = new(int)
 		**out = **in
 	}
+	if in.CertificateId != nil {
+		in, out := &in.CertificateId, &out.CertificateId
+		*out = new(int)
+		**out = **in
+	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
 		*out = make([]metav1.Condition, len(*in))

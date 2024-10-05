@@ -313,6 +313,9 @@ spec:
                 default: false
                 description: Whether the ProxyHost was bound with an existing proxyhost
                 type: boolean
+              certificateId:
+                description: ProxyHost certificate ID in the Nginx Proxy Manager instance
+                type: integer
               conditions:
                 items:
                   description: Condition contains details for one aspect of the current

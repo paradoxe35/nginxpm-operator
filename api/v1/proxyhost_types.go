@@ -309,6 +309,9 @@ type ProxyHostStatus struct {
 	// ProxyHost ID in the Nginx Proxy Manager instance
 	Id *int `json:"id,omitempty"`
 
+	// ProxyHost certificate ID in the Nginx Proxy Manager instance
+	CertificateId *int `json:"certificateId,omitempty"`
+
 	// Whether the ProxyHost was bound with an existing proxyhost
 	// +kubebuilder:default:=false
 	// +kubebuilder:validation:Optional

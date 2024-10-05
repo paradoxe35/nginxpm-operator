@@ -191,6 +191,11 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	if ph.Status.Id != nil {
 		proxyHost, err = nginxpmClient.FindProxyHostByID(*ph.Status.Id)
 		if err != nil {
+			r.Recorder.Event(
+				ph, "Warning", "FindProxyHostByID",
+				fmt.Sprintf("Failed to find proxy host by ID, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+			)
+
 			log.Error(err, "Failed to find proxy host by ID")
 			return err
 		}
@@ -207,6 +212,10 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	// ProxyHost forward operation
 	proxyHostForward, err := r.makeForward(ctx, req, ph.Spec.Forward, "proxyHostForward")
 	if err != nil {
+		r.Recorder.Event(
+			ph, "Warning", "MakeForward",
+			fmt.Sprintf("Failed to make forward, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+		)
 		return err
 	}
 
@@ -215,6 +224,10 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	if ph.Spec.Ssl != nil {
 		certificate, err := r.makeCertificate(ctx, req, ph, nginxpmClient)
 		if err != nil {
+			r.Recorder.Event(
+				ph, "Warning", "MakeCertificate",
+				fmt.Sprintf("Failed to make certificate, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+			)
 			return err
 		}
 
@@ -226,6 +239,10 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	// CustomLocation operation
 	customLocations, err := r.constructCustomLocation(ctx, req, ph)
 	if err != nil {
+		r.Recorder.Event(
+			ph, "Warning", "ConstructCustomLocation",
+			fmt.Sprintf("Failed to construct custom locations, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+		)
 		return err
 	}
 
@@ -260,6 +277,11 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	if proxyHost != nil {
 		proxyHost, err = nginxpmClient.UpdateProxyHost(proxyHost.ID, input)
 		if err != nil {
+			r.Recorder.Event(
+				ph, "Warning", "UpdateProxyHost",
+				fmt.Sprintf("Failed to update proxy host, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+			)
+
 			log.Error(err, "Failed to update proxy host")
 			return err
 		}
@@ -267,6 +289,11 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		// Create proxy host
 		proxyHost, err = nginxpmClient.CreateProxyHost(input)
 		if err != nil {
+			r.Recorder.Event(
+				ph, "Warning", "CreateProxyHost",
+				fmt.Sprintf("Failed to create proxy host, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+			)
+
 			log.Error(err, "Failed to create proxy host")
 			return err
 		}
@@ -274,6 +301,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 
 	return UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
 		ph.Status.Id = &proxyHost.ID
+		ph.Status.CertificateId = certificateID
 		ph.Status.Bound = ph.Status.Bound || proxyHost.Bound
 	})
 }
