@@ -69,7 +69,7 @@ type CustomCertificateStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// CustomCertificateStatus ID in the Nginx Proxy Manager instance
-	Id *uint16 `json:"id,omitempty"`
+	Id *int `json:"id,omitempty"`
 
 	// Expiration time of the certificate
 	// +optional

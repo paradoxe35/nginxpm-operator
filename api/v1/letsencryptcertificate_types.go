@@ -102,7 +102,7 @@ type LetsEncryptCertificateStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// LetsEncryptCertificate ID in the Nginx Proxy Manager instance
-	Id *uint16 `json:"id,omitempty"`
+	Id *int `json:"id,omitempty"`
 
 	// Whether the LetsEncryptCertificate was bound with an existing certificate
 	// +kubebuilder:default:=false

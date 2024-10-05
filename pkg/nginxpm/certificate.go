@@ -28,7 +28,7 @@ const (
 )
 
 type certificate[K LetsEncryptCertificateMeta | CustomCertificateMeta | interface{}] struct {
-	ID          uint16   `json:"id"`
+	ID          int      `json:"id"`
 	CreatedOn   string   `json:"created_on"`
 	ModifiedOn  string   `json:"modified_on"`
 	Provider    string   `json:"provider"`
@@ -62,7 +62,7 @@ func (c *Client) GetCertificates() ([]Certificate, error) {
 	return certificates, nil
 }
 
-func (c *Client) FindCertificateByID(id uint16) (*Certificate, error) {
+func (c *Client) FindCertificateByID(id int) (*Certificate, error) {
 	certificates, err := c.GetCertificates()
 	if err != nil {
 		return nil, err

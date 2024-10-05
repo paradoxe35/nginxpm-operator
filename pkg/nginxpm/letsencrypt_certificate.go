@@ -87,7 +87,7 @@ func (c *Client) FindLetEncryptCertificate(domain string) (*LetsEncryptCertifica
 }
 
 // FindCertificateByID retrieves a certificate by its ID
-func (c *Client) FindLetEncryptCertificateByID(id uint16) (*LetsEncryptCertificate, error) {
+func (c *Client) FindLetEncryptCertificateByID(id int) (*LetsEncryptCertificate, error) {
 	resp, err := c.doRequest("GET", "/api/nginx/certificates", nil)
 
 	if err != nil {

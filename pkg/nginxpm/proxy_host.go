@@ -27,7 +27,7 @@ import (
 
 // ProxyHost represents the structure of a proxy host as returned by the API
 type ProxyHost struct {
-	ID                    uint16              `json:"id"`
+	ID                    int                 `json:"id"`
 	CreatedOn             time.Time           `json:"created_on"`
 	ModifiedOn            time.Time           `json:"modified_on"`
 	DomainNames           []string            `json:"domain_names"`
@@ -66,6 +66,23 @@ type ProxyHostLocation struct {
 	ForwardScheme  string `json:"forward_scheme"`
 	ForwardHost    string `json:"forward_host"`
 	ForwardPort    int    `json:"forward_port"`
+}
+
+type CreateProxyHostInput struct {
+	DomainNames           []string
+	ForwardHost           string
+	ForwardScheme         string
+	ForwardPort           int
+	BlockExploits         bool
+	AllowWebsocketUpgrade bool
+	CertificateID         *int
+	SSLForced             bool
+	HTTP2Support          bool
+	HSTSEnabled           bool
+	AdvancedConfig        string
+	Locations             []ProxyHostLocation
+	CachingEnabled        bool
+	HSTSSubdomains        bool
 }
 
 // DeleteProxyHost deletes a certificate by its ID
@@ -137,7 +154,7 @@ func (c *Client) FindProxyHostByDomain(domains []string) (*ProxyHost, error) {
 }
 
 // FindProxyHostByID searches for an existing proxy host matching the given domains
-func (c *Client) FindProxyHostByID(id uint16) (*ProxyHost, error) {
+func (c *Client) FindProxyHostByID(id int) (*ProxyHost, error) {
 	resp, err := c.doRequest("GET", "/api/nginx/proxy-hosts", nil)
 	if err != nil {
 		return nil, fmt.Errorf("[FindProxyHostByID] error querying proxy hosts: %w", err)
@@ -161,24 +178,6 @@ func (c *Client) FindProxyHostByID(id uint16) (*ProxyHost, error) {
 	}
 
 	return nil, nil // No matching proxy host found
-}
-
-type CreateProxyHostInput struct {
-	DomainNames           []string
-	ForwardHost           string
-	ForwardScheme         string
-	ForwardPort           int
-	BlockExploits         bool
-	AllowWebsocketUpgrade bool
-	AccessListID          string
-	CertificateID         *int
-	SSLForced             bool
-	HTTP2Support          bool
-	HSTSEnabled           bool
-	AdvancedConfig        string
-	Locations             []ProxyHostLocation
-	CachingEnabled        bool
-	HSTSSubdomains        bool
 }
 
 func proxyHostRequestBody(input CreateProxyHostInput) map[string]interface{} {

@@ -162,7 +162,7 @@ func (c *Client) ValidateCustomCertificate(certificateContent, certificateKeyCon
 }
 
 // UploadCertificate uploads a validated certificate and its key to a specific certificate ID
-func (c *Client) UploadCustomCertificate(id uint16, certificateContent, certificateKeyContent []byte) (*CertificateUploadResponse, error) {
+func (c *Client) UploadCustomCertificate(id int, certificateContent, certificateKeyContent []byte) (*CertificateUploadResponse, error) {
 	body, writer, err := c.certificateFilesFromBytes(certificateContent, certificateKeyContent)
 	if err != nil {
 		return nil, fmt.Errorf("[UploadCertificate-{id}] err: %w", err)
@@ -218,7 +218,7 @@ func (c *Client) GetCustomCertificates() ([]CustomCertificate, error) {
 }
 
 // FindCertificateByID retrieves a certificate by its ID
-func (c *Client) FindCustomCertificateByID(id uint16) (*CustomCertificate, error) {
+func (c *Client) FindCustomCertificateByID(id int) (*CustomCertificate, error) {
 	certificates, err := c.GetCustomCertificates()
 	if err != nil {
 		return nil, err

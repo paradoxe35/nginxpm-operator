@@ -101,7 +101,7 @@ type Ssl struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=integer
 	// +optional
-	CertificateId *uint16 `json:"certificateId,omitempty"`
+	CertificateId *int `json:"certificateId,omitempty"`
 
 	// LetsEncrypt Email address to request a certificate for
 	// +kubebuilder:validation:Optional
@@ -307,7 +307,7 @@ type ProxyHostStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// ProxyHost ID in the Nginx Proxy Manager instance
-	Id *uint16 `json:"id,omitempty"`
+	Id *int `json:"id,omitempty"`
 
 	// Whether the ProxyHost was bound with an existing proxyhost
 	// +kubebuilder:default:=false

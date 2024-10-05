@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -168,6 +169,12 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 
+	// Create or update proxy host
+	err = r.createOrUpdateProxyHost(ctx, req, ph, nginxpmClient)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -175,7 +182,6 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	log := log.FromContext(ctx)
 
 	var proxyHost *nginxpm.ProxyHost
-	var certificateID *uint16
 	var err error
 
 	// Convert domain names to []string
@@ -199,10 +205,15 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	}
 
 	// ProxyHost forward operation
+	proxyHostForward, err := r.makeForward(ctx, req, ph.Spec.Forward, "proxyHostForward")
+	if err != nil {
+		return err
+	}
 
 	// Certificate operation
+	var certificateID *int
 	if ph.Spec.Ssl != nil {
-		certificate, err := r.getCertificate(ctx, req, ph, nginxpmClient)
+		certificate, err := r.makeCertificate(ctx, req, ph, nginxpmClient)
 		if err != nil {
 			return err
 		}
@@ -212,30 +223,94 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		}
 	}
 
-	return nil
+	// CustomLocation operation
+	customLocations, err := r.constructCustomLocation(ctx, req, ph)
+	if err != nil {
+		return err
+	}
+
+	input := nginxpm.CreateProxyHostInput{
+		DomainNames:           domains,
+		ForwardHost:           proxyHostForward.Host,
+		ForwardScheme:         proxyHostForward.Scheme,
+		ForwardPort:           proxyHostForward.Port,
+		AdvancedConfig:        proxyHostForward.AdvancedConfig,
+		BlockExploits:         ph.Spec.BlockExploits,
+		AllowWebsocketUpgrade: ph.Spec.WebsocketSupport,
+		CachingEnabled:        ph.Spec.CachingEnabled,
+		Locations:             customLocations,
+	}
+
+	if ph.Spec.Ssl != nil {
+		input.SSLForced = ph.Spec.Ssl.SslForced
+		input.HTTP2Support = ph.Spec.Ssl.Http2Support
+		input.HSTSEnabled = ph.Spec.Ssl.HstsEnabled
+		input.HSTSSubdomains = ph.Spec.Ssl.HstsSubdomains
+	}
+
+	if certificateID != nil {
+		certId := int(*certificateID)
+		input.CertificateID = &certId
+	} else {
+		input.CertificateID = nil
+	}
+
+	// Update proxy host
+	if proxyHost != nil {
+		proxyHost, err = nginxpmClient.UpdateProxyHost(proxyHost.ID, input)
+		if err != nil {
+			log.Error(err, "Failed to update proxy host")
+			return err
+		}
+	} else {
+		// Create proxy host
+		proxyHost, err = nginxpmClient.CreateProxyHost(input)
+		if err != nil {
+			log.Error(err, "Failed to create proxy host")
+			return err
+		}
+	}
+
+	return UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
+		ph.Status.Id = &proxyHost.ID
+		ph.Status.Bound = ph.Status.Bound || proxyHost.Bound
+	})
+}
+
+// ############################################# CUSTOM LOCATION OPERATION ######################################
+
+func (r *ProxyHostReconciler) constructCustomLocation(ctx context.Context, req ctrl.Request, ph *nginxpmoperatoriov1.ProxyHost) ([]nginxpm.ProxyHostLocation, error) {
+	customLocations := make([]nginxpm.ProxyHostLocation, len(ph.Spec.CustomLocations))
+
+	for i, location := range ph.Spec.CustomLocations {
+		forward, err := r.makeForward(ctx, req, location.Forward, fmt.Sprintf("customLocations[%d]", i))
+		if err != nil {
+			return nil, err
+		}
+
+		customLocations[i] = nginxpm.ProxyHostLocation{
+			Path:           location.LocationPath,
+			AdvancedConfig: location.Forward.AdvancedConfig,
+			ForwardScheme:  forward.Scheme,
+			ForwardHost:    forward.Host + location.Forward.Path,
+			ForwardPort:    forward.Port,
+		}
+	}
+
+	return customLocations, nil
 }
 
 // ############################################# FORWARD OPERATION ##############################################
 
-func (r *ProxyHostReconciler) getProxyHostForward(ctx context.Context, req ctrl.Request, ph *nginxpmoperatoriov1.ProxyHost, nginxpmClient *nginxpm.Client) (*ProxyHostForward, error) {
+func (r *ProxyHostReconciler) makeForward(ctx context.Context, req ctrl.Request, forward nginxpmoperatoriov1.Forward, label string) (*ProxyHostForward, error) {
 	log := log.FromContext(ctx)
-
-	var proxyHostForward *ProxyHostForward
-
-	phForward := ph.Spec.Forward
 
 	// Check if forward host or service is provided
-	if phForward.Host == nil && phForward.Service == nil {
-		err := fmt.Errorf("No forward host or service is provided, one of them is required")
-		log.Error(err, "No forward host or service is provided, one of them is required")
+	if forward.Host == nil && forward.Service == nil {
+		err := fmt.Errorf("no forward host or service is provided, one of them is required, label: %s", label)
+		log.Error(err, "no forward host or service is provided, one of them is required, label: %s", label)
 		return nil, err
 	}
-
-	return proxyHostForward, nil
-}
-
-func (r *ProxyHostReconciler) makeForward(ctx context.Context, req ctrl.Request, forward nginxpmoperatoriov1.Forward) (*ProxyHostForward, error) {
-	log := log.FromContext(ctx)
 
 	var proxyHostForward *ProxyHostForward
 
@@ -251,7 +326,7 @@ func (r *ProxyHostReconciler) makeForward(ctx context.Context, req ctrl.Request,
 		// Retrieve the Service resource
 		if err := r.Get(ctx, types.NamespacedName{Namespace: namespace, Name: forward.Service.Name}, service); err != nil {
 			// If the Service resource is not found, we will not be able to create the forward
-			log.Error(err, "Service resource not found, please check the Service resource name")
+			log.Error(err, fmt.Sprintf("Service resource not found, please check the Service resource name, label: %s", label))
 			return nil, err
 		}
 
@@ -285,15 +360,17 @@ func (r *ProxyHostReconciler) makeForward(ctx context.Context, req ctrl.Request,
 
 		// Verify if service port is valid
 		if servicePort == 0 {
-			err := fmt.Errorf("Service port is not valid, please check the Service resource name")
-			log.Error(err, "Service port is not valid, please check the Service resource name")
+			msg := fmt.Sprintf("service port is not valid, please check the Service resource name, label: %s", label)
+			err := errors.New(msg)
+			log.Error(err, msg)
 			return nil, err
 		}
 
 		// Verify if service IP is valid
 		if serviceIP == "" {
-			err := fmt.Errorf("Service IP is not valid, please check the Service resource name")
-			log.Error(err, "Service IP is not valid, please check the Service resource name")
+			msg := fmt.Sprintf("service IP is not valid, please check the Service resource name, label: %s", label)
+			err := errors.New(msg)
+			log.Error(err, msg)
 			return nil, err
 		}
 
@@ -320,7 +397,7 @@ func (r *ProxyHostReconciler) makeForward(ctx context.Context, req ctrl.Request,
 
 // ############################################# CERTIFICATE OPERATION ##############################################
 
-func (r *ProxyHostReconciler) getCertificate(ctx context.Context, req ctrl.Request, ph *nginxpmoperatoriov1.ProxyHost, nginxpmClient *nginxpm.Client) (*nginxpm.Certificate, error) {
+func (r *ProxyHostReconciler) makeCertificate(ctx context.Context, req ctrl.Request, ph *nginxpmoperatoriov1.ProxyHost, nginxpmClient *nginxpm.Client) (*nginxpm.Certificate, error) {
 	log := log.FromContext(ctx)
 
 	if ph.Spec.Ssl == nil {
@@ -424,7 +501,7 @@ func (r *ProxyHostReconciler) getCustomCertificateFromReference(ctx context.Cont
 }
 
 // Get certificate from ID
-func (r *ProxyHostReconciler) getCertificateFromID(ctx context.Context, id uint16, nginxpmClient *nginxpm.Client) (*nginxpm.Certificate, error) {
+func (r *ProxyHostReconciler) getCertificateFromID(ctx context.Context, id int, nginxpmClient *nginxpm.Client) (*nginxpm.Certificate, error) {
 	log := log.FromContext(ctx)
 
 	certificate, err := nginxpmClient.FindCertificateByID(id)

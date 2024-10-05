@@ -231,7 +231,7 @@ func TestCreateEmptyCustomCertificate(t *testing.T) {
 func TestUploadCertificate(t *testing.T) {
 	tests := []struct {
 		name               string
-		certificateID      uint16
+		certificateID      int
 		certificateContent string
 		certificateKey     string
 		serverResponse     CertificateUploadResponse
@@ -345,7 +345,7 @@ func TestFindCustomCertificateByID(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		certificateID  uint16
+		certificateID  int
 		serverResponse []CustomCertificate
 		expectedCert   *CustomCertificate
 		serverStatus   int

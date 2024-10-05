@@ -150,7 +150,7 @@ func TestFindLetEncryptCertificateByID(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		certificateID  uint16
+		certificateID  int
 		serverResponse []LetsEncryptCertificate
 		expectedCert   *LetsEncryptCertificate
 		serverStatus   int
