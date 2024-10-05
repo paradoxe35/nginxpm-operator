@@ -19,7 +19,8 @@ package nginxpm
 import (
 	"encoding/json"
 	"fmt"
-	"slices"
+
+	"github.com/paradoxe35/nginxpm-operator/pkg/util"
 )
 
 const (
@@ -86,6 +87,7 @@ func (c *Client) FindCertificateByDomain(domains []string) (*Certificate, error)
 	}
 
 	domain := domains[0]
+	rootDomain := util.ExtractRootDomain(domain)
 
 	certificates, err := c.GetCertificates()
 	if err != nil {
@@ -93,9 +95,13 @@ func (c *Client) FindCertificateByDomain(domains []string) (*Certificate, error)
 	}
 
 	for _, cert := range certificates {
-		if slices.Contains(cert.DomainNames, domain) {
-			cert.Bound = false
-			return &cert, nil
+		for _, domainName := range cert.DomainNames {
+			// Match the domain name with the given domain or with a wildcard domain
+			matchedDomain := domainName == domain || domainName == fmt.Sprintf("*.%s", rootDomain)
+
+			if matchedDomain {
+				return &cert, nil
+			}
 		}
 	}
 

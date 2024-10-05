@@ -74,6 +74,7 @@ func (c *Client) FindLetEncryptCertificate(domain string) (*LetsEncryptCertifica
 
 	for _, cert := range certificates {
 		for _, domainName := range cert.DomainNames {
+			// Match the domain name with the given domain or with a wildcard domain
 			matchedDomain := domainName == domain || domainName == fmt.Sprintf("*.%s", rootDomain)
 
 			if matchedDomain && cert.Provider == LETSENCRYPT_PROVIDER {
