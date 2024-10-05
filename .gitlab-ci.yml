@@ -6,7 +6,7 @@ stages:
 # Create artifacts
 
 manifests-dist:
-  image: ubuntu:22.04
+  image: golang:1.23
   stage: manifests-dist
   rules:
     - if: $CI_COMMIT_TAG
