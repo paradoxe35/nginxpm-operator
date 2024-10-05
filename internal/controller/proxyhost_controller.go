@@ -510,6 +510,11 @@ func (r *ProxyHostReconciler) getLetsEncryptCertificateFromReference(ctx context
 		return nil, err
 	}
 
+	if lec.Status.Id == nil {
+		log.Info("no certificate ID is provided, please check the LetsEncryptCertificate resource")
+		return nil, fmt.Errorf("no certificate ID is provided, please check the LetsEncryptCertificate resource")
+	}
+
 	certificate, err := nginxpmClient.FindCertificateByID(*lec.Status.Id)
 	if err != nil {
 		log.Error(err, "Failed to find certificate by ID")
@@ -536,6 +541,11 @@ func (r *ProxyHostReconciler) getCustomCertificateFromReference(ctx context.Cont
 		// If the CustomCertificate resource is not found, we will not be able to create the certificate
 		log.Error(err, "CustomCertificate resource not found, please check the CustomCertificate resource name")
 		return nil, err
+	}
+
+	if customCert.Status.Id == nil {
+		log.Info("no certificate ID is provided, please check the CustomCertificate resource")
+		return nil, fmt.Errorf("no certificate ID is provided, please check the CustomCertificate resource")
 	}
 
 	certificate, err := nginxpmClient.FindCertificateByID(*customCert.Status.Id)
