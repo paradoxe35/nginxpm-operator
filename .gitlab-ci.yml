@@ -15,6 +15,7 @@ manifests-dist:
     - make kustomize
     - make build-installer
   artifacts:
+    name: $CI_COMMIT_TAG
     expire_in: never
     paths:
       - dist/install.yaml
@@ -32,6 +33,11 @@ release:
     - echo $CI_JOB_ID
   rules:
     - if: $CI_COMMIT_TAG
+  artifacts:
+    name: $CI_COMMIT_TAG
+    expire_in: never
+    paths:
+      - dist/install.yaml
   release:
     assets:
       links:
