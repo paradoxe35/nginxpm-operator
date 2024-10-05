@@ -18,27 +18,28 @@ manifests-dist:
     untracked: false
     when: on_success
     access: all
-    expire_in: "30 days"
+    expire_in: never
     paths:
-      - dist/
+      - dist/install.yaml
 
 ############## Create release #####################
 
 release:
   stage: release
   image: registry.gitlab.com/gitlab-org/release-cli:latest
-  needs: [manifests-dist]
+  needs:
+    - job: manifests-dist
+      artifacts: true
   script:
-    - echo "Create release"
+    - echo "Create Release $TAG"
+    - echo $JOB_ID
   rules:
     - if: $CI_COMMIT_TAG
-
   release:
     assets:
       links:
-        - name: install.yaml
+        - name: dist/install.yaml
           url: $CI_SERVER_URL/$CI_PROJECT_PATH/-/jobs/$JOB_ID/artifacts/download
-          filepath: dist/install.yaml
     name: "$CI_COMMIT_TAG"
     tag_name: "$CI_COMMIT_TAG"
     description: "$CI_COMMIT_TAG_MESSAGE"
