@@ -155,7 +155,7 @@ type ForwardHost struct {
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=65535
 	// +optional
-	HostPort int32 `json:"HostPort,omitempty"`
+	HostPort int32 `json:"hostPort,omitempty"`
 }
 
 type ForwardService struct {

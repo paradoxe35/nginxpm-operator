@@ -252,6 +252,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		certId := int(*certificateID)
 		input.CertificateID = &certId
 	} else {
+		log.Info("No certificate found, ignoring certificate operation")
 		input.CertificateID = nil
 	}
 
@@ -611,7 +612,7 @@ func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		func(rawObj client.Object) []string {
 			// Extract the Secret name from the Token Spec, if one is provided
 			ph := rawObj.(*nginxpmoperatoriov1.ProxyHost)
-			if ph.Spec.Ssl.CustomCertificate == nil || ph.Spec.Ssl.CustomCertificate.Name == "" {
+			if ph.Spec.Ssl == nil || ph.Spec.Ssl.CustomCertificate == nil || ph.Spec.Ssl.CustomCertificate.Name == "" {
 				return nil
 			}
 			return []string{ph.Spec.Ssl.CustomCertificate.Name}
@@ -630,7 +631,7 @@ func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		func(rawObj client.Object) []string {
 			// Extract the Secret name from the Token Spec, if one is provided
 			ph := rawObj.(*nginxpmoperatoriov1.ProxyHost)
-			if ph.Spec.Ssl.LetsEncryptCertificate == nil || ph.Spec.Ssl.LetsEncryptCertificate.Name == "" {
+			if ph.Spec.Ssl == nil || ph.Spec.Ssl.LetsEncryptCertificate == nil || ph.Spec.Ssl.LetsEncryptCertificate.Name == "" {
 				return nil
 			}
 			return []string{ph.Spec.Ssl.LetsEncryptCertificate.Name}
