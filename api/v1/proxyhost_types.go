@@ -150,11 +150,12 @@ type ForwardHost struct {
 	HostName string `json:"hostName,omitempty"`
 
 	// Service Target Port is the port to forward to
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Type=string
-	// +kubebuilder:validation:Pattern=`^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$`
-	// +required
-	HostPort string `json:"hostPort,omitempty"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=integer
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	HostPort int32 `json:"HostPort,omitempty"`
 }
 
 type ForwardService struct {
@@ -174,6 +175,14 @@ type ForwardService struct {
 	// +kubebuilder:validation:Pattern=`^[a-z]([-a-z0-9]*[a-z0-9])?$`
 	// +optional
 	Namespace *string `json:"namespace,omitempty"`
+
+	// Port of the service resource to forward to
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=integer
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	Port *int32 `json:"port,omitempty"`
 }
 
 type Forward struct {

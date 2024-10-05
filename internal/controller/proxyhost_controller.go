@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -61,6 +62,13 @@ type ProxyHostReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
+}
+
+type ProxyHostForward struct {
+	Scheme         string
+	Host           string
+	Port           int
+	AdvancedConfig string
 }
 
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=proxyhosts,verbs=get;list;watch;create;update;patch;delete
@@ -190,9 +198,11 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		}
 	}
 
+	// ProxyHost forward operation
+
 	// Certificate operation
 	if ph.Spec.Ssl != nil {
-		certificate, err := r.certificate(ctx, req, ph, nginxpmClient)
+		certificate, err := r.getCertificate(ctx, req, ph, nginxpmClient)
 		if err != nil {
 			return err
 		}
@@ -205,7 +215,112 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	return nil
 }
 
-func (r *ProxyHostReconciler) certificate(ctx context.Context, req ctrl.Request, ph *nginxpmoperatoriov1.ProxyHost, nginxpmClient *nginxpm.Client) (*nginxpm.Certificate, error) {
+// ############################################# FORWARD OPERATION ##############################################
+
+func (r *ProxyHostReconciler) getProxyHostForward(ctx context.Context, req ctrl.Request, ph *nginxpmoperatoriov1.ProxyHost, nginxpmClient *nginxpm.Client) (*ProxyHostForward, error) {
+	log := log.FromContext(ctx)
+
+	var proxyHostForward *ProxyHostForward
+
+	phForward := ph.Spec.Forward
+
+	// Check if forward host or service is provided
+	if phForward.Host == nil && phForward.Service == nil {
+		err := fmt.Errorf("No forward host or service is provided, one of them is required")
+		log.Error(err, "No forward host or service is provided, one of them is required")
+		return nil, err
+	}
+
+	return proxyHostForward, nil
+}
+
+func (r *ProxyHostReconciler) makeForward(ctx context.Context, req ctrl.Request, forward nginxpmoperatoriov1.Forward) (*ProxyHostForward, error) {
+	log := log.FromContext(ctx)
+
+	var proxyHostForward *ProxyHostForward
+
+	// When forward service is provided
+	if forward.Service != nil && forward.Host == nil {
+		service := &corev1.Service{}
+
+		// If namespace is not provided, use the namespace of the proxyhost
+		namespace := req.Namespace
+		if forward.Service.Namespace != nil {
+			namespace = *forward.Service.Namespace
+		}
+		// Retrieve the Service resource
+		if err := r.Get(ctx, types.NamespacedName{Namespace: namespace, Name: forward.Service.Name}, service); err != nil {
+			// If the Service resource is not found, we will not be able to create the forward
+			log.Error(err, "Service resource not found, please check the Service resource name")
+			return nil, err
+		}
+
+		// Extract service IP
+		serviceIP := service.Spec.ClusterIP
+		if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
+			if len(service.Status.LoadBalancer.Ingress) > 0 {
+				serviceIP = service.Status.LoadBalancer.Ingress[0].IP
+			}
+		}
+
+		matchPort := func(ports []corev1.ServicePort, scheme string) int32 {
+			for _, port := range ports {
+				if strings.Contains(port.Name, scheme) {
+					return port.Port
+				}
+			}
+			return 0
+		}
+
+		// Extract service port
+		var servicePort int32
+		if forward.Service.Port != nil {
+			servicePort = *forward.Service.Port
+		} else {
+			servicePort = matchPort(service.Spec.Ports, "http")
+			if forward.Scheme == "https" || servicePort == 0 {
+				servicePort = matchPort(service.Spec.Ports, "https")
+			}
+		}
+
+		// Verify if service port is valid
+		if servicePort == 0 {
+			err := fmt.Errorf("Service port is not valid, please check the Service resource name")
+			log.Error(err, "Service port is not valid, please check the Service resource name")
+			return nil, err
+		}
+
+		// Verify if service IP is valid
+		if serviceIP == "" {
+			err := fmt.Errorf("Service IP is not valid, please check the Service resource name")
+			log.Error(err, "Service IP is not valid, please check the Service resource name")
+			return nil, err
+		}
+
+		proxyHostForward = &ProxyHostForward{
+			Scheme:         forward.Scheme,
+			Host:           serviceIP,
+			Port:           int(servicePort),
+			AdvancedConfig: forward.AdvancedConfig,
+		}
+	}
+
+	// When forward host is provided
+	if forward.Host != nil {
+		proxyHostForward = &ProxyHostForward{
+			Scheme:         forward.Scheme,
+			Host:           forward.Host.HostName,
+			Port:           int(forward.Host.HostPort),
+			AdvancedConfig: forward.AdvancedConfig,
+		}
+	}
+
+	return proxyHostForward, nil
+}
+
+// ############################################# CERTIFICATE OPERATION ##############################################
+
+func (r *ProxyHostReconciler) getCertificate(ctx context.Context, req ctrl.Request, ph *nginxpmoperatoriov1.ProxyHost, nginxpmClient *nginxpm.Client) (*nginxpm.Certificate, error) {
 	log := log.FromContext(ctx)
 
 	if ph.Spec.Ssl == nil {
@@ -374,6 +489,8 @@ func (r *ProxyHostReconciler) findOrCreateCertificate(ctx context.Context, ph *n
 	return certificate, nil
 }
 
+// ############################################# UTILS ##############################################
+
 func (r *ProxyHostReconciler) toDomainList(ph *nginxpmoperatoriov1.ProxyHost) []string {
 	domains := make([]string, len(ph.Spec.DomainNames))
 	for i, domain := range ph.Spec.DomainNames {
@@ -382,6 +499,8 @@ func (r *ProxyHostReconciler) toDomainList(ph *nginxpmoperatoriov1.ProxyHost) []
 
 	return domains
 }
+
+// ############################################# CONTROLLER ##############################################
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
