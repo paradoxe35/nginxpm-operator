@@ -15,9 +15,6 @@ manifests-dist:
     - make kustomize
     - make build-installer
   artifacts:
-    untracked: false
-    when: on_success
-    access: all
     expire_in: never
     paths:
       - dist/install.yaml
@@ -35,11 +32,15 @@ release:
     - echo $CI_JOB_ID
   rules:
     - if: $CI_COMMIT_TAG
+  artifacts:
+    expire_in: never
+    paths:
+      - dist/install.yaml
   release:
     assets:
       links:
         - name: dist/install.yaml
-          url: $CI_SERVER_URL/$CI_PROJECT_PATH/-/jobs/$CI_JOB_ID/artifacts/download
+          url: $CI_JOB_URL/artifacts/download?file_type=application%2Fyaml
     name: "$CI_COMMIT_TAG"
     tag_name: "$CI_COMMIT_TAG"
     description: "$CI_COMMIT_TAG_MESSAGE"
