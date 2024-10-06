@@ -51,7 +51,7 @@ apiVersion: nginxpm-operator.io/v1
 kind: Token
 metadata:
   name: token-sample
-  namespace: npmoperator
+  namespace: default
   labels:
     app.kubernetes.io/name: nginxpm-operator
 spec:
@@ -154,7 +154,7 @@ metadata:
 spec:
   token:
     name: token-sample
-    namespace: nginxpm-operator-system
+    namespace: default
   domainNames:
     - example.com
     - www.example.com
@@ -189,7 +189,7 @@ metadata:
 spec:
   token:
     name: token-sample
-    namespace: nginxpm-operator-system
+    namespace: default
   niceName: example-certificate # Optional
   certificate:
     secret:
