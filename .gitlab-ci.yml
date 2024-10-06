@@ -13,7 +13,7 @@ manifests-dist:
   script:
     - apt-get update && apt-get install -y make
     - make kustomize
-    - make build-installer
+    - make build-installer IMG=$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
   artifacts:
     name: $CI_COMMIT_TAG
     expire_in: never

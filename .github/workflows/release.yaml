@@ -21,7 +21,7 @@ jobs:
       - name: Build manifests
         run: |
           make kustomize
-          make build-installer
+          make build-installer IMG=ghcr.io/${{ github.repository }}:${{ github.ref_name }}
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
