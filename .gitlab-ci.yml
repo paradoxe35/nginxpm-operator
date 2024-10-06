@@ -107,5 +107,3 @@ update_readme:
     - git add README.md
     - git commit -m "Update README.md $OLD_TAG → $NEW_TAG"
     - git push https://$CI_REPOSITORY_URL.git HEAD:main
-  only:
-    - tags
