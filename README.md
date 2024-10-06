@@ -81,6 +81,10 @@ spec:
 
   forward:
     scheme: http
+    # service:
+    #   name: nginx-svc
+    #   namespace: default
+    # Or you can use the host configuration
     host:
       hostName: 192.168.1.4 # HostName|IP
       hostPort: 80
@@ -90,11 +94,37 @@ spec:
   # websocketSupport: true
   # cachingEnabled: false
 
+  # Enable ssl here
   # ssl:
   #   autoCertificateRequest: true
   #   sslForced: true
   #   http2Support: true
   #   letsEncryptEmail: user@example.com
+
+  #   certificateId: 1 # if you know the certificate id of an existing certificate in the nginx-proxy-manager instance
+  #   customCertificate:
+  #     name: custom-certificate-sample
+
+  #   letsEncryptCertificate:
+  #     name: letsencrypt-certificate-sample
+
+  #   sslForced: true
+  #   http2Support: true
+  #   hstsEnabled: false # More info https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security
+  #   hstsSubdomains: false
+
+  # customLocations:
+  #   - locationPath: /
+  #     forward:
+  #       scheme: http
+  #       path: /hello
+  #       # service:
+  #       #   name: nginx-svc
+  #       #   namespace: default
+  #       # Or you can use the host configuration
+  #       host:
+  #         hostName: 192.168.1.4 # HostName|IP
+  #         hostPort: 80
 ```
 
 ### 3. Apply the Resources
