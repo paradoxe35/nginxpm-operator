@@ -1,114 +1,195 @@
-# nginxpm-operator
-// TODO(user): Add simple overview of use/purpose
+# Nginx Proxy Manager Operator
 
-## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+Nginx Proxy Manager Operator is a Kubernetes operator built with kubebuilder. It represents Nginx Proxy Manager resources as Kubernetes objects, providing a seamless integration between your Kubernetes cluster and Nginx Proxy Manager.
 
-## Getting Started
+## Motivation
 
-### Prerequisites
-- go version v1.22.0+
-- docker version 17.03+.
-- kubectl version v1.11.3+.
-- Access to a Kubernetes v1.11.3+ cluster.
+This solution is particularly useful for homelab setups. If you're using Nginx Proxy Manager for HTTP redirection to services behind your firewall (e.g., OPNsense) and have a Kubernetes cluster within your network, this operator simplifies the process of managing Nginx Proxy Manager resources through Kubernetes.
 
-### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
+Instead of manually configuring redirects from Nginx Proxy Manager to your ingress controller, this operator allows you to manage everything directly from your Kubernetes cluster.
 
-```sh
-make docker-build docker-push IMG=<some-registry>/nginxpm-operator:tag
+## Features
+
+| Feature                     | Status                 |
+| --------------------------- | ---------------------- |
+| Token (create access token) | ✅ Implemented         |
+| Let's Encrypt Certificate   | ✅ Implemented         |
+| Custom Certificate          | ✅ Implemented         |
+| Proxy Host                  | ✅ Implemented         |
+| Redirection Hosts           | ❌ Not yet implemented |
+| Streams                     | ❌ Not yet implemented |
+| 404 Hosts                   | ❌ Not yet implemented |
+| Access Lists                | ❌ Not yet implemented |
+
+## Installation
+
+To install the operator, run the following command:
+
+```bash
+kubectl apply -f https://github.com/paradoxe35/nginxpm-operator/releases/download/v0.1-alpha/install.yaml
 ```
 
-**NOTE:** This image ought to be published in the personal registry you specified.
-And it is required to have access to pull the image from the working environment.
-Make sure you have the proper permission to the registry if the above commands don’t work.
+## Quick Start Guide
 
-**Install the CRDs into the cluster:**
+### 1. Create a Token Resource
 
-```sh
-make install
+First, create a Token resource. Save the following YAML as `token.yaml`:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nginxpm-secret
+  namespace: default
+type: Opaque
+data:
+  identity: YWRtaW5AZXhhbXBsZS5jb20= # admin@example.com
+  secret: Y2hhbmdlbWU= # changeme
+
+---
+apiVersion: nginxpm-operator.io/v1
+kind: Token
+metadata:
+  name: token-sample
+  namespace: npmoperator
+  labels:
+    app.kubernetes.io/name: nginxpm-operator
+spec:
+  endpoint: http://[IP|DOMAIN]:81
+  secret:
+    secretName: nginxpm-secret
 ```
 
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
+### 2. Create a Proxy Host
 
-```sh
-make deploy IMG=<some-registry>/nginxpm-operator:tag
+Next, create a Proxy Host. Save the following YAML as `proxy-host.yaml`:
+
+```yaml
+apiVersion: nginxpm-operator.io/v1
+kind: ProxyHost
+metadata:
+  labels:
+    app.kubernetes.io/name: nginxpm-operator
+  name: proxyhost-sample
+spec:
+  token:
+    name: token-sample
+    namespace: default
+
+  domainNames:
+    - example.com
+
+  forward:
+    scheme: http
+    host:
+      hostName: 192.168.1.4 # HostName|IP
+      hostPort: 80
+
+  # Uncomment and modify the following sections as needed
+  # blockExploits: true
+  # websocketSupport: true
+  # cachingEnabled: false
+
+  # ssl:
+  #   autoCertificateRequest: true
+  #   sslForced: true
+  #   http2Support: true
+  #   letsEncryptEmail: user@example.com
 ```
 
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
+### 3. Apply the Resources
 
-**Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
+Apply these resources to your Kubernetes cluster:
 
-```sh
-kubectl apply -k config/samples/
+```bash
+kubectl apply -f token.yaml
+kubectl apply -f proxy-host.yaml
 ```
 
->**NOTE**: Ensure that the samples has default values to test it out.
+If all the information is correct, you should see a Proxy Host created with the specified domains in your Nginx Proxy Manager instance.
 
-### To Uninstall
-**Delete the instances (CRs) from the cluster:**
+## Certificates
 
-```sh
-kubectl delete -k config/samples/
+You can generate or attach certificates automatically with the ProxyHost spec using `ssl.autoCertificateRequest: true`. For more granular control, you can use the following certificate objects:
+
+### 1. LetsEncryptCertificate
+
+```yaml
+apiVersion: nginxpm-operator.io/v1
+kind: LetsEncryptCertificate
+metadata:
+  labels:
+    app.kubernetes.io/name: nginxpm-operator
+  name: letsencryptcertificate-sample
+spec:
+  token:
+    name: token-sample
+    namespace: nginxpm-operator-system
+  domainNames:
+    - example.com
+    - www.example.com
+  letsEncryptEmail: example@example.com
+  dnsChallenge: # Optional
+    provider: acmedns
+    providerCredentials:
+      secret:
+        name: dns-credentials-sample
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: dns-credentials-sample
+type: Opaque
+data:
+  credentials: YWRtaW4=
 ```
 
-**Delete the APIs(CRDs) from the cluster:**
+Attach this to your ProxyHost using `ssl.letsEncryptCertificate.name` in the spec.
 
-```sh
-make uninstall
+### 2. CustomCertificate
+
+```yaml
+apiVersion: nginxpm-operator.io/v1
+kind: CustomCertificate
+metadata:
+  labels:
+    app.kubernetes.io/name: nginxpm-operator
+  name: customcertificate-sample
+spec:
+  token:
+    name: token-sample
+    namespace: nginxpm-operator-system
+  niceName: example-certificate # Optional
+  certificate:
+    secret:
+      name: certificate-sample
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: certificate-sample
+type: Opaque
+data:
+  certificate: YWRtaW4=
+  certificate_key: YWRtaW4=
 ```
 
-**UnDeploy the controller from the cluster:**
+Attach this to your ProxyHost using `ssl.customCertificate.name` in the spec.
 
-```sh
-make undeploy
-```
+## Warning
 
-## Project Distribution
+This project is still in its early stages and may have limitations. Your contributions and feedback are welcome to help improve and stabilize the operator.
 
-Following are the steps to build the installer and distribute this project to users.
+## Support
 
-1. Build the installer for the image built and published in the registry:
-
-```sh
-make build-installer IMG=<some-registry>/nginxpm-operator:tag
-```
-
-NOTE: The makefile target mentioned above generates an 'install.yaml'
-file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without
-its dependencies.
-
-2. Using the installer
-
-Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the project, i.e.:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/nginxpm-operator/<tag or branch>/dist/install.yaml
-```
+If you find this tool helpful for your setup, similar to the author's use case, please consider starring the repository and contributing to the source code. Your support helps improve the project for everyone.
 
 ## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
 
-**NOTE:** Run `make help` for more information on all potential `make` targets
-
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-Copyright 2024.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
+[Add your chosen license here]
