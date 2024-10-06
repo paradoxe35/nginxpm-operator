@@ -219,7 +219,8 @@ If you find this tool helpful for your setup, similar to the author's use case, 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+Check kubebuilder [documentation](https://book.kubebuilder.io/quick-start.html#installation) for more information.
 
 ## License
 
-[Add your chosen license here]
+Licensed under the Apache License, Version 2.0.
