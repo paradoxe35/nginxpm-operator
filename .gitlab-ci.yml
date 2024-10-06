@@ -2,6 +2,7 @@ stages:
   - manifests-dist
   - release
   - build-images
+  - update_tag
 
 # Create artifacts
 
@@ -71,3 +72,40 @@ build-images:
     - docker tag $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG $CI_REGISTRY_IMAGE:latest
     - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
     - docker push $CI_REGISTRY_IMAGE:latest
+
+# Update README.md
+
+update_readme:
+  stage: update_tag
+  image: alpine:latest
+  rules:
+    - if: $CI_COMMIT_TAG
+  needs:
+    - manifests-dist
+    - release
+    - build-images
+  script:
+    - apk add --no-cache git
+    # Fetch all tags and checkout the newly created tag
+    - git fetch --tags
+
+    # Extract the latest and previous tags
+    - export NEW_TAG=$(echo $CI_COMMIT_TAG)
+    - export OLD_TAG=$(git describe --tags --abbrev=0 $(git rev-list --tags --skip=1 --max-count=1))
+
+    # Check if OLD_TAG was found, and proceed if it exists
+    - if [ -z "$OLD_TAG" ]; then echo "No previous tag found. Skipping the update."; exit 0; fi
+
+    # Use sed to replace the old tag with the new tag in README.md
+    - sed -i "s/$OLD_TAG/$NEW_TAG/g" README.md
+
+    # Set git user info for committing
+    - git config --global user.email "ci-bot@nginxpm-operator.io"
+    - git config --global user.name "CI Bot"
+
+    # Commit and push the changes back to the repo
+    - git add README.md
+    - git commit -m "Update README.md $OLD_TAG → $NEW_TAG"
+    - git push https://$CI_REPOSITORY_URL.git HEAD:main
+  only:
+    - tags
