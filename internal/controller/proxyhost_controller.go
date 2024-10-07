@@ -294,7 +294,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		proxyHost, err = nginxpmClient.CreateProxyHost(input)
 		if err != nil {
 			r.Recorder.Event(
-				ph, "Warning", "CreateProxyHost",
+				ph, "Normal", "CreateProxyHost",
 				fmt.Sprintf("Failed to create proxy host, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
 			)
 
