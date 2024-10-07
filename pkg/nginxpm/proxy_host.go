@@ -29,7 +29,6 @@ import (
 type ProxyHost struct {
 	ID          int      `json:"id"`
 	DomainNames []string `json:"domain_names"`
-	Bound       bool     `json:"bound"`
 }
 
 // ProxyMeta represents the meta information for a proxy host

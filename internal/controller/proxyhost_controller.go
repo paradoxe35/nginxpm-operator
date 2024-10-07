@@ -184,6 +184,8 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	var proxyHost *nginxpm.ProxyHost
 	var err error
 
+	bound := ph.Status.Bound
+
 	// Convert domain names to []string
 	domains := r.toDomainList(ph)
 
@@ -205,7 +207,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		proxyHost, _ = nginxpmClient.FindProxyHostByDomain(domains)
 
 		if proxyHost != nil {
-			proxyHost.Bound = true
+			bound = true
 		}
 	}
 
@@ -308,7 +310,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	return UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
 		ph.Status.Id = &proxyHost.ID
 		ph.Status.CertificateId = certificateID
-		ph.Status.Bound = ph.Status.Bound || proxyHost.Bound
+		ph.Status.Bound = bound
 	})
 }
 
