@@ -124,7 +124,7 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// Create a new Nginx Proxy Manager client
-	nginxpmClient, err := InitNginxPMClient(ctx, r, ph.Spec.Token.Name, ph.Spec.Token.Namespace)
+	nginxpmClient, err := InitNginxPMClient(ctx, r, req, ph.Spec.Token)
 	if err != nil {
 		// Stop reconciliation if the resource is marked for deletion and the client can't be created
 		if isMarkedToBeDeleted {

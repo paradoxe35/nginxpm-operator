@@ -33,15 +33,15 @@ type TokenName struct {
 	// Name of the token resource
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
-	// +kubebuilder:validation:Pattern=`^[a-z]([-a-z0-9]*[a-z0-9])?$`
-	// +required
-	Namespace string `json:"namespace,omitempty"`
-
-	// Namespace of the token resource
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Type=string
 	// +required
 	Name string `json:"name,omitempty"`
+
+	// Namespace of the token resource
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern=`^[a-z]([-a-z0-9]*[a-z0-9])?$`
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
 }
 
 type SslCustomCertificate struct {
@@ -241,10 +241,10 @@ type ProxyHostSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Token resource reference to add to the proxyhost, this is the created auth token
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
-	// +required
-	Token TokenName `json:"token,omitempty"`
+	// +optional
+	Token *TokenName `json:"token,omitempty"`
 
 	// DomainNames is the list of domain names to add to the proxyhost
 	// +kubebuilder:validation:MinItems=1

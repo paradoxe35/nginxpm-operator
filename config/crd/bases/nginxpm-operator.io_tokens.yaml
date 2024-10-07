@@ -20,7 +20,7 @@ spec:
       type: string
     - jsonPath: .status.expires
       name: Expires
-      type: date
+      type: string
     name: v1
     schema:
       openAPIV3Schema:

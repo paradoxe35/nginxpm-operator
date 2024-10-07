@@ -74,19 +74,17 @@ spec:
                   requests
                 properties:
                   name:
-                    description: Namespace of the token resource
+                    description: Name of the token resource
                     type: string
                   namespace:
-                    description: Name of the token resource
+                    description: Namespace of the token resource
                     pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                     type: string
                 required:
                 - name
-                - namespace
                 type: object
             required:
             - certificate
-            - token
             type: object
           status:
             description: CustomCertificateStatus defines the observed state of CustomCertificate

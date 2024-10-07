@@ -27,7 +27,79 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
+
+const (
+	TOKEN_DEFAULT_NAME = "token-nginxpm"
+
+	// Default namespaces to lookup for the token
+	// when no specific namespace is provided
+	TOKEN_SYSTEM_NAMESPACE  = "nginxpm-operator-system"
+	TOKEN_DEFAULT_NAMESPACE = "default"
+)
+
+func InitNginxPMClient(ctx context.Context, r client.Reader, req reconcile.Request, tokenName *nginxpmoperatoriov1.TokenName) (*nginxpm.Client, error) {
+	log := log.FromContext(ctx)
+
+	// Set the token names
+	names := []string{TOKEN_DEFAULT_NAME}
+	if tokenName != nil && len(tokenName.Name) > 0 {
+		// Prepend token name
+		names = append([]string{tokenName.Name}, names...)
+	}
+
+	// Set the token namespaces
+	namespaces := []string{req.Namespace, TOKEN_SYSTEM_NAMESPACE, TOKEN_DEFAULT_NAMESPACE}
+	if tokenName != nil && tokenName.Namespace != nil && len(*tokenName.Namespace) > 0 {
+		// Prepend token namespace
+		namespaces = append([]string{*tokenName.Namespace}, namespaces...)
+	}
+
+	token := &nginxpmoperatoriov1.Token{}
+
+	for _, namespace := range namespaces {
+		found := false
+		for _, name := range names {
+			tokenNamespaced := types.NamespacedName{
+				Namespace: namespace,
+				Name:      name,
+			}
+
+			// Get the token resource
+			err := r.Get(ctx, tokenNamespaced, token)
+			if err == nil {
+				log.Info("Token resource found", "Namespace", namespace, "Name", name)
+				found = true
+				break
+			}
+		}
+
+		// token found on this iteration
+		if found {
+			break
+		}
+	}
+
+	// If token still empty, means it was not found
+	if token.Name == "" || token.Status.Token == nil {
+		log.Error(nil, "Token resource not found")
+		return nil, nil
+	}
+
+	// Create a new Nginx Proxy Manager client
+	nginxpmClient := nginxpm.NewClientFromToken(util.NewHttpClient(), token)
+
+	// Check if the connection is established
+	if err := nginxpmClient.CheckTokenAccess(); err != nil {
+		log.Error(err, "Token access check failed")
+		return nil, err
+	}
+
+	log.Info("NginxPM client initialized successfully")
+
+	return nginxpmClient, nil
+}
 
 // RemoveFinalizer will remove the finalizer from the object
 func RemoveFinalizer(r client.Writer, ctx context.Context, finalizer string, object client.Object) error {
@@ -59,35 +131,6 @@ func AddFinalizer(r client.Writer, ctx context.Context, finalizer string, object
 	}
 
 	return nil
-}
-
-func InitNginxPMClient(ctx context.Context, r client.Reader, tokenName string, tokenNamespace string) (*nginxpm.Client, error) {
-	log := log.FromContext(ctx)
-
-	token := &nginxpmoperatoriov1.Token{}
-	tokenNamespaced := types.NamespacedName{
-		Namespace: tokenNamespace,
-		Name:      tokenName,
-	}
-
-	// Get the token resource
-	if err := r.Get(ctx, tokenNamespaced, token); err != nil {
-		log.Error(err, "Failed to get token resource")
-		return nil, err
-	}
-
-	// Create a new Nginx Proxy Manager client
-	nginxpmClient := nginxpm.NewClientFromToken(util.NewHttpClient(), token)
-
-	// Check if the connection is established
-	if err := nginxpmClient.CheckTokenAccess(); err != nil {
-		log.Error(err, "Token access check failed")
-		return nil, err
-	}
-
-	log.Info("NginxPM client initialized successfully")
-
-	return nginxpmClient, nil
 }
 
 func UpdateStatus(ctx context.Context, r client.Client, object client.Object, namespacedName types.NamespacedName, mutate func()) error {

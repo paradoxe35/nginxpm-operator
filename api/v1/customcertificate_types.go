@@ -45,10 +45,10 @@ type CustomCertificateSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Token resource reference to add to the CustomCertificate requests
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
-	// +required
-	Token TokenName `json:"token,omitempty"`
+	// +Optional
+	Token *TokenName `json:"token,omitempty"`
 
 	// NiceName of the CustomCertificate (If not provided, the resource name will be used)
 	// +kubebuilder:validation:Optional

@@ -1,8 +1,8 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: nginx-pm-proxy
-  namespace: nginx-pm
+  name: nginxpm-proxy
+  namespace: nginxpm
 spec:
   ports:
     - name: proxy
@@ -14,7 +14,7 @@ spec:
       protocol: TCP
       targetPort: 443
   selector:
-    app: nginx-pm
+    app: nginxpm
   externalTrafficPolicy: Local
   type: LoadBalancer
 
@@ -22,8 +22,8 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: nginx-pm-admin-ui
-  namespace: nginx-pm
+  name: nginxpm-admin-ui
+  namespace: nginxpm
 spec:
   ports:
     - name: admin-ui
@@ -31,4 +31,4 @@ spec:
       protocol: TCP
       targetPort: 81
   selector:
-    app: nginx-pm
+    app: nginxpm

@@ -89,7 +89,7 @@ type TokenStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Secret",type="string",JSONPath=".spec.secret.secretName"
-// +kubebuilder:printcolumn:name="Expires",type="date",JSONPath=".status.expires"
+// +kubebuilder:printcolumn:name="Expires",type="string",JSONPath=".status.expires"
 
 // Token is the Schema for the tokens API
 type Token struct {

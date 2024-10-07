@@ -110,7 +110,7 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	// Create a new Nginx Proxy Manager client
 	// If the client can't be created, we will remove the finalizer
-	nginxpmClient, err := InitNginxPMClient(ctx, r, cc.Spec.Token.Name, cc.Spec.Token.Namespace)
+	nginxpmClient, err := InitNginxPMClient(ctx, r, req, cc.Spec.Token)
 	if err != nil {
 		// Stop reconciliation if the resource is marked for deletion and the client can't be created
 		if isMarkedToBeDeleted {

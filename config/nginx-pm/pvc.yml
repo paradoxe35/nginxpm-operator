@@ -1,8 +1,8 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: nginx-pm-data
-  namespace: nginx-pm
+  name: nginxpm-data
+  namespace: nginxpm
 spec:
   accessModes:
     - ReadWriteOnce
@@ -13,8 +13,8 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: nginx-pm-letsencrypt
-  namespace: nginx-pm
+  name: nginxpm-letsencrypt
+  namespace: nginxpm
 spec:
   accessModes:
     - ReadWriteOnce

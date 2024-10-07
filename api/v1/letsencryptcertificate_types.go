@@ -68,10 +68,10 @@ type LetsEncryptCertificateSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Token resource reference to add to the LetsEncryptCertificate requests
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
-	// +required
-	Token TokenName `json:"token,omitempty"`
+	// +optional
+	Token *TokenName `json:"token,omitempty"`
 
 	// Domain Names to request a certificate for
 	// +kubebuilder:validation:MinItems=1

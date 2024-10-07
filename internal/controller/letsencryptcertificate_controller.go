@@ -106,7 +106,7 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 
 	// Create a new Nginx Proxy Manager client
 	// If the client can't be created, we will remove the finalizer
-	nginxpmClient, err := InitNginxPMClient(ctx, r, lec.Spec.Token.Name, lec.Spec.Token.Namespace)
+	nginxpmClient, err := InitNginxPMClient(ctx, r, req, lec.Spec.Token)
 	if err != nil {
 		// Stop reconciliation if the resource is marked for deletion and the client can't be created
 		if isMarkedToBeDeleted {

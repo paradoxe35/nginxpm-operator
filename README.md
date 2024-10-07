@@ -50,7 +50,7 @@ data:
 apiVersion: nginxpm-operator.io/v1
 kind: Token
 metadata:
-  name: token-sample
+  name: token-nginxpm
   namespace: default
   labels:
     app.kubernetes.io/name: nginxpm-operator
@@ -70,10 +70,12 @@ kind: ProxyHost
 metadata:
   labels:
     app.kubernetes.io/name: nginxpm-operator
-  name: proxyhost-sample
+  name: proxyhost-example
 spec:
+  # Token is optional, if not provided, the operator will try to find a token with `token-nginxpm` name
+  # in the same namespace as the proxyhost is created or in the `nginxpm-operator-system` namespace or in the `default` namespace
   token:
-    name: token-sample
+    name: token-nginxpm
     namespace: default
 
   domainNames:
@@ -152,13 +154,18 @@ metadata:
     app.kubernetes.io/name: nginxpm-operator
   name: letsencryptcertificate-sample
 spec:
+  # Token is optional, if not provided, the operator will try to find a token with `token-nginxpm` name
+  # in the same namespace as the letsencryptcertificate is created or in the `nginxpm-operator-system` namespace or in the `default` namespace
   token:
-    name: token-sample
+    name: token-nginxpm
     namespace: default
+
   domainNames:
     - example.com
     - www.example.com
+
   letsEncryptEmail: example@example.com
+
   dnsChallenge: # Optional
     provider: acmedns
     providerCredentials:
@@ -187,10 +194,14 @@ metadata:
     app.kubernetes.io/name: nginxpm-operator
   name: customcertificate-sample
 spec:
+  # Token is optional, if not provided, the operator will try to find a token with `token-nginxpm` name
+  # in the same namespace as the letsencryptcertificate is created or in the `nginxpm-operator-system` namespace or in the `default` namespace
   token:
-    name: token-sample
+    name: token-nginxpm
     namespace: default
+
   niceName: example-certificate # Optional
+
   certificate:
     secret:
       name: certificate-sample
