@@ -381,7 +381,13 @@ func (r *ProxyHostReconciler) makeForward(ctx context.Context, req ctrl.Request,
 
 		matchPort := func(ports []corev1.ServicePort, scheme string) int32 {
 			for _, port := range ports {
-				if strings.Contains(port.Name, scheme) {
+				contains := strings.Contains(port.Name, scheme)
+
+				if scheme == "http" {
+					if contains && !strings.Contains(port.Name, "https") {
+						return port.Port
+					}
+				} else if strings.Contains(port.Name, scheme) {
 					return port.Port
 				}
 			}
