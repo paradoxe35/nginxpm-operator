@@ -665,9 +665,16 @@ func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		func(rawObj client.Object) []string {
 			// Extract the Secret name from the Token Spec, if one is provided
 			ph := rawObj.(*nginxpmoperatoriov1.ProxyHost)
+
+			if ph.Spec.Token == nil {
+				// If token is not provided, use the default token name
+				return []string{TOKEN_DEFAULT_NAME}
+			}
+
 			if ph.Spec.Token.Name == "" {
 				return nil
 			}
+
 			return []string{ph.Spec.Token.Name}
 		}); err != nil {
 		return err

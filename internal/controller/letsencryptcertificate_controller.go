@@ -293,6 +293,32 @@ func (r *LetsEncryptCertificateReconciler) getDnsChallengeProviderCredentials(ct
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *LetsEncryptCertificateReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Add the Token to the indexer
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+
+		&nginxpmoperatoriov1.LetsEncryptCertificate{},
+
+		LEC_TOKEN_FIELD,
+
+		func(rawObj client.Object) []string {
+			// Extract the Secret name from the Token Spec, if one is provided
+			lec := rawObj.(*nginxpmoperatoriov1.LetsEncryptCertificate)
+
+			if lec.Spec.Token == nil {
+				// If token is not provided, use the default token name
+				return []string{TOKEN_DEFAULT_NAME}
+			}
+
+			if lec.Spec.Token.Name == "" {
+				return nil
+			}
+
+			return []string{lec.Spec.Token.Name}
+		}); err != nil {
+		return err
+	}
+
 	// Add the DNS Challenge Provider Credentials Secret to the indexer
 	if err := mgr.GetFieldIndexer().IndexField(
 		context.Background(),
@@ -309,25 +335,6 @@ func (r *LetsEncryptCertificateReconciler) SetupWithManager(mgr ctrl.Manager) er
 			}
 
 			return []string{lec.Spec.DnsChallenge.ProviderCredentials.Secret.Name}
-		}); err != nil {
-		return err
-	}
-
-	// Add the Token to the indexer
-	if err := mgr.GetFieldIndexer().IndexField(
-		context.Background(),
-
-		&nginxpmoperatoriov1.LetsEncryptCertificate{},
-
-		LEC_TOKEN_FIELD,
-
-		func(rawObj client.Object) []string {
-			// Extract the Secret name from the Token Spec, if one is provided
-			lec := rawObj.(*nginxpmoperatoriov1.LetsEncryptCertificate)
-			if lec.Spec.Token.Name == "" {
-				return nil
-			}
-			return []string{lec.Spec.Token.Name}
 		}); err != nil {
 		return err
 	}

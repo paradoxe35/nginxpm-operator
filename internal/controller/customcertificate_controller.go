@@ -290,6 +290,29 @@ func (r *CustomCertificateReconciler) getCertificateKeys(ctx context.Context, re
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *CustomCertificateReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Add the Token to the indexer
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+		&nginxpmoperatoriov1.CustomCertificate{},
+		CC_TOKEN_FIELD,
+		func(rawObj client.Object) []string {
+			// Extract the Secret name from the Token Spec, if one is provided
+			cc := rawObj.(*nginxpmoperatoriov1.CustomCertificate)
+
+			if cc.Spec.Token == nil {
+				// If token is not provided, use the default token name
+				return []string{TOKEN_DEFAULT_NAME}
+			}
+
+			if cc.Spec.Token.Name == "" {
+				return nil
+			}
+
+			return []string{cc.Spec.Token.Name}
+		}); err != nil {
+		return err
+	}
+
 	// Add certificate secret to the indexer
 	if err := mgr.GetFieldIndexer().IndexField(
 		context.Background(),
@@ -306,22 +329,6 @@ func (r *CustomCertificateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 
 			return []string{cc.Spec.Certificate.Secret.Name}
-		}); err != nil {
-		return err
-	}
-
-	// Add the Token to the indexer
-	if err := mgr.GetFieldIndexer().IndexField(
-		context.Background(),
-		&nginxpmoperatoriov1.CustomCertificate{},
-		CC_TOKEN_FIELD,
-		func(rawObj client.Object) []string {
-			// Extract the Secret name from the Token Spec, if one is provided
-			cc := rawObj.(*nginxpmoperatoriov1.CustomCertificate)
-			if cc.Spec.Token.Name == "" {
-				return nil
-			}
-			return []string{cc.Spec.Token.Name}
 		}); err != nil {
 		return err
 	}
