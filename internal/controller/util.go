@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
 	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
@@ -83,8 +84,9 @@ func InitNginxPMClient(ctx context.Context, r client.Reader, req reconcile.Reque
 
 	// If token still empty, means it was not found
 	if token.Name == "" || token.Status.Token == nil {
-		log.Error(nil, "Token resource not found")
-		return nil, nil
+		err := errors.New("token resource not found")
+		log.Error(err, "Token resource not found")
+		return nil, err
 	}
 
 	// Create a new Nginx Proxy Manager client
