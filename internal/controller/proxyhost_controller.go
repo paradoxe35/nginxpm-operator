@@ -25,6 +25,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -123,6 +125,18 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
+	// Let's just set the status as Unknown when no status is available
+	if len(ph.Status.Conditions) == 0 {
+		UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
+			meta.SetStatusCondition(&ph.Status.Conditions, metav1.Condition{
+				Status:  metav1.ConditionUnknown,
+				Type:    "Reconciling",
+				Reason:  "Reconciling",
+				Message: "Starting reconciliation",
+			})
+		})
+	}
+
 	// Create a new Nginx Proxy Manager client
 	nginxpmClient, err := InitNginxPMClient(ctx, r, req, ph.Spec.Token)
 	if err != nil {
@@ -140,6 +154,16 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				fmt.Sprintf("Failed to init nginxpm client, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
 			)
 		}
+
+		// Set the status as False when the client can't be created
+		UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
+			meta.SetStatusCondition(&ph.Status.Conditions, metav1.Condition{
+				Status:  metav1.ConditionFalse,
+				Type:    "InitNginxPMClient",
+				Reason:  "InitNginxPMClient",
+				Message: err.Error(),
+			})
+		})
 
 		return ctrl.Result{}, err
 	}
@@ -169,13 +193,88 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 
-	// Create or update proxy host
-	err = r.createOrUpdateProxyHost(ctx, req, ph, nginxpmClient)
+	// Domains should be unique
+	_, err = r.domainsShouldBeUnique(ctx, ph)
 	if err != nil {
+		// Set the status as False when the client can't be created
+		UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
+			meta.SetStatusCondition(&ph.Status.Conditions, metav1.Condition{
+				Status:  metav1.ConditionFalse,
+				Type:    "DomainsShouldBeUnique",
+				Reason:  "DomainsShouldBeUnique",
+				Message: err.Error(),
+			})
+		})
 		return ctrl.Result{}, err
 	}
 
+	// Create or update proxy host
+	err = r.createOrUpdateProxyHost(ctx, req, ph, nginxpmClient)
+	if err != nil {
+		// Set the status as False when the client can't be created
+		UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
+			meta.SetStatusCondition(&ph.Status.Conditions, metav1.Condition{
+				Status:  metav1.ConditionFalse,
+				Type:    "CreateOrUpdateProxyHost",
+				Reason:  "CreateOrUpdateProxyHost",
+				Message: err.Error(),
+			})
+		})
+
+		return ctrl.Result{}, err
+	}
+
+	// Set the status as True when the client can be created
+	UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
+		meta.SetStatusCondition(&ph.Status.Conditions, metav1.Condition{
+			Status:  metav1.ConditionTrue,
+			Type:    "CreateOrUpdateProxyHost",
+			Reason:  "CreateOrUpdateProxyHost",
+			Message: fmt.Sprintf("Proxy host created or updated, ResourceName: %s", req.Name),
+		})
+	})
+
 	return ctrl.Result{}, nil
+}
+
+func (r *ProxyHostReconciler) domainsShouldBeUnique(ctx context.Context, ph *nginxpmoperatoriov1.ProxyHost) (bool, error) {
+	log := log.FromContext(ctx)
+
+	proxyHosts := &nginxpmoperatoriov1.ProxyHostList{}
+
+	err := r.List(ctx, proxyHosts)
+	if err != nil {
+		log.Error(err, "Failed to list proxy hosts")
+		return false, err
+	}
+
+	if len(proxyHosts.Items) == 0 {
+		log.Info("No proxy hosts found, assuming domains should be unique")
+		return true, nil
+	}
+
+	domains := r.toDomainList(ph)
+
+	// add proxy hosts domains to the list
+	for _, proxyHost := range proxyHosts.Items {
+		if proxyHost.GetName() == ph.GetName() && proxyHost.GetNamespace() == ph.GetNamespace() {
+			continue
+		}
+
+		proxyHostDomains := r.toDomainList(&proxyHost)
+		// check if the domain is already used by another proxy host
+		for _, domain := range domains {
+			if slices.Contains(proxyHostDomains, domain) {
+				msg := fmt.Sprintf("Domain %s is already used by another proxy host: (name: %s, namespace: %s)", domain, proxyHost.GetName(), proxyHost.GetNamespace())
+
+				err := errors.New(msg)
+				log.Error(err, msg)
+				return false, err
+			}
+		}
+	}
+
+	return true, nil
 }
 
 func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req ctrl.Request, ph *nginxpmoperatoriov1.ProxyHost, nginxpmClient *nginxpm.Client) error {
