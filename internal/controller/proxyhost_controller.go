@@ -148,12 +148,12 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			}
 
 			return ctrl.Result{}, nil
-		} else {
-			r.Recorder.Event(
-				ph, "Warning", "InitNginxPMClient",
-				fmt.Sprintf("Failed to init nginxpm client, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
-			)
 		}
+
+		r.Recorder.Event(
+			ph, "Warning", "InitNginxPMClient",
+			fmt.Sprintf("Failed to init nginxpm client, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+		)
 
 		// Set the status as False when the client can't be created
 		UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {

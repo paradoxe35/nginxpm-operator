@@ -118,12 +118,12 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 			}
 
 			return ctrl.Result{}, nil
-		} else {
-			r.Recorder.Event(
-				lec, "Warning", "InitNginxPMClient",
-				fmt.Sprintf("Failed to init nginxpm client, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
-			)
 		}
+
+		r.Recorder.Event(
+			lec, "Warning", "InitNginxPMClient",
+			fmt.Sprintf("Failed to init nginxpm client, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+		)
 
 		// Set the status as False when the client can't be created
 		UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
