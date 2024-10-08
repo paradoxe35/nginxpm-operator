@@ -25,6 +25,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -123,6 +125,16 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 			)
 		}
 
+		// Set the status as False when the client can't be created
+		UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
+			meta.SetStatusCondition(&lec.Status.Conditions, metav1.Condition{
+				Status:  metav1.ConditionFalse,
+				Type:    "InitNginxPMClient",
+				Reason:  "InitNginxPMClient",
+				Message: err.Error(),
+			})
+		})
+
 		return ctrl.Result{}, err
 	}
 
@@ -155,8 +167,28 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 	// Create Certificate or update the existing one
 	result, err := r.createCertificate(ctx, req, lec, nginxpmClient)
 	if err != nil {
+		// Set the status as False when the client can't be created
+		UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
+			meta.SetStatusCondition(&lec.Status.Conditions, metav1.Condition{
+				Status:  metav1.ConditionFalse,
+				Type:    "CreateCertificate",
+				Reason:  "CreateCertificate",
+				Message: err.Error(),
+			})
+		})
+
 		return result, err
 	}
+
+	// Set the status as True when the client can be created
+	UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
+		meta.SetStatusCondition(&lec.Status.Conditions, metav1.Condition{
+			Status:  metav1.ConditionTrue,
+			Type:    "createCertificate",
+			Reason:  "createCertificate",
+			Message: fmt.Sprintf("Certificate created or bound, ResourceName: %s", req.Name),
+		})
+	})
 
 	return ctrl.Result{}, nil
 }

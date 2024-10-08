@@ -24,6 +24,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -120,12 +122,22 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			}
 
 			return ctrl.Result{}, nil
-		} else {
-			r.Recorder.Event(
-				cc, "Warning", "InitNginxPMClient",
-				fmt.Sprintf("Failed to init nginxpm client, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
-			)
 		}
+
+		r.Recorder.Event(
+			cc, "Warning", "InitNginxPMClient",
+			fmt.Sprintf("Failed to init nginxpm client, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+		)
+
+		// Set the status as False when the client can't be created
+		UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
+			meta.SetStatusCondition(&cc.Status.Conditions, metav1.Condition{
+				Status:  metav1.ConditionFalse,
+				Type:    "InitNginxPMClient",
+				Reason:  "InitNginxPMClient",
+				Message: err.Error(),
+			})
+		})
 
 		return ctrl.Result{}, err
 	}
@@ -158,8 +170,28 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	// Create Certificate or update the existing one
 	result, err := r.createCertificate(ctx, req, cc, nginxpmClient)
 	if err != nil {
+		// Set the status as False when the client can't be created
+		UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
+			meta.SetStatusCondition(&cc.Status.Conditions, metav1.Condition{
+				Status:  metav1.ConditionFalse,
+				Type:    "CreateCertificate",
+				Reason:  "CreateCertificate",
+				Message: err.Error(),
+			})
+		})
+
 		return result, err
 	}
+
+	// Set the status as True when the client can be created
+	UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
+		meta.SetStatusCondition(&cc.Status.Conditions, metav1.Condition{
+			Status:  metav1.ConditionTrue,
+			Type:    "CreateCertificate",
+			Reason:  "CreateCertificate",
+			Message: fmt.Sprintf("Certificate created, ResourceName: %s", req.Name),
+		})
+	})
 
 	return ctrl.Result{}, nil
 }
