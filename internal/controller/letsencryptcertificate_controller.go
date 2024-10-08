@@ -389,24 +389,27 @@ func (r *LetsEncryptCertificateReconciler) SetupWithManager(mgr ctrl.Manager) er
 		Owns(&corev1.Secret{}).
 		Watches(
 			&corev1.Secret{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsForObjects(LEC_DNS_CHALLENGE_CRED_SECRET_FIELD)),
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(LEC_DNS_CHALLENGE_CRED_SECRET_FIELD)),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Watches(
 			&nginxpmoperatoriov1.Token{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsForObjects(LEC_TOKEN_FIELD)),
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(LEC_TOKEN_FIELD)),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Complete(r)
 }
 
-func (r *LetsEncryptCertificateReconciler) findObjectsForObjects(field string) func(ctx context.Context, obj client.Object) []reconcile.Request {
+func (r *LetsEncryptCertificateReconciler) findObjectsForMap(field string) func(ctx context.Context, obj client.Object) []reconcile.Request {
 	return func(ctx context.Context, object client.Object) []reconcile.Request {
 		attachedObjects := &nginxpmoperatoriov1.LetsEncryptCertificateList{}
 
 		listOps := &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(field, object.GetName()),
-			Namespace:     object.GetNamespace(),
+		}
+
+		if field != LEC_TOKEN_FIELD {
+			listOps.Namespace = object.GetNamespace()
 		}
 
 		err := r.List(ctx, attachedObjects, listOps)

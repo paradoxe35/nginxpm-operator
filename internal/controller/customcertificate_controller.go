@@ -386,24 +386,27 @@ func (r *CustomCertificateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Secret{}).
 		Watches(
 			&corev1.Secret{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsForObjects(CC_CERTIFICATE_FIELD)),
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(CC_CERTIFICATE_FIELD)),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Watches(
 			&nginxpmoperatoriov1.Token{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsForObjects(CC_TOKEN_FIELD)),
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(CC_TOKEN_FIELD)),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Complete(r)
 }
 
-func (r *CustomCertificateReconciler) findObjectsForObjects(field string) func(ctx context.Context, obj client.Object) []reconcile.Request {
+func (r *CustomCertificateReconciler) findObjectsForMap(field string) func(ctx context.Context, obj client.Object) []reconcile.Request {
 	return func(ctx context.Context, object client.Object) []reconcile.Request {
 		attachedObjects := &nginxpmoperatoriov1.CustomCertificateList{}
 
 		listOps := &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(field, object.GetName()),
-			Namespace:     object.GetNamespace(),
+		}
+
+		if field != CC_TOKEN_FIELD {
+			listOps.Namespace = object.GetNamespace()
 		}
 
 		err := r.List(ctx, attachedObjects, listOps)

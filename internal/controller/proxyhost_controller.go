@@ -883,39 +883,38 @@ func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Service{}).
 		Watches(
 			&nginxpmoperatoriov1.Token{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsForObjects(PH_TOKEN_FIELD)),
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(PH_TOKEN_FIELD)),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Watches(
 			&nginxpmoperatoriov1.CustomCertificate{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsForObjects(PH_CUSTOM_CERTIFICATE_FIELD)),
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(PH_CUSTOM_CERTIFICATE_FIELD)),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Watches(
 			&nginxpmoperatoriov1.LetsEncryptCertificate{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsForObjects(PH_LETSENCRYPT_CERTIFICATE_FIELD)),
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(PH_LETSENCRYPT_CERTIFICATE_FIELD)),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Watches(
 			&corev1.Service{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsForObjects(PH_FORWARD_SERVICE_FIELD)),
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(PH_FORWARD_SERVICE_FIELD)),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Watches(
 			&corev1.Service{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsForObjects(PH_CUSTOM_LOCATION_FORWARD_FIELD)),
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(PH_CUSTOM_LOCATION_FORWARD_FIELD)),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Complete(r)
 }
 
-func (r *ProxyHostReconciler) findObjectsForObjects(field string) func(ctx context.Context, obj client.Object) []reconcile.Request {
+func (r *ProxyHostReconciler) findObjectsForMap(field string) func(ctx context.Context, obj client.Object) []reconcile.Request {
 	return func(ctx context.Context, object client.Object) []reconcile.Request {
 		attachedObjects := &nginxpmoperatoriov1.ProxyHostList{}
 
 		listOps := &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(field, object.GetName()),
-			Namespace:     object.GetNamespace(),
 		}
 
 		err := r.List(ctx, attachedObjects, listOps)
