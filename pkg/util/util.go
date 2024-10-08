@@ -21,6 +21,6 @@ func ExtractRootDomain(domain string) string {
 
 func NewHttpClient() *http.Client {
 	return &http.Client{
-		Timeout: time.Duration(45) * time.Second,
+		Timeout: time.Duration(60) * time.Second,
 	}
 }
