@@ -24,6 +24,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/fields"
@@ -83,31 +84,64 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
+	// Let's just set the status as Unknown when no status is available
+	if len(token.Status.Conditions) == 0 {
+		UpdateStatus(ctx, r.Client, token, req.NamespacedName, func() {
+			meta.SetStatusCondition(&token.Status.Conditions, metav1.Condition{
+				Status:  metav1.ConditionUnknown,
+				Type:    "Reconciling",
+				Reason:  "Reconciling",
+				Message: "Starting reconciliation",
+			})
+		})
+
+		return ctrl.Result{}, nil
+	}
+
 	// Let's create a new Nginx Proxy Manager client
 	nginxpmClient, err := r.initNginxPMClient(ctx, req, token)
 	if err != nil {
+		// Set the status as False when the client can't be created
+		UpdateStatus(ctx, r.Client, token, req.NamespacedName, func() {
+			meta.SetStatusCondition(&token.Status.Conditions, metav1.Condition{
+				Status:  metav1.ConditionFalse,
+				Type:    "InitNginxPMClient",
+				Reason:  "InitNginxPMClient",
+				Message: err.Error(),
+			})
+		})
+
 		return ctrl.Result{}, err
 	}
 
 	fmt.Println("## Client Token created and expires at: ", nginxpmClient.Expires)
 
 	if token.Status.Token == nil || *token.Status.Token != nginxpmClient.Token {
-		// Update the status of the token
-		// Set the token and expiration time in the status
-		token.Status.Token = &nginxpmClient.Token
-		token.Status.Expires = &metav1.Time{Time: nginxpmClient.Expires}
-
 		// Update the status of the token with the new token and expiration time
-		// This will trigger the reconciliation of the token
-		if err := r.Status().Update(ctx, token); err != nil {
+		if err := UpdateStatus(ctx, r.Client, token, req.NamespacedName, func() {
+			// Update the status of the token
+			// Set the token and expiration time in the status
+			token.Status.Token = &nginxpmClient.Token
+			token.Status.Expires = &metav1.Time{Time: nginxpmClient.Expires}
+		}); err != nil {
 			log.Error(err, "Failed to update Token status")
-			return ctrl.Result{}, err
+			return ctrl.Result{}, nil
 		}
 	}
 
 	// Could be better to use the expiration time from the token status,
 	// but this is a quick fix
 	requeueAfter := nginxpmClient.Expires.UTC().Sub(metav1.Now().UTC())
+
+	// Set the status as True when the client can be created
+	UpdateStatus(ctx, r.Client, token, req.NamespacedName, func() {
+		meta.SetStatusCondition(&token.Status.Conditions, metav1.Condition{
+			Status:  metav1.ConditionTrue,
+			Type:    "Creation",
+			Reason:  "TokenCreated",
+			Message: fmt.Sprintf("Token created and expires at: %s", nginxpmClient.Expires.String()),
+		})
+	})
 
 	return ctrl.Result{RequeueAfter: requeueAfter}, nil
 }

@@ -110,6 +110,18 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 	}
 
+	// Let's just set the status as Unknown when no status is available
+	if len(cc.Status.Conditions) == 0 {
+		UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
+			meta.SetStatusCondition(&cc.Status.Conditions, metav1.Condition{
+				Status:  metav1.ConditionUnknown,
+				Type:    "Reconciling",
+				Reason:  "Reconciling",
+				Message: "Starting reconciliation",
+			})
+		})
+	}
+
 	// Create a new Nginx Proxy Manager client
 	// If the client can't be created, we will remove the finalizer
 	nginxpmClient, err := InitNginxPMClient(ctx, r, req, cc.Spec.Token)

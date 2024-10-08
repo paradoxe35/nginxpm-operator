@@ -75,15 +75,8 @@ type TokenStatus struct {
 	Expires *metav1.Time `json:"expires,omitempty"`
 
 	// Represents the observations of a Token's current state.
-	// Token.status.conditions.type are: "Available", "Progressing", and "Degraded"
-	// Token.status.conditions.status are one of True, False, Unknown.
-	// Token.status.conditions.reason the value should be a CamelCase string and producers of specific
-	// condition types may define expected values and meanings for this field, and whether the values
-	// are considered a guaranteed API.
-	// Token.status.conditions.Message is a human readable message indicating details about the transition.
 	// For further information see: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
-
-	// Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
 // +kubebuilder:object:root=true
