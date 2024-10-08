@@ -151,7 +151,7 @@ spec:
                 description: DomainNames is the list of domain names to add to the
                   proxyhost
                 items:
-                  pattern: ^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$
+                  pattern: ^(\*\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$
                   type: string
                 maxItems: 10
                 minItems: 1

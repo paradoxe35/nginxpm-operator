@@ -25,7 +25,7 @@ import (
 
 // +kubebuilder:validation:Required
 // +kubebuilder:validation:Type=string
-// +kubebuilder:validation:Pattern=`^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$`
+// +kubebuilder:validation:Pattern=`^(\*\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$`
 // +required
 type DomainName string
 
