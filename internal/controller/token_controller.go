@@ -114,10 +114,8 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
-	fmt.Println("## Client Token created and expires at: ", nginxpmClient.Expires)
-
+	// Update the status of the token with the new token and expiration time
 	if token.Status.Token == nil || *token.Status.Token != nginxpmClient.Token {
-		// Update the status of the token with the new token and expiration time
 		if err := UpdateStatus(ctx, r.Client, token, req.NamespacedName, func() {
 			// Update the status of the token
 			// Set the token and expiration time in the status
@@ -128,6 +126,8 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			return ctrl.Result{}, nil
 		}
 	}
+
+	fmt.Println("## Client Token created and expires at: ", nginxpmClient.Expires)
 
 	// Could be better to use the expiration time from the token status,
 	// but this is a quick fix
