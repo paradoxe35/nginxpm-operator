@@ -26,7 +26,7 @@ Instead of manually configuring redirects from Nginx Proxy Manager to your ingre
 To install the operator, run the following command:
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/paradoxe35/nginxpm-operator/v0.1-alpha/dist/install.yaml
+kubectl apply -f https://raw.githubusercontent.com/paradoxe35/nginxpm-operator/main/dist/install.yaml
 ```
 
 ## Quick Start Guide
