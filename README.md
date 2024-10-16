@@ -217,19 +217,7 @@ data:
 
 Attach this to your ProxyHost using `ssl.customCertificate.name` in the spec.
 
-## Warning
-
-This project is still in its early stages and may have limitations. Your contributions and feedback are welcome to help improve and stabilize the operator.
 
 ## Support
 
-If you find this tool helpful for your setup, similar to the author's use case, please consider starring the repository and contributing to the source code. Your support helps improve the project for everyone.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-Check kubebuilder [documentation](https://book.kubebuilder.io/quick-start.html#installation) for more information.
-
-## License
-
-Licensed under the Apache License, Version 2.0.
+If you find this tool helpful for your setup, similar to the author's use case, please consider starring the repository and contributing to the source code.
