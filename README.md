@@ -2,11 +2,9 @@
 
 Nginx Proxy Manager Operator is a Kubernetes operator built with kubebuilder. It represents Nginx Proxy Manager resources as Kubernetes objects, providing a seamless integration between your Kubernetes cluster and Nginx Proxy Manager.
 
-## Motivation
-
 This solution is particularly useful for homelab setups. If you're using Nginx Proxy Manager for HTTP redirection to services behind your firewall (e.g., OPNsense) and have a Kubernetes cluster within your network, this operator simplifies the process of managing Nginx Proxy Manager resources through Kubernetes.
 
-Instead of manually configuring redirects from Nginx Proxy Manager to your ingress controller, this operator allows you to manage everything directly from your Kubernetes cluster.
+Instead of manually configuring redirects from Nginx Proxy Manager to your ingress controller or services.
 
 ## Features
 
