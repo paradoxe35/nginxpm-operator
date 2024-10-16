@@ -220,4 +220,4 @@ Attach this to your ProxyHost using `ssl.customCertificate.name` in the spec.
 
 ## Support
 
-If you find this tool helpful for your setup, similar to the author's use case, please consider starring the repository and contributing to the source code.
+If you find this tool helpful for your setup, similar to the author's use case, please consider starring the repository or contributing to the source code.
