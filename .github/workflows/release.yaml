@@ -52,10 +52,23 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add dist/install.yaml
-          git commit -m "Update install.yaml for ${{ github.ref_name }} [skip ci]"
-          git tag -f ${{ github.ref_name }}
-          git push origin ${{ github.ref_name }} --force
+
+          # Check if file exists in the repository
+          if [ -f dist/install.yaml ]; then
+            git add dist/install.yaml
+          else
+            echo "dist/install.yaml not found"
+            exit 1
+          fi
+
+          # Only commit and push if there are changes
+          if ! git diff-index --quiet HEAD --; then
+            git commit -m "Update install.yaml for ${{ github.ref_name }} [skip ci]"
+            git tag -f ${{ github.ref_name }}
+            git push origin ${{ github.ref_name }} --force
+          else
+            echo "No changes to commit"
+          fi
 
       - name: Create Release
         id: create_release
