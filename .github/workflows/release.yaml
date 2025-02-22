@@ -38,12 +38,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           name: ${{ github.ref_name }}
           path: dist
+
+      - name: Update install.yaml in tag
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add dist/install.yaml
+          git commit -m "Update install.yaml for ${{ github.ref_name }} [skip ci]"
+          git tag -f ${{ github.ref_name }}
+          git push origin ${{ github.ref_name }} --force
 
       - name: Create Release
         id: create_release
