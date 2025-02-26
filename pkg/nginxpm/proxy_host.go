@@ -25,13 +25,13 @@ import (
 	"net/url"
 )
 
-// ProxyHost represents the structure of a proxy host as returned by the API
+// ProxyHost represents the structure of a proxy host as returned by the API.
 type ProxyHost struct {
 	ID          int      `json:"id"`
 	DomainNames []string `json:"domain_names"`
 }
 
-// ProxyMeta represents the meta information for a proxy host
+// ProxyHostMeta represents the meta information for a proxy host.
 type ProxyHostMeta struct {
 	LetsEncryptAgree bool    `json:"letsencrypt_agree"`
 	DNSChallenge     bool    `json:"dns_challenge"`
@@ -39,7 +39,7 @@ type ProxyHostMeta struct {
 	NginxErr         *string `json:"nginx_err"`
 }
 
-// Location represents a location configuration for a proxy host
+// ProxyHostLocation represents a location configuration for a proxy host.
 type ProxyHostLocation struct {
 	Path           string `json:"path"`
 	AdvancedConfig string `json:"advanced_config"`
@@ -48,6 +48,7 @@ type ProxyHostLocation struct {
 	ForwardPort    int    `json:"forward_port"`
 }
 
+// CreateProxyHostInput holds all parameters needed to create a proxy host.
 type CreateProxyHostInput struct {
 	DomainNames           []string
 	ForwardHost           string
@@ -65,90 +66,52 @@ type CreateProxyHostInput struct {
 	HSTSSubdomains        bool
 }
 
-// DeleteProxyHost deletes a certificate by its ID
+// DeleteProxyHost deletes a proxy host by its ID.
 func (c *Client) DeleteProxyHost(id int) error {
-	resp, err := c.doRequest("DELETE", fmt.Sprintf("/api/nginx/proxy-hosts/%d", id), nil)
+	endpoint := fmt.Sprintf("/api/nginx/proxy-hosts/%d", id)
+	resp, err := c.doRequest(http.MethodDelete, endpoint, nil)
 	if err != nil {
-		return fmt.Errorf("[DeleteProxyHost %d] error deleting proxy host: %w", id, err)
+		return fmt.Errorf("delete proxy host %d: %w", id, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("[DeleteProxyHost %d] unexpected status code: %d", id, resp.StatusCode)
+		return fmt.Errorf("delete proxy host %d: unexpected status code: %d", id, resp.StatusCode)
 	}
 
 	return nil
 }
 
-// FindProxyHostByDomain searches for an existing proxy host matching the given domains
+// FindProxyHostByDomain searches for an existing proxy host matching the given domains.
 func (c *Client) FindProxyHostByDomain(domains []string) (*ProxyHost, error) {
 	if len(domains) == 0 {
-		return nil, fmt.Errorf("[FindExistingProxyHost] no domains provided")
+		return nil, fmt.Errorf("find proxy host by domain: no domains provided")
 	}
 
-	fDomain := domains[0]
-	query := url.QueryEscape(fDomain)
+	query := url.QueryEscape(domains[0])
+	endpoint := fmt.Sprintf("/api/nginx/proxy-hosts?query=%s", query)
 
-	resp, err := c.doRequest("GET", fmt.Sprintf("/api/nginx/proxy-hosts?query=%s", query), nil)
+	hosts, err := c.getProxyHosts(endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("[FindExistingProxyHost] error querying proxy hosts: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("[FindExistingProxyHost] unexpected status code: %d", resp.StatusCode)
+		return nil, fmt.Errorf("find proxy host by domain: %w", err)
 	}
 
-	var hosts []ProxyHost
-	err = json.NewDecoder(resp.Body).Decode(&hosts)
-	if err != nil {
-		return nil, fmt.Errorf("[FindExistingProxyHost] error decoding response: %w", err)
-	}
-
+	// Check if any host has the exact domains we're looking for
 	for _, host := range hosts {
-		if len(host.DomainNames) != len(domains) {
+		if !domainsMatch(host.DomainNames, domains) {
 			continue
 		}
-
-		validHost := true
-		for _, domain := range domains {
-			found := false
-			for _, hostDomain := range host.DomainNames {
-				if hostDomain == domain {
-					found = true
-					break
-				}
-			}
-			if !found {
-				validHost = false
-				break
-			}
-		}
-
-		if validHost {
-			return &host, nil
-		}
+		return &host, nil
 	}
 
 	return nil, nil // No matching proxy host found
 }
 
-// FindProxyHostByID searches for an existing proxy host matching the given domains
+// FindProxyHostByID searches for an existing proxy host by its ID.
 func (c *Client) FindProxyHostByID(id int) (*ProxyHost, error) {
-	resp, err := c.doRequest("GET", "/api/nginx/proxy-hosts", nil)
+	hosts, err := c.getProxyHosts("/api/nginx/proxy-hosts")
 	if err != nil {
-		return nil, fmt.Errorf("[FindProxyHostByID] error querying proxy hosts: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("[FindProxyHostByID] unexpected status code: %d", resp.StatusCode)
-	}
-
-	var hosts []ProxyHost
-	err = json.NewDecoder(resp.Body).Decode(&hosts)
-	if err != nil {
-		return nil, fmt.Errorf("[FindProxyHostByID] error decoding response: %w", err)
+		return nil, fmt.Errorf("find proxy host by ID: %w", err)
 	}
 
 	for _, host := range hosts {
@@ -160,13 +123,118 @@ func (c *Client) FindProxyHostByID(id int) (*ProxyHost, error) {
 	return nil, nil // No matching proxy host found
 }
 
-func proxyHostRequestBody(input CreateProxyHostInput) map[string]interface{} {
+// CreateProxyHost creates a new proxy host.
+func (c *Client) CreateProxyHost(input CreateProxyHostInput) (*ProxyHost, error) {
+	body := buildProxyHostRequestBody(input)
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("create proxy host: marshal request: %w", err)
+	}
+
+	resp, err := c.doRequest(http.MethodPost, "/api/nginx/proxy-hosts", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("create proxy host: request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("create proxy host: unexpected status code: %d, body: %s",
+			resp.StatusCode, string(respBody))
+	}
+
+	var newProxyHost ProxyHost
+	if err := json.NewDecoder(resp.Body).Decode(&newProxyHost); err != nil {
+		return nil, fmt.Errorf("create proxy host: decode response: %w", err)
+	}
+
+	return &newProxyHost, nil
+}
+
+// UpdateProxyHost updates an existing proxy host.
+func (c *Client) UpdateProxyHost(id int, input CreateProxyHostInput) (*ProxyHost, error) {
+	body := buildProxyHostRequestBody(input)
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("update proxy host %d: marshal request: %w", id, err)
+	}
+
+	endpoint := fmt.Sprintf("/api/nginx/proxy-hosts/%d", id)
+	resp, err := c.doRequest(http.MethodPut, endpoint, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("update proxy host %d: request failed: %w", id, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("update proxy host %d: unexpected status code: %d, body: %s",
+			id, resp.StatusCode, string(respBody))
+	}
+
+	var updatedProxyHost ProxyHost
+	if err := json.NewDecoder(resp.Body).Decode(&updatedProxyHost); err != nil {
+		return nil, fmt.Errorf("update proxy host %d: decode response: %w", id, err)
+	}
+
+	return &updatedProxyHost, nil
+}
+
+// Helper functions
+
+// getProxyHosts performs a GET request to fetch proxy hosts.
+func (c *Client) getProxyHosts(endpoint string) ([]ProxyHost, error) {
+	resp, err := c.doRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get proxy hosts: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("get proxy hosts: unexpected status code: %d", resp.StatusCode)
+	}
+
+	var hosts []ProxyHost
+	if err := json.NewDecoder(resp.Body).Decode(&hosts); err != nil {
+		return nil, fmt.Errorf("get proxy hosts: decode response: %w", err)
+	}
+
+	return hosts, nil
+}
+
+// domainsMatch checks if two slices of domains contain the same elements.
+func domainsMatch(hostDomains, searchDomains []string) bool {
+	if len(hostDomains) != len(searchDomains) {
+		return false
+	}
+
+	// Check that every search domain is in the host domains
+	for _, searchDomain := range searchDomains {
+		found := false
+		for _, hostDomain := range hostDomains {
+			if hostDomain == searchDomain {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	return true
+}
+
+// buildProxyHostRequestBody creates the request body for proxy host operations.
+func buildProxyHostRequestBody(input CreateProxyHostInput) map[string]interface{} {
 	certificateID := 0
 	if input.CertificateID != nil {
 		certificateID = *input.CertificateID
 	}
 
-	body := map[string]interface{}{
+	return map[string]interface{}{
 		"domain_names":            input.DomainNames,
 		"forward_host":            input.ForwardHost,
 		"forward_scheme":          input.ForwardScheme,
@@ -187,64 +255,4 @@ func proxyHostRequestBody(input CreateProxyHostInput) map[string]interface{} {
 		"caching_enabled": input.CachingEnabled,
 		"hsts_subdomains": input.HSTSSubdomains,
 	}
-
-	return body
-}
-
-// CreateProxyHost creates a new proxy host
-func (c *Client) CreateProxyHost(input CreateProxyHostInput) (*ProxyHost, error) {
-	body := proxyHostRequestBody(input)
-
-	jsonBody, err := json.Marshal(body)
-	if err != nil {
-		return nil, fmt.Errorf("[CreateProxyHost] error marshaling request body: %w", err)
-	}
-
-	resp, err := c.doRequest("POST", "/api/nginx/proxy-hosts", bytes.NewBuffer(jsonBody))
-	if err != nil {
-		return nil, fmt.Errorf("[CreateProxyHost] error creating proxy host: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		respBody, _ := io.ReadAll(resp.Body)
-
-		return nil, fmt.Errorf("[CreateProxyHost] unexpected status code when creating proxy host: %d, body: %s", resp.StatusCode, string(respBody))
-	}
-
-	var newProxyHost ProxyHost
-	err = json.NewDecoder(resp.Body).Decode(&newProxyHost)
-	if err != nil {
-		return nil, fmt.Errorf("[CreateProxyHost] error decoding response: %w", err)
-	}
-
-	return &newProxyHost, nil
-}
-
-// UpdateProxyHost updates an existing proxy host
-func (c *Client) UpdateProxyHost(id int, input CreateProxyHostInput) (*ProxyHost, error) {
-	body := proxyHostRequestBody(input)
-
-	jsonBody, err := json.Marshal(body)
-	if err != nil {
-		return nil, fmt.Errorf("[UpdateProxyHost] error marshaling request body: %w", err)
-	}
-
-	resp, err := c.doRequest("PUT", fmt.Sprintf("/api/nginx/proxy-hosts/%d", id), bytes.NewBuffer(jsonBody))
-	if err != nil {
-		return nil, fmt.Errorf("[UpdateProxyHost] error updating proxy host: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("[UpdateProxyHost] unexpected status code when updating proxy host: %d", resp.StatusCode)
-	}
-
-	var updatedProxyHost ProxyHost
-	err = json.NewDecoder(resp.Body).Decode(&updatedProxyHost)
-	if err != nil {
-		return nil, fmt.Errorf("[UpdateProxyHost] error decoding response: %w", err)
-	}
-
-	return &updatedProxyHost, nil
 }

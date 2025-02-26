@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -68,10 +67,11 @@ type ProxyHostReconciler struct {
 }
 
 type ProxyHostForward struct {
-	Scheme         string
-	Host           string
-	Port           int
-	AdvancedConfig string
+	Scheme               string
+	Host                 string
+	Port                 int
+	AdvancedConfig       string
+	NginxUpstreamConfigs map[string]string
 }
 
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=proxyhosts,verbs=get;list;watch;create;update;patch;delete
@@ -87,6 +87,8 @@ type ProxyHostForward struct {
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services/status,verbs=get
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -302,7 +304,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		}
 
 	} else {
-		// If bindExisting is enabled, we search for the proxy host by domain
+		// If finding by ID doesn't match a record, we search for the proxy host by domain.
 		proxyHost, _ = nginxpmClient.FindProxyHostByDomain(domains)
 
 		if proxyHost != nil {
@@ -311,7 +313,15 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	}
 
 	// ProxyHost forward operation
-	proxyHostForward, err := r.makeForward(ctx, req, ph.Spec.Forward, "proxyHostForward")
+	proxyHostForward, err := r.makeForward(MakeForwardOption{
+		Ctx:             ctx,
+		Req:             req,
+		ProxyHost:       ph,
+		Forward:         ph.Spec.Forward,
+		UpstreamForward: nil,
+		Label:           "upstream-forward",
+	})
+
 	if err != nil {
 		r.Recorder.Event(
 			ph, "Warning", "MakeForward",
@@ -338,7 +348,9 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	}
 
 	// CustomLocation operation
-	customLocations, err := r.constructCustomLocation(ctx, req, ph)
+	// pass the proxyHostForward to constructCustomLocation,
+	// so that custom locations forward can mutate the nginxUpstreamConfigs
+	customLocations, err := r.constructCustomLocation(ctx, req, ph, proxyHostForward)
 	if err != nil {
 		r.Recorder.Event(
 			ph, "Warning", "ConstructCustomLocation",
@@ -415,13 +427,21 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 
 // ############################################# CUSTOM LOCATION OPERATION ######################################
 
-func (r *ProxyHostReconciler) constructCustomLocation(ctx context.Context, req ctrl.Request, ph *nginxpmoperatoriov1.ProxyHost) ([]nginxpm.ProxyHostLocation, error) {
+func (r *ProxyHostReconciler) constructCustomLocation(ctx context.Context, req ctrl.Request, ph *nginxpmoperatoriov1.ProxyHost, upstreamForward *ProxyHostForward) ([]nginxpm.ProxyHostLocation, error) {
 	log := log.FromContext(ctx)
 
 	customLocations := make([]nginxpm.ProxyHostLocation, len(ph.Spec.CustomLocations))
 
 	for i, location := range ph.Spec.CustomLocations {
-		forward, err := r.makeForward(ctx, req, location.Forward, fmt.Sprintf("customLocations[%d]", i))
+		forward, err := r.makeForward(MakeForwardOption{
+			Ctx:             ctx,
+			Req:             req,
+			ProxyHost:       ph,
+			UpstreamForward: upstreamForward,
+			Forward:         location.Forward,
+			Label:           fmt.Sprintf("downstream-forward-%d", i),
+		})
+
 		if err != nil {
 			return nil, err
 		}
@@ -441,114 +461,6 @@ func (r *ProxyHostReconciler) constructCustomLocation(ctx context.Context, req c
 }
 
 // ############################################# FORWARD OPERATION ##############################################
-
-func (r *ProxyHostReconciler) makeForward(ctx context.Context, req ctrl.Request, forward nginxpmoperatoriov1.Forward, label string) (*ProxyHostForward, error) {
-	log := log.FromContext(ctx)
-
-	// Check if forward host or service is provided
-	if forward.Host == nil && forward.Service == nil {
-		err := fmt.Errorf("no forward host or service is provided, one of them is required, label: %s", label)
-		log.Error(err, "no forward host or service is provided, one of them is required, label: %s", label)
-		return nil, err
-	}
-
-	var proxyHostForward *ProxyHostForward
-
-	// When forward service is provided
-	if forward.Service != nil && forward.Host == nil {
-		log.Info(fmt.Sprintf("Service resource is provided, finding service from Service resource, label: %s", label))
-
-		service := &corev1.Service{}
-
-		// If namespace is not provided, use the namespace of the proxyhost
-		namespace := req.Namespace
-		if forward.Service.Namespace != nil {
-			namespace = *forward.Service.Namespace
-		}
-		// Retrieve the Service resource
-		if err := r.Get(ctx, types.NamespacedName{Namespace: namespace, Name: forward.Service.Name}, service); err != nil {
-			// If the Service resource is not found, we will not be able to create the forward
-			log.Error(err, fmt.Sprintf("Service resource not found, please check the Service resource name, label: %s", label))
-			return nil, err
-		}
-
-		// Extract service IP
-		serviceIP := service.Spec.ClusterIP
-		if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
-			if len(service.Status.LoadBalancer.Ingress) > 0 {
-				serviceIP = service.Status.LoadBalancer.Ingress[0].IP
-			}
-		}
-
-		matchPort := func(ports []corev1.ServicePort, scheme string) int32 {
-			for _, port := range ports {
-				contains := strings.Contains(port.Name, scheme)
-
-				if scheme == "http" {
-					if contains && !strings.Contains(port.Name, "https") {
-						return port.Port
-					}
-				} else if strings.Contains(port.Name, scheme) {
-					return port.Port
-				}
-			}
-			return 0
-		}
-
-		// Extract service port
-		var servicePort int32
-		if forward.Service.Port != nil {
-			servicePort = *forward.Service.Port
-		} else {
-			servicePort = matchPort(service.Spec.Ports, "http")
-
-			if forward.Scheme == "https" || servicePort == 0 {
-				servicePort = matchPort(service.Spec.Ports, "https")
-			}
-
-			if servicePort == 0 && len(service.Spec.Ports) > 0 {
-				servicePort = service.Spec.Ports[0].Port
-			}
-		}
-
-		// Verify if service port is valid
-		if servicePort == 0 {
-			msg := fmt.Sprintf("service port is not valid, please check the Service resource name, label: %s", label)
-			err := errors.New(msg)
-			log.Error(err, msg)
-			return nil, err
-		}
-
-		// Verify if service IP is valid
-		if serviceIP == "" {
-			msg := fmt.Sprintf("service IP is not valid, please check the Service resource name, label: %s", label)
-			err := errors.New(msg)
-			log.Error(err, msg)
-			return nil, err
-		}
-
-		proxyHostForward = &ProxyHostForward{
-			Scheme:         forward.Scheme,
-			Host:           serviceIP,
-			Port:           int(servicePort),
-			AdvancedConfig: forward.AdvancedConfig,
-		}
-	}
-
-	// When forward host is provided
-	if forward.Host != nil {
-		log.Info(fmt.Sprintf("Host configuration is provided, applying to proxy host, label: %s", label))
-
-		proxyHostForward = &ProxyHostForward{
-			Scheme:         forward.Scheme,
-			Host:           forward.Host.HostName,
-			Port:           int(forward.Host.HostPort),
-			AdvancedConfig: forward.AdvancedConfig,
-		}
-	}
-
-	return proxyHostForward, nil
-}
 
 // ############################################# CERTIFICATE OPERATION ##############################################
 
