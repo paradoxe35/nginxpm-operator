@@ -32,7 +32,7 @@ PLATFORMS=linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
 docker buildx create --name ${BUILDX_NAME}
 docker buildx use ${BUILDX_NAME}
 
-docker buildx build --platform=${PLATFORMS} --pull -f Dockerfile.cross $@ .
+docker buildx build --platform=${PLATFORMS} --pull --progress plain -f Dockerfile.cross $@ .
 
 rc=$?
 
