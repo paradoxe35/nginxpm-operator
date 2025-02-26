@@ -34,6 +34,7 @@ const (
 // ProxyHost represents the structure of a proxy host as returned by the API.
 type ProxyHost struct {
 	ID             int      `json:"id"`
+	Enabled        bool     `json:"enabled"`
 	UnscopedConfig *string  `json:"unscoped_config"` // Custom field from https://github.com/paradoxe35/nginx-proxy-manager, it must be a string pointer
 	DomainNames    []string `json:"domain_names"`
 }
@@ -93,6 +94,38 @@ func (c *Client) DeleteProxyHost(id int) error {
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("delete proxy host %d: unexpected status code: %d", id, resp.StatusCode)
+	}
+
+	return nil
+}
+
+// DisableProxyHost disable a proxy host by its ID.
+func (c *Client) DisableProxyHost(id int) error {
+	endpoint := fmt.Sprintf("/api/nginx/proxy-hosts/%d/disable", id)
+	resp, err := c.doRequest(http.MethodPost, endpoint, nil)
+	if err != nil {
+		return fmt.Errorf("disable proxy host %d: %w", id, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("disable proxy host %d: unexpected status code: %d", id, resp.StatusCode)
+	}
+
+	return nil
+}
+
+// EnableProxyHost enable a proxy host by its ID.
+func (c *Client) EnableProxyHost(id int) error {
+	endpoint := fmt.Sprintf("/api/nginx/proxy-hosts/%d/enable", id)
+	resp, err := c.doRequest(http.MethodPost, endpoint, nil)
+	if err != nil {
+		return fmt.Errorf("enable proxy host %d: %w", id, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("enable proxy host %d: unexpected status code: %d", id, resp.StatusCode)
 	}
 
 	return nil

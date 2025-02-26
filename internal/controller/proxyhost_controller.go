@@ -177,13 +177,24 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			log.Info("Performing Finalizer Operations for ProxyHost")
 
 			// Delete the ProxyHost record in the Nginx Proxy Manager instance
-			// If the ProxyHost is bound, we will not delete the record
-			if ph.Status.Id != nil && !ph.Status.Bound {
-				log.Info("Deleting ProxyHost record in Nginx Proxy Manager instance")
-				err := nginxpmClient.DeleteProxyHost(int(*ph.Status.Id))
+			//
+			if ph.Status.Id != nil {
+				// If the ProxyHost is bound, we delete the record
+				// If not Bound, we disable it
+				if ph.Status.Bound {
+					log.Info("Disabling ProxyHost record in Nginx Proxy Manager instance")
+					err := nginxpmClient.DisableProxyHost(int(*ph.Status.Id))
 
-				if err != nil {
-					log.Error(err, "Failed to delete ProxyHost record in Nginx Proxy Manager instance")
+					if err != nil {
+						log.Error(err, "Failed to disable ProxyHost record in Nginx Proxy Manager instance")
+					}
+				} else {
+					log.Info("Deleting ProxyHost record in Nginx Proxy Manager instance")
+					err := nginxpmClient.DeleteProxyHost(int(*ph.Status.Id))
+
+					if err != nil {
+						log.Error(err, "Failed to delete ProxyHost record in Nginx Proxy Manager instance")
+					}
 				}
 			}
 
@@ -311,6 +322,12 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		if proxyHost != nil {
 			bound = true
 		}
+	}
+
+	// Enable ProxyHost if disabled
+	if proxyHost != nil && !proxyHost.Enabled {
+		log.Info("Enabling ProxyHost")
+		nginxpmClient.EnableProxyHost(proxyHost.ID)
 	}
 
 	// ProxyHost forward operation
