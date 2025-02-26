@@ -17,7 +17,13 @@ YELLOW='\E[1;33m'
 # To adequately provide solutions that are compatible with multiple platforms, you should consider using this option.
 
 # copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
-sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
+if grep -q "Alpine" /etc/os-release 2>/dev/null; then
+    echo "Detected Alpine Linux, using compatible sed command"
+    sed '1 s/^FROM/FROM --platform=${BUILDPLATFORM}/' Dockerfile > Dockerfile.cross
+else
+    echo "Using GNU sed command for Ubuntu/other distributions"
+    sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
+fi
 
 BUILDX_NAME=nginxpm-operator-builder
 PLATFORMS=linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
@@ -26,7 +32,7 @@ PLATFORMS=linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
 docker buildx create --name ${BUILDX_NAME}
 docker buildx use ${BUILDX_NAME}
 
-docker buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross $@ .
+docker buildx build --platform=$(PLATFORMS) -f Dockerfile.cross $@ .
 
 rc=$?
 
