@@ -378,13 +378,11 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		unscopedConfigSupported := nginxpm.JsonFieldInProxyHost(proxyHost, nginxpm.CUSTOM_FIELD_UNSCOPED_CONFIG)
 		nginxUpstreamConfig := mergeNginxUpstreamConfigs(proxyHostForward.NginxUpstreamConfigs)
 
-		if nginxUpstreamConfig != "" {
-			// We are doing this for compatibility reasons
-			input.CustomFields[nginxpm.CUSTOM_FIELD_UNSCOPED_CONFIG] = nginxpm.RequestCustomField{
-				Field:   nginxpm.CUSTOM_FIELD_UNSCOPED_CONFIG,
-				Value:   nginxUpstreamConfig,
-				Allowed: unscopedConfigSupported,
-			}
+		// We are doing this for compatibility reasons
+		input.CustomFields[nginxpm.CUSTOM_FIELD_UNSCOPED_CONFIG] = nginxpm.RequestCustomField{
+			Field:   nginxpm.CUSTOM_FIELD_UNSCOPED_CONFIG,
+			Value:   nginxUpstreamConfig,
+			Allowed: unscopedConfigSupported,
 		}
 
 		// All fields should be supported
