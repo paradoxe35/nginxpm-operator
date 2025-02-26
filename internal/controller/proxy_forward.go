@@ -66,6 +66,7 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 
 		nginxUpstreamConfigs := make(map[string]string)
 
+		// When the service type is NodePort
 		if service.Spec.Type == corev1.ServiceTypeNodePort {
 			nodePortConfig, err := r.forwardWhenNodePortType(ctx, option.ProxyHost, service, forward)
 			if err != nil {
@@ -89,6 +90,7 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 			}
 
 		} else {
+			// When the service type is not NodePort
 			serviceIP, servicePort = r.forwardWhenNotNodePortType(service, forward)
 		}
 
@@ -256,6 +258,15 @@ func (r *ProxyHostReconciler) forwardWhenNodePortType(ctx context.Context, ph *n
 		nginxUpstreamName:   nginxUpstreamName,
 		nginxUpstreamConfig: nginxUpstreamConfig,
 	}, nil
+}
+
+func mergeNginxUpstreamConfigs(configs map[string]string) string {
+	var values []string
+	for _, config := range configs {
+		values = append(values, config)
+	}
+
+	return strings.Join(values, "\n")
 }
 
 func getUpstreamName(ph *nginxpmoperatoriov1.ProxyHost, servicePort int32, hostIPS []string) string {

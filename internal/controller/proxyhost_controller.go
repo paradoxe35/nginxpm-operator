@@ -349,7 +349,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 
 	// CustomLocation operation
 	// pass the proxyHostForward to constructCustomLocation,
-	// so that custom locations forward can mutate the nginxUpstreamConfigs
+	// so that custom locations forward can pass their nginx-upstream-config to the upstream forward
 	customLocations, err := r.constructCustomLocation(ctx, req, ph, proxyHostForward)
 	if err != nil {
 		r.Recorder.Event(
@@ -359,7 +359,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		return err
 	}
 
-	input := nginxpm.CreateProxyHostInput{
+	input := nginxpm.ProxyHostRequestInput{
 		DomainNames:           domains,
 		ForwardHost:           proxyHostForward.Host,
 		ForwardScheme:         proxyHostForward.Scheme,
@@ -369,8 +369,39 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		AllowWebsocketUpgrade: ph.Spec.WebsocketSupport,
 		CachingEnabled:        ph.Spec.CachingEnabled,
 		Locations:             customLocations,
+		CustomFields:          make(nginxpm.ProxyHostRequestCustomFields),
 	}
 
+	// Handle custom fields
+	withCustomFields := func(proxyHost *nginxpm.ProxyHost, input *nginxpm.ProxyHostRequestInput) bool {
+		// Handle Unscoped custom field
+		unscopedConfigSupported := nginxpm.JsonFieldInProxyHost(proxyHost, nginxpm.CUSTOM_FIELD_UNSCOPED_CONFIG)
+		nginxUpstreamConfig := mergeNginxUpstreamConfigs(proxyHostForward.NginxUpstreamConfigs)
+
+		if nginxUpstreamConfig != "" {
+			// We are doing this for compatibility reasons
+			input.CustomFields[nginxpm.CUSTOM_FIELD_UNSCOPED_CONFIG] = nginxpm.RequestCustomField{
+				Field:   nginxpm.CUSTOM_FIELD_UNSCOPED_CONFIG,
+				Value:   nginxUpstreamConfig,
+				Allowed: unscopedConfigSupported,
+			}
+		}
+
+		// All fields should be supported
+		allFieldsSupported := true
+		for _, custom := range input.CustomFields {
+			if !custom.Allowed {
+				allFieldsSupported = false
+				break
+			}
+		}
+
+		return allFieldsSupported
+	}
+
+	allCustomFieldsSupported := withCustomFields(proxyHost, &input)
+
+	// Handle SSL fields
 	if ph.Spec.Ssl != nil {
 		input.SSLForced = ph.Spec.Ssl.SslForced
 		input.HTTP2Support = ph.Spec.Ssl.Http2Support
@@ -413,6 +444,12 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 
 			log.Error(err, "Failed to create proxy host")
 			return err
+		}
+
+		// In case not all custom field supported, we send update request
+		if !allCustomFieldsSupported {
+			withCustomFields(proxyHost, &input) // call withCustomFields again to ensure all custom fields are supported
+			nginxpmClient.UpdateProxyHost(proxyHost.ID, input)
 		}
 
 		log.Info("ProxyHost created successfully")

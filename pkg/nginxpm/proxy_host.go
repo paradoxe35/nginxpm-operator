@@ -23,12 +23,19 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"reflect"
+	"strings"
+)
+
+const (
+	CUSTOM_FIELD_UNSCOPED_CONFIG = "unscoped_config"
 )
 
 // ProxyHost represents the structure of a proxy host as returned by the API.
 type ProxyHost struct {
-	ID          int      `json:"id"`
-	DomainNames []string `json:"domain_names"`
+	ID             int      `json:"id"`
+	UnscopedConfig *string  `json:"unscoped_config"` // Custom field from https://github.com/paradoxe35/nginx-proxy-manager, it must be a string pointer
+	DomainNames    []string `json:"domain_names"`
 }
 
 // ProxyHostMeta represents the meta information for a proxy host.
@@ -48,8 +55,16 @@ type ProxyHostLocation struct {
 	ForwardPort    int    `json:"forward_port"`
 }
 
-// CreateProxyHostInput holds all parameters needed to create a proxy host.
-type CreateProxyHostInput struct {
+type RequestCustomField struct {
+	Field   string
+	Value   string
+	Allowed bool
+}
+
+type ProxyHostRequestCustomFields map[string]RequestCustomField
+
+// ProxyHostRequestInput holds all parameters needed to create a proxy host.
+type ProxyHostRequestInput struct {
 	DomainNames           []string
 	ForwardHost           string
 	ForwardScheme         string
@@ -64,6 +79,7 @@ type CreateProxyHostInput struct {
 	Locations             []ProxyHostLocation
 	CachingEnabled        bool
 	HSTSSubdomains        bool
+	CustomFields          ProxyHostRequestCustomFields
 }
 
 // DeleteProxyHost deletes a proxy host by its ID.
@@ -124,7 +140,7 @@ func (c *Client) FindProxyHostByID(id int) (*ProxyHost, error) {
 }
 
 // CreateProxyHost creates a new proxy host.
-func (c *Client) CreateProxyHost(input CreateProxyHostInput) (*ProxyHost, error) {
+func (c *Client) CreateProxyHost(input ProxyHostRequestInput) (*ProxyHost, error) {
 	body := buildProxyHostRequestBody(input)
 
 	jsonBody, err := json.Marshal(body)
@@ -153,7 +169,7 @@ func (c *Client) CreateProxyHost(input CreateProxyHostInput) (*ProxyHost, error)
 }
 
 // UpdateProxyHost updates an existing proxy host.
-func (c *Client) UpdateProxyHost(id int, input CreateProxyHostInput) (*ProxyHost, error) {
+func (c *Client) UpdateProxyHost(id int, input ProxyHostRequestInput) (*ProxyHost, error) {
 	body := buildProxyHostRequestBody(input)
 
 	jsonBody, err := json.Marshal(body)
@@ -228,13 +244,13 @@ func domainsMatch(hostDomains, searchDomains []string) bool {
 }
 
 // buildProxyHostRequestBody creates the request body for proxy host operations.
-func buildProxyHostRequestBody(input CreateProxyHostInput) map[string]interface{} {
+func buildProxyHostRequestBody(input ProxyHostRequestInput) map[string]interface{} {
 	certificateID := 0
 	if input.CertificateID != nil {
 		certificateID = *input.CertificateID
 	}
 
-	return map[string]interface{}{
+	body := map[string]interface{}{
 		"domain_names":            input.DomainNames,
 		"forward_host":            input.ForwardHost,
 		"forward_scheme":          input.ForwardScheme,
@@ -255,4 +271,45 @@ func buildProxyHostRequestBody(input CreateProxyHostInput) map[string]interface{
 		"caching_enabled": input.CachingEnabled,
 		"hsts_subdomains": input.HSTSSubdomains,
 	}
+
+	if input.CustomFields != nil {
+		for _, custom := range input.CustomFields {
+			if custom.Allowed {
+				body[custom.Field] = custom.Value
+			}
+		}
+	}
+
+	return body
+}
+
+func JsonFieldInProxyHost(proxyHost *ProxyHost, field string) bool {
+	// Check if proxyHost is nil
+	if proxyHost == nil {
+		return false
+	}
+
+	val := reflect.ValueOf(proxyHost).Elem()
+	typ := val.Type()
+
+	for i := 0; i < typ.NumField(); i++ {
+		structField := typ.Field(i)
+		jsonTag := structField.Tag.Get("json")
+
+		// Parse the JSON tag to get just the name part (before any comma)
+		jsonName := strings.Split(jsonTag, ",")[0]
+
+		// Check if this field matches the requested field name
+		if jsonName == field {
+			fieldValue := val.Field(i)
+
+			if fieldValue.Kind() == reflect.Ptr || fieldValue.Kind() == reflect.Slice {
+				return !fieldValue.IsNil()
+			}
+
+			return true
+		}
+	}
+
+	return false
 }
