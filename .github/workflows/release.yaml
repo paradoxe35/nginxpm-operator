@@ -2,8 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    tags:
-      - "*"
+    tags: [v**]
 
 jobs:
   manifests-dist:
