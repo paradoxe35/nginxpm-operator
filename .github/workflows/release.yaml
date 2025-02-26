@@ -110,7 +110,8 @@ jobs:
         run: |
           export IMG_TAG=ghcr.io/${{ github.repository }}:${{ github.ref_name }}
           export IMG_LATEST=ghcr.io/${{ github.repository }}:latest
+
           make docker-buildx IMG="$IMG_TAG"
 
-          docker tag $IMG_TAG $IMG_LATEST:latest
-          docker push $IMG_LATEST:latest
+          docker tag $IMG_TAG $IMG_LATEST
+          docker push $IMG_LATEST
