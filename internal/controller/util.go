@@ -32,6 +32,17 @@ import (
 )
 
 const (
+	// ConditionTypeReady indicates if the Resource is ready
+	ConditionTypeReady = "Ready"
+
+	// ConditionTypeReady indicates if the Resource is Reconciling (Unknown)
+	ConditionTypeReconciling = "Reconciling"
+
+	// ConditionTypeError indicates if there's an error with the Resource
+	ConditionTypeError = "Error"
+)
+
+const (
 	TOKEN_DEFAULT_NAME = "token-nginxpm"
 
 	// Default namespaces to lookup for the token

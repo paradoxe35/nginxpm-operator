@@ -88,10 +88,11 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	if len(token.Status.Conditions) == 0 {
 		UpdateStatus(ctx, r.Client, token, req.NamespacedName, func() {
 			meta.SetStatusCondition(&token.Status.Conditions, metav1.Condition{
-				Status:  metav1.ConditionUnknown,
-				Type:    "Reconciling",
-				Reason:  "Reconciling",
-				Message: "Starting reconciliation",
+				Status:             metav1.ConditionUnknown,
+				Type:               ConditionTypeReconciling,
+				Reason:             "Reconciling",
+				Message:            "Starting reconciliation",
+				LastTransitionTime: metav1.Now(),
 			})
 		})
 
@@ -104,10 +105,11 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		// Set the status as False when the client can't be created
 		UpdateStatus(ctx, r.Client, token, req.NamespacedName, func() {
 			meta.SetStatusCondition(&token.Status.Conditions, metav1.Condition{
-				Status:  metav1.ConditionFalse,
-				Type:    "InitNginxPMClient",
-				Reason:  "InitNginxPMClient",
-				Message: err.Error(),
+				Status:             metav1.ConditionFalse,
+				Type:               ConditionTypeError,
+				Reason:             "InitNginxPMClient",
+				Message:            err.Error(),
+				LastTransitionTime: metav1.Now(),
 			})
 		})
 
@@ -136,10 +138,11 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	// Set the status as True when the client can be created
 	UpdateStatus(ctx, r.Client, token, req.NamespacedName, func() {
 		meta.SetStatusCondition(&token.Status.Conditions, metav1.Condition{
-			Status:  metav1.ConditionTrue,
-			Type:    "Creation",
-			Reason:  "TokenCreated",
-			Message: fmt.Sprintf("Token created and expires at: %s", nginxpmClient.Expires.String()),
+			Status:             metav1.ConditionTrue,
+			Type:               ConditionTypeReady,
+			Reason:             "TokenCreated",
+			Message:            fmt.Sprintf("Token created and expires at: %s", nginxpmClient.Expires.String()),
+			LastTransitionTime: metav1.Now(),
 		})
 	})
 

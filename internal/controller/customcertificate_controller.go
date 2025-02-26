@@ -114,10 +114,11 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	if len(cc.Status.Conditions) == 0 {
 		UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
 			meta.SetStatusCondition(&cc.Status.Conditions, metav1.Condition{
-				Status:  metav1.ConditionUnknown,
-				Type:    "Reconciling",
-				Reason:  "Reconciling",
-				Message: "Starting reconciliation",
+				Status:             metav1.ConditionUnknown,
+				Type:               "Reconciling",
+				Reason:             "Reconciling",
+				Message:            "Starting reconciliation",
+				LastTransitionTime: metav1.Now(),
 			})
 		})
 	}
@@ -138,16 +139,18 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 		r.Recorder.Event(
 			cc, "Warning", "InitNginxPMClient",
-			fmt.Sprintf("Failed to init nginxpm client, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+			fmt.Sprintf("Failed to init nginxpm client, ResourceName: %s, Namespace: %s, err: %s",
+				req.Name, req.Namespace, err.Error()),
 		)
 
 		// Set the status as False when the client can't be created
 		UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
 			meta.SetStatusCondition(&cc.Status.Conditions, metav1.Condition{
-				Status:  metav1.ConditionFalse,
-				Type:    "InitNginxPMClient",
-				Reason:  "InitNginxPMClient",
-				Message: err.Error(),
+				Status:             metav1.ConditionFalse,
+				Type:               ConditionTypeError,
+				Reason:             "InitNginxPMClient",
+				Message:            err.Error(),
+				LastTransitionTime: metav1.Now(),
 			})
 		})
 
@@ -185,10 +188,11 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		// Set the status as False when the client can't be created
 		UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
 			meta.SetStatusCondition(&cc.Status.Conditions, metav1.Condition{
-				Status:  metav1.ConditionFalse,
-				Type:    "CreateCertificate",
-				Reason:  "CreateCertificate",
-				Message: err.Error(),
+				Status:             metav1.ConditionFalse,
+				Type:               ConditionTypeError,
+				Reason:             "CreateCertificate",
+				Message:            err.Error(),
+				LastTransitionTime: metav1.Now(),
 			})
 		})
 
@@ -198,10 +202,11 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	// Set the status as True when the client can be created
 	UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
 		meta.SetStatusCondition(&cc.Status.Conditions, metav1.Condition{
-			Status:  metav1.ConditionTrue,
-			Type:    "CreateCertificate",
-			Reason:  "CreateCertificate",
-			Message: fmt.Sprintf("Certificate created, ResourceName: %s", req.Name),
+			Status:             metav1.ConditionTrue,
+			Type:               ConditionTypeReady,
+			Reason:             "CreateCertificate",
+			Message:            fmt.Sprintf("Certificate created, ResourceName: %s", req.Name),
+			LastTransitionTime: metav1.Now(),
 		})
 	})
 
@@ -270,7 +275,8 @@ func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req
 
 			r.Recorder.Event(
 				cc, "Warning", "CreateCustomCertificate",
-				fmt.Sprintf("Failed to create CustomCertificate, Cert Name: %s, Namespace: %s", niceName, req.Namespace),
+				fmt.Sprintf("Failed to create CustomCertificate, Cert Name: %s, Namespace: %s, err: %s",
+					niceName, req.Namespace, err.Error()),
 			)
 
 			UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
@@ -308,7 +314,8 @@ func (r *CustomCertificateReconciler) getCertificateKeys(ctx context.Context, re
 
 		r.Recorder.Event(
 			cc, "Warning", "getCertificateKeys",
-			fmt.Sprintf("Failed to get secret resource, ResourceName: %s, Namespace: %s", secretName, req.Namespace),
+			fmt.Sprintf("Failed to get secret resource, ResourceName: %s, Namespace: %s, err: %s",
+				secretName, req.Namespace, err.Error()),
 		)
 		return nil, err
 	}

@@ -88,8 +88,10 @@ type ProxyHostForward struct {
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services/status,verbs=get
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
-// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=pods/status,verbs=get
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list
+// +kubebuilder:rbac:groups=core,resources=nodes/status,verbs=get
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -132,10 +134,11 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if len(ph.Status.Conditions) == 0 {
 		UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
 			meta.SetStatusCondition(&ph.Status.Conditions, metav1.Condition{
-				Status:  metav1.ConditionUnknown,
-				Type:    "Reconciling",
-				Reason:  "Reconciling",
-				Message: "Starting reconciliation",
+				Status:             metav1.ConditionUnknown,
+				Type:               ConditionTypeReconciling,
+				Reason:             "Reconciling",
+				Message:            "Starting reconciliation",
+				LastTransitionTime: metav1.Now(),
 			})
 		})
 	}
@@ -155,16 +158,18 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 		r.Recorder.Event(
 			ph, "Warning", "InitNginxPMClient",
-			fmt.Sprintf("Failed to init nginxpm client, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+			fmt.Sprintf("Failed to init nginxpm client: ResourceName: %s, Namespace: %s, err: %s",
+				req.Name, req.Namespace, err.Error()),
 		)
 
 		// Set the status as False when the client can't be created
 		UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
 			meta.SetStatusCondition(&ph.Status.Conditions, metav1.Condition{
-				Status:  metav1.ConditionFalse,
-				Type:    "InitNginxPMClient",
-				Reason:  "InitNginxPMClient",
-				Message: err.Error(),
+				Status:             metav1.ConditionFalse,
+				Type:               ConditionTypeError,
+				Reason:             "InitNginxPMClient",
+				Message:            err.Error(),
+				LastTransitionTime: metav1.Now(),
 			})
 		})
 
@@ -213,10 +218,11 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		// Set the status as False when the client can't be created
 		UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
 			meta.SetStatusCondition(&ph.Status.Conditions, metav1.Condition{
-				Status:  metav1.ConditionFalse,
-				Type:    "DomainsShouldBeUnique",
-				Reason:  "DomainsShouldBeUnique",
-				Message: err.Error(),
+				Status:             metav1.ConditionFalse,
+				Type:               ConditionTypeError,
+				Reason:             "DomainsShouldBeUnique",
+				Message:            err.Error(),
+				LastTransitionTime: metav1.Now(),
 			})
 		})
 		return ctrl.Result{}, err
@@ -228,10 +234,11 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		// Set the status as False when the client can't be created
 		UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
 			meta.SetStatusCondition(&ph.Status.Conditions, metav1.Condition{
-				Status:  metav1.ConditionFalse,
-				Type:    "CreateOrUpdateProxyHost",
-				Reason:  "CreateOrUpdateProxyHost",
-				Message: err.Error(),
+				Status:             metav1.ConditionFalse,
+				Type:               ConditionTypeError,
+				Reason:             "CreateOrUpdateProxyHost",
+				Message:            err.Error(),
+				LastTransitionTime: metav1.Now(),
 			})
 		})
 
@@ -241,10 +248,11 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Set the status as True when the client can be created
 	UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
 		meta.SetStatusCondition(&ph.Status.Conditions, metav1.Condition{
-			Status:  metav1.ConditionTrue,
-			Type:    "CreateOrUpdateProxyHost",
-			Reason:  "CreateOrUpdateProxyHost",
-			Message: fmt.Sprintf("Proxy host created or updated, ResourceName: %s", req.Name),
+			Status:             metav1.ConditionTrue,
+			Type:               ConditionTypeReady,
+			Reason:             "CreateOrUpdateProxyHost",
+			Message:            fmt.Sprintf("Proxy host created or updated, ResourceName: %s", req.Name),
+			LastTransitionTime: metav1.Now(),
 		})
 	})
 
@@ -308,7 +316,8 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		if err != nil {
 			r.Recorder.Event(
 				ph, "Warning", "FindProxyHostByID",
-				fmt.Sprintf("Failed to find proxy host by ID, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+				fmt.Sprintf("Failed to find proxy host by ID, ResourceName: %s, Namespace: %s, err: %s",
+					req.Name, req.Namespace, err.Error()),
 			)
 
 			log.Error(err, "Failed to find proxy host by ID")
@@ -343,7 +352,8 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	if err != nil {
 		r.Recorder.Event(
 			ph, "Warning", "MakeForward",
-			fmt.Sprintf("Failed to make forward, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+			fmt.Sprintf("Failed to make forward, ResourceName: %s, Namespace: %s, err: %s",
+				req.Name, req.Namespace, err.Error()),
 		)
 		return err
 	}
@@ -355,7 +365,8 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		if err != nil {
 			r.Recorder.Event(
 				ph, "Warning", "MakeCertificate",
-				fmt.Sprintf("Failed to make certificate, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+				fmt.Sprintf("Failed to make certificate, ResourceName: %s, Namespace: %s, err: %s",
+					req.Name, req.Namespace, err.Error()),
 			)
 			return err
 		}
@@ -372,7 +383,8 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	if err != nil {
 		r.Recorder.Event(
 			ph, "Warning", "ConstructCustomLocation",
-			fmt.Sprintf("Failed to construct custom locations, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+			fmt.Sprintf("Failed to construct custom locations, ResourceName: %s, Namespace: %s, err: %s",
+				req.Name, req.Namespace, err.Error()),
 		)
 		return err
 	}
@@ -441,7 +453,8 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		if err != nil {
 			r.Recorder.Event(
 				ph, "Warning", "UpdateProxyHost",
-				fmt.Sprintf("Failed to update proxy host, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+				fmt.Sprintf("Failed to update proxy host, ResourceName: %s, Namespace: %s, err: %s",
+					req.Name, req.Namespace, err.Error()),
 			)
 
 			log.Error(err, "Failed to update proxy host")
@@ -454,8 +467,9 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		proxyHost, err = nginxpmClient.CreateProxyHost(input)
 		if err != nil {
 			r.Recorder.Event(
-				ph, "Normal", "CreateProxyHost",
-				fmt.Sprintf("Failed to create proxy host, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+				ph, "Warning", "CreateProxyHost",
+				fmt.Sprintf("Failed to create proxy host, ResourceName: %s, Namespace: %s, err: %s",
+					req.Name, req.Namespace, err.Error()),
 			)
 
 			log.Error(err, "Failed to create proxy host")

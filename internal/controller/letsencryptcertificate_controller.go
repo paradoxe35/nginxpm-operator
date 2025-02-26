@@ -110,10 +110,11 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 	if len(lec.Status.Conditions) == 0 {
 		UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
 			meta.SetStatusCondition(&lec.Status.Conditions, metav1.Condition{
-				Status:  metav1.ConditionUnknown,
-				Type:    "Reconciling",
-				Reason:  "Reconciling",
-				Message: "Starting reconciliation",
+				Status:             metav1.ConditionUnknown,
+				Type:               "Reconciling",
+				Reason:             "Reconciling",
+				Message:            "Starting reconciliation",
+				LastTransitionTime: metav1.Now(),
 			})
 		})
 	}
@@ -134,16 +135,18 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 
 		r.Recorder.Event(
 			lec, "Warning", "InitNginxPMClient",
-			fmt.Sprintf("Failed to init nginxpm client, ResourceName: %s, Namespace: %s", req.Name, req.Namespace),
+			fmt.Sprintf("Failed to init nginxpm client, ResourceName: %s, Namespace: %s, err: %s",
+				req.Name, req.Namespace, err.Error()),
 		)
 
 		// Set the status as False when the client can't be created
 		UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
 			meta.SetStatusCondition(&lec.Status.Conditions, metav1.Condition{
-				Status:  metav1.ConditionFalse,
-				Type:    "InitNginxPMClient",
-				Reason:  "InitNginxPMClient",
-				Message: err.Error(),
+				Status:             metav1.ConditionFalse,
+				Type:               ConditionTypeError,
+				Reason:             "InitNginxPMClient",
+				Message:            err.Error(),
+				LastTransitionTime: metav1.Now(),
 			})
 		})
 
@@ -182,10 +185,11 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 		// Set the status as False when the client can't be created
 		UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
 			meta.SetStatusCondition(&lec.Status.Conditions, metav1.Condition{
-				Status:  metav1.ConditionFalse,
-				Type:    "CreateCertificate",
-				Reason:  "CreateCertificate",
-				Message: err.Error(),
+				Status:             metav1.ConditionFalse,
+				Type:               ConditionTypeError,
+				Reason:             "CreateCertificate",
+				Message:            err.Error(),
+				LastTransitionTime: metav1.Now(),
 			})
 		})
 
@@ -195,10 +199,11 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 	// Set the status as True when the client can be created
 	UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
 		meta.SetStatusCondition(&lec.Status.Conditions, metav1.Condition{
-			Status:  metav1.ConditionTrue,
-			Type:    "createCertificate",
-			Reason:  "createCertificate",
-			Message: fmt.Sprintf("Certificate created or bound, ResourceName: %s", req.Name),
+			Status:             metav1.ConditionTrue,
+			Type:               ConditionTypeReady,
+			Reason:             "createCertificate",
+			Message:            fmt.Sprintf("Certificate created or bound, ResourceName: %s", req.Name),
+			LastTransitionTime: metav1.Now(),
 		})
 	})
 
@@ -271,7 +276,8 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 
 			r.Recorder.Event(
 				lec, "Warning", "CreateLetsEncryptCertificate",
-				fmt.Sprintf("Failed to create LetsEncryptCertificate for domains %s, ResourceName: %s, Namespace: %s", strings.Join(domains, ","), req.Name, req.Namespace),
+				fmt.Sprintf("Failed to create LetsEncryptCertificate for domains %s, ResourceName: %s, Namespace: %s, err: %s",
+					strings.Join(domains, ","), req.Name, req.Namespace, err.Error()),
 			)
 
 			return ctrl.Result{RequeueAfter: time.Minute * 2}, nil
@@ -317,7 +323,8 @@ func (r *LetsEncryptCertificateReconciler) getDnsChallengeProviderCredentials(ct
 
 		r.Recorder.Event(
 			lec, "Warning", "GetDnsChallengeProviderCredentials",
-			fmt.Sprintf("Failed to get secret resource, ResourceName: %s, Namespace: %s", secretName, req.Namespace),
+			fmt.Sprintf("Failed to get secret resource, ResourceName: %s, Namespace: %s, err: %s",
+				secretName, req.Namespace, err.Error()),
 		)
 		return credentialsValue, err
 	}
