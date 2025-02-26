@@ -15,9 +15,13 @@ rules:
   - ""
   resources:
   - nodes
+  - pods
+  - secrets
+  - services
   verbs:
   - get
   - list
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -26,16 +30,6 @@ rules:
   - services/status
   verbs:
   - get
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - secrets
-  - services
-  verbs:
-  - get
-  - list
-  - watch
 - apiGroups:
   - nginxpm-operator.io
   resources:

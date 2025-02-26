@@ -90,7 +90,7 @@ type ProxyHostForward struct {
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=pods/status,verbs=get
-// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=nodes/status,verbs=get
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
