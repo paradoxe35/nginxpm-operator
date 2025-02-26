@@ -87,6 +87,9 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 
 					option.UpstreamForward.NginxUpstreamConfigs[nodePortConfig.nginxUpstreamName] = nodePortConfig.nginxUpstreamConfig
 				}
+
+				// Update service IP to point the upstream name
+				serviceIP = nodePortConfig.nginxUpstreamName
 			}
 
 		} else {
