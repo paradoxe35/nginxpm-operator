@@ -106,13 +106,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:latest
-          cache-to: type=inline
-          context: .
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-            ghcr.io/${{ github.repository }}:latest
+      - name: Build and push multi-architecture Docker image
+        run: |
+          export IMG_TAG=ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          export IMG_LATEST=ghcr.io/${{ github.repository }}:latest
+          make docker-buildx IMG="$IMG_TAG"
+
+          docker tag $IMG_TAG $IMG_LATEST:latest
+          docker push $IMG_LATEST:latest
