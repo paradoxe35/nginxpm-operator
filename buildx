@@ -22,7 +22,7 @@ if grep -q "Alpine" /etc/os-release 2>/dev/null; then
     sed '1 s/^FROM/FROM --platform=${BUILDPLATFORM}/' Dockerfile > Dockerfile.cross
 else
     echo "Using GNU sed command for Ubuntu/other distributions"
-    sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
+    sed -e '1 s/\(^FROM\)/FROM --platform=\$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
 fi
 
 BUILDX_NAME=nginxpm-operator-builder
