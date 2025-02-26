@@ -1140,6 +1140,14 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - nodes
+  - pods
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ""
+  resources:
   - secrets
   - services
   verbs:
@@ -1408,7 +1416,7 @@ spec:
         - --health-probe-bind-address=:8081
         command:
         - /manager
-        image: ghcr.io/paradoxe35/nginxpm-operator:v0.1-alpha
+        image: ghcr.io/paradoxe35/nginxpm-operator:latest
         livenessProbe:
           httpGet:
             path: /healthz
