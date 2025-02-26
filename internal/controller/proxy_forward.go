@@ -253,7 +253,7 @@ func (r *ProxyHostReconciler) forwardWhenNodePortType(ctx context.Context, ph *n
 
 		nginxUpstreamName = getUpstreamName(ph, servicePort, nodeIPs)
 
-		nginxUpstreamConfig = fmt.Sprintf("upstream %s { least_conn;\n", nginxUpstreamName)
+		nginxUpstreamConfig = fmt.Sprintf("upstream %s {\n least_conn;\n", nginxUpstreamName)
 		for _, nodeIP := range nodeIPs {
 			nginxUpstreamConfig += fmt.Sprintf(" server %s:%d;\n", nodeIP, servicePort)
 		}
