@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -858,6 +859,11 @@ func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(PH_CUSTOM_LOCATION_FORWARD_FIELD)),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
+		Watches(
+			&corev1.Pod{},
+			handler.EnqueueRequestsFromMapFunc(r.findProxyHostsForPod),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Complete(r)
 }
 
@@ -886,4 +892,96 @@ func (r *ProxyHostReconciler) findObjectsForMap(field string) func(ctx context.C
 
 		return requests
 	}
+}
+
+func (r *ProxyHostReconciler) findProxyHostsForPod(ctx context.Context, obj client.Object) []reconcile.Request {
+	pod := obj.(*corev1.Pod)
+	log := log.FromContext(ctx)
+
+	// Get all ProxyHost resources
+	proxyHosts := &nginxpmoperatoriov1.ProxyHostList{}
+	if err := r.List(ctx, proxyHosts); err != nil {
+		log.Error(err, "Unable to list ProxyHost resources")
+		return []reconcile.Request{}
+	}
+
+	var requests []reconcile.Request
+
+	// For each ProxyHost, check if the pod is associated with the referenced service
+	for _, ph := range proxyHosts.Items {
+		// Skip if no service is specified
+		if ph.Spec.Forward.Service == nil || ph.Spec.Forward.Service.Name == "" {
+			continue
+		}
+
+		// Get the service
+		service := &corev1.Service{}
+		if err := r.Get(ctx, types.NamespacedName{
+			Name:      ph.Spec.Forward.Service.Name,
+			Namespace: ph.GetNamespace(),
+		}, service); err != nil {
+			// Service not found, skip
+			continue
+		}
+
+		// Check if the pod's labels match the service's selector
+		if podMatchesServiceSelector(pod, service) {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      ph.GetName(),
+					Namespace: ph.GetNamespace(),
+				},
+			})
+			// Once we've added this ProxyHost, we don't need to check other services
+			// referenced in CustomLocations since we'll reconcile the entire ProxyHost anyway
+			continue
+		}
+
+		// Also check services referenced in CustomLocations
+		if len(ph.Spec.CustomLocations) > 0 {
+			for _, location := range ph.Spec.CustomLocations {
+				if location.Forward.Service == nil || location.Forward.Service.Name == "" {
+					continue
+				}
+
+				// Get the service for this custom location
+				clService := &corev1.Service{}
+				if err := r.Get(ctx, types.NamespacedName{
+					Name:      location.Forward.Service.Name,
+					Namespace: ph.GetNamespace(),
+				}, clService); err != nil {
+					// Service not found, skip
+					continue
+				}
+
+				// Check if the pod's labels match the service's selector
+				if podMatchesServiceSelector(pod, clService) {
+					requests = append(requests, reconcile.Request{
+						NamespacedName: types.NamespacedName{
+							Name:      ph.GetName(),
+							Namespace: ph.GetNamespace(),
+						},
+					})
+					// Break out of the loop once we've found a match
+					break
+				}
+			}
+		}
+	}
+
+	return requests
+}
+
+// Helper function to check if a pod matches a service's selector
+func podMatchesServiceSelector(pod *corev1.Pod, svc *corev1.Service) bool {
+	// If the pod is being deleted, it's no longer part of the service
+	if pod.DeletionTimestamp != nil {
+		return false
+	}
+
+	// Get the service's selector
+	selector := labels.SelectorFromSet(svc.Spec.Selector)
+
+	// Check if the pod's labels match the selector
+	return selector.Matches(labels.Set(pod.Labels))
 }

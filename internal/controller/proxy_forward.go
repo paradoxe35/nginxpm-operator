@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/cespare/xxhash/v2"
@@ -319,7 +320,9 @@ func (r *ProxyHostReconciler) getPodsHostIPS(ctx context.Context, pods *corev1.P
 			}
 		}
 
-		nodeIPs = append(nodeIPs, nodeIP)
+		if !slices.Contains(nodeIPs, nodeIP) {
+			nodeIPs = append(nodeIPs, nodeIP)
+		}
 	}
 
 	return nodeIPs
