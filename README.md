@@ -1,10 +1,10 @@
 # Nginx Proxy Manager Operator
 
-Nginx Proxy Manager Operator is a Kubernetes operator built with kubebuilder. It represents Nginx Proxy Manager resources as Kubernetes objects, providing a seamless integration between your Kubernetes cluster and Nginx Proxy Manager.
+The Nginx Proxy Manager Operator is a Kubernetes operator built using Kubebuilder. It simplifies the management of Nginx Proxy Manager resources by representing them as Kubernetes objects. This operator provides seamless integration between your Kubernetes cluster and Nginx Proxy Manager, streamlining the process of managing your HTTP redirections, SSL configurations, and other proxy-related tasks within your Kubernetes environment.
 
-This solution is particularly useful for homelab setups. If you're using Nginx Proxy Manager for HTTP redirection to services behind your firewall (e.g., OPNsense) and have a Kubernetes cluster within your network, this operator simplifies the process of managing Nginx Proxy Manager resources through Kubernetes.
+This solution is particularly beneficial for homelab setups and environments where Kubernetes is used alongside tools like OPNsense for firewall management. If you’re using Nginx Proxy Manager for HTTP redirection to services behind your firewall and have a Kubernetes cluster in your network, the operator helps automate the management of Nginx configurations from within Kubernetes.
 
-Instead of manually configuring redirects from Nginx Proxy Manager to your ingress controller or services.
+> If you do not have a load balancer service set up in your Kubernetes cluster, we recommend using a NodePort service type along with a [forked](https://github.com/paradoxe35/nginx-proxy-manager) version of Nginx Proxy Manager that supports an Nginx load balancer (this [fork](https://github.com/paradoxe35/nginx-proxy-manager) is always kept up to date with the upstream repository). When using the NodePort service type, this operator automatically gathers the host IPs of all service pods and configures them as upstreams in the Nginx load balancer, making the process of scaling and managing services easier and more efficient.
 
 ## Features
 
@@ -216,7 +216,6 @@ data:
 ```
 
 Attach this to your ProxyHost using `ssl.customCertificate.name` in the spec.
-
 
 ## Support
 
