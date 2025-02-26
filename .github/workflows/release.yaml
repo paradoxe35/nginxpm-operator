@@ -7,6 +7,7 @@ on:
 
 jobs:
   manifests-dist:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,6 +35,7 @@ jobs:
           retention-days: 0
 
   release:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
     needs: manifests-dist
     runs-on: ubuntu-latest
     steps:
@@ -91,6 +93,7 @@ jobs:
           asset_content_type: text/yaml
 
   build-images:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
     needs: release
     runs-on: ubuntu-latest
     steps:
