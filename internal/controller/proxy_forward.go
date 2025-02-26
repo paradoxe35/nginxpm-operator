@@ -88,8 +88,13 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 					option.UpstreamForward.NginxUpstreamConfigs[nodePortConfig.nginxUpstreamName] = nodePortConfig.nginxUpstreamConfig
 				}
 
-				// Update service IP to point the upstream name
-				serviceIP = nodePortConfig.nginxUpstreamName
+				if option.UpstreamForward == nil {
+					// Handle this only on root upstream forward
+					serviceIP = nodePortConfig.nginxUpstreamName
+
+					// Unset port variable (This is used internally by nginx proxy manager to)
+					forward.AdvancedConfig = fmt.Sprintf("%s\nset $port \"\";\n", forward.AdvancedConfig)
+				}
 			}
 
 		} else {
@@ -250,7 +255,7 @@ func (r *ProxyHostReconciler) forwardWhenNodePortType(ctx context.Context, ph *n
 
 		nginxUpstreamConfig = fmt.Sprintf("upstream %s {", nginxUpstreamName)
 		for _, nodeIP := range nodeIPs {
-			nginxUpstreamConfig += fmt.Sprintf(" server %s;", nodeIP)
+			nginxUpstreamConfig += fmt.Sprintf(" server %s:%d;", nodeIP, servicePort)
 		}
 		nginxUpstreamConfig += "}"
 	}

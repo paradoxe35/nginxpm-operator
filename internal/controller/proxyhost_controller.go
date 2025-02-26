@@ -481,6 +481,11 @@ func (r *ProxyHostReconciler) constructCustomLocation(ctx context.Context, req c
 			return nil, err
 		}
 
+		// the path cannot be empty for custom locations
+		if location.Forward.Path == "" {
+			location.Forward.Path = "/"
+		}
+
 		customLocations[i] = nginxpm.ProxyHostLocation{
 			Path:           location.LocationPath,
 			AdvancedConfig: location.Forward.AdvancedConfig,
