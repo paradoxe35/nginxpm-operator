@@ -58,6 +58,10 @@ spec:
               accessList:
                 description: AccessList to add to the proxyhost
                 properties:
+                  accessListId:
+                    description: If you know ID of an access list, you can put it
+                      here
+                    type: integer
                   name:
                     description: The access list resource name
                     type: string
@@ -65,10 +69,6 @@ spec:
                     description: Namespace of the access list resource
                     pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                     type: string
-                  remoteId:
-                    description: If you know ID of an access list, you can put it
-                      here
-                    type: integer
                 type: object
               bindExisting:
                 default: true

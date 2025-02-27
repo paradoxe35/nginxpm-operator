@@ -24,6 +24,12 @@ spec:
 
     # advancedConfig: ""
 
+  # Access List
+  # accessList:
+  #   name: admin-access # Access list resource
+  #   namespace: default
+  #   accessListId: 1 # if you know the accessList id of an existing accessList in the nginx-proxy-manager instance (optional)
+
   # bindExisting: true
   # blockExploits: true
   # websocketSupport: true

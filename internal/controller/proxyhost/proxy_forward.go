@@ -21,7 +21,7 @@ type MakeForwardOption struct {
 	Req                     ctrl.Request
 	ProxyHost               *nginxpmoperatoriov1.ProxyHost
 	UpstreamForward         *ProxyHostForward
-	Forward                 nginxpmoperatoriov1.Forward // this may even come from custom locations
+	Forward                 nginxpmoperatoriov1.ProxyHostForward // this may even come from custom locations
 	UnscopedConfigSupported bool
 	Label                   string
 }
@@ -147,7 +147,7 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 	return proxyHostForward, nil
 }
 
-func (r *ProxyHostReconciler) forwardWhenNotNodePortType(service *corev1.Service, forward nginxpmoperatoriov1.Forward) (string, int) {
+func (r *ProxyHostReconciler) forwardWhenNotNodePortType(service *corev1.Service, forward nginxpmoperatoriov1.ProxyHostForward) (string, int) {
 	if service.Spec.Type == corev1.ServiceTypeNodePort {
 		return "", 0
 	}
@@ -202,7 +202,7 @@ type nodePortConfig struct {
 	nginxUpstreamConfig string
 }
 
-func (r *ProxyHostReconciler) forwardWhenNodePortType(ctx context.Context, ph *nginxpmoperatoriov1.ProxyHost, service *corev1.Service, forward nginxpmoperatoriov1.Forward) (*nodePortConfig, error) {
+func (r *ProxyHostReconciler) forwardWhenNodePortType(ctx context.Context, ph *nginxpmoperatoriov1.ProxyHost, service *corev1.Service, forward nginxpmoperatoriov1.ProxyHostForward) (*nodePortConfig, error) {
 	if service.Spec.Type != corev1.ServiceTypeNodePort {
 		return nil, fmt.Errorf("service type is not NodePort")
 	}

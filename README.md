@@ -15,8 +15,8 @@ This solution is particularly beneficial for homelab setups and environments whe
 | Custom Certificate          | ✅ Implemented         |
 | Proxy Host                  | ✅ Implemented         |
 | Access Lists                | ✅ Implemented         |
+| Streams                     | ✅ Implemented         |
 | Redirection Hosts           | ❌ Not yet implemented |
-| Streams                     | ❌ Not yet implemented |
 | 404 Hosts                   | ❌ Not yet implemented |
 
 ## Installation
@@ -90,14 +90,16 @@ spec:
       hostPort: 80
 
   # Uncomment and modify the following sections as needed
+  # bindExisting: true
   # blockExploits: true
   # websocketSupport: true
   # cachingEnabled: false
 
   # Access List
   # accessList:
-  #   remoteId: 12
-  #   name: admin-access
+  #   name: admin-access # Access list resource
+  #   namespace: default
+  #   accessListId: 1 # if you know the accessList id of an existing accessList in the nginx-proxy-manager instance (optional)
 
   # Enable ssl here
   # ssl:
@@ -132,8 +134,6 @@ spec:
   #         hostPort: 80
 ```
 
-### 3. Apply the Resources
-
 Apply these resources to your Kubernetes cluster:
 
 ```bash
@@ -142,6 +142,58 @@ kubectl apply -f proxy-host.yaml
 ```
 
 If all the information is correct, you should see a Proxy Host created with the specified domains in your Nginx Proxy Manager instance.
+
+### 3. Create a Stream
+
+Or create a Stream. Save the following YAML as `stream.yaml`:
+
+```yaml
+apiVersion: nginxpm-operator.io/v1
+kind: Stream
+metadata:
+  labels:
+    app.kubernetes.io/name: nginxpm-operator
+  name: stream-sample
+spec:
+  # Token is optional, if not provided, the operator will try to find a token with `token-nginxpm` name
+  # in the same namespace as the proxyhost is created or in the `nginxpm-operator-system` namespace or in the `default` namespace
+  token:
+    name: token-nginxpm
+    namespace: default
+
+  incomingPort: 3000
+
+  forward:
+    tcpForwarding: true
+    udpForwarding: false
+    # service:
+    #   name: nginx-service
+    #   namespace: default
+    # Or you can use the host configuration
+    host:
+      hostName: 192.168.1.4 # HostName|IP
+      hostPort: 80
+
+  # overwriteIncomingPortWithForwardPort: false
+
+  # Enable ssl
+  # ssl:
+  #   certificateId: 1 # if you know the certificate id of an existing certificate in the nginx-proxy-manager instance
+
+  #   customCertificate:
+  #     name: custom-certificate-sample
+  #     namespace: nginxpm-operator-system
+
+  #   letsEncryptCertificate:
+  #     name: letsencrypt-certificate-sample
+  #     namespace: nginxpm-operator-system
+```
+
+Apply these resources to your Kubernetes cluster:
+
+```bash
+kubectl apply -f stream.yaml
+```
 
 ## Certificates
 
@@ -185,7 +237,7 @@ data:
   credentials: YWRtaW4=
 ```
 
-Attach this to your ProxyHost using `ssl.letsEncryptCertificate.name` in the spec.
+Attach this to your `ProxyHost` or `Stream` using `ssl.letsEncryptCertificate.name` in the spec.
 
 ### 2. CustomCertificate
 
@@ -220,9 +272,9 @@ data:
   certificate_key: YWRtaW4=
 ```
 
-Attach this to your ProxyHost using `ssl.customCertificate.name` in the spec.
+Attach this to your `ProxyHost` or `Stream` using `ssl.customCertificate.name` in the spec.
 
-### 3. AccessList
+## AccessList
 
 ```yaml
 apiVersion: nginxpm-operator.io/v1
@@ -252,7 +304,7 @@ spec:
       directive: allow
 ```
 
-Attach this to your ProxyHost using `accessList.name` in the spec.
+Attach this to your `ProxyHost` or `Stream` using `accessList.name` in the spec.
 
 ## Support
 

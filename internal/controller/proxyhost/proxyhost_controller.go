@@ -560,14 +560,14 @@ func (r *ProxyHostReconciler) constructCustomLocation(ctx context.Context, req c
 func (r *ProxyHostReconciler) getAccessListByReference(ctx context.Context, req ctrl.Request, reference *nginxpmoperatoriov1.ProxyHostAccessList, nginxpmClient *nginxpm.Client) (*nginxpm.AccessList, error) {
 	log := log.FromContext(ctx)
 
-	if reference == nil || reference.Name == "" && reference.RemoteId == nil {
+	if reference == nil || reference.Name == "" && reference.AccessListId == nil {
 		log.Info("AccessList is not provided, skipping access list operation")
 		return nil, nil
 	}
 
 	var accessList *nginxpm.AccessList
 
-	remoteId := reference.RemoteId
+	remoteId := reference.AccessListId
 
 	if remoteId == nil && reference.Name != "" {
 		acl := nginxpmoperatoriov1.AccessList{}

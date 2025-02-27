@@ -166,7 +166,7 @@ type ForwardService struct {
 	Port *int32 `json:"port,omitempty"`
 }
 
-type Forward struct {
+type ProxyHostForward struct {
 	// Scheme is the scheme to use for the forwarding, (http or https)
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
@@ -213,7 +213,7 @@ type CustomLocation struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=object
 	// +required
-	Forward Forward `json:"forward,omitempty"`
+	Forward ProxyHostForward `json:"forward,omitempty"`
 }
 
 type ProxyHostAccessList struct {
@@ -221,7 +221,7 @@ type ProxyHostAccessList struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=integer
 	// +optional
-	RemoteId *int `json:"remoteId,omitempty"`
+	AccessListId *int `json:"accessListId,omitempty"`
 
 	// The access list resource name
 	// +kubebuilder:validation:Optional
@@ -300,7 +300,7 @@ type ProxyHostSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=object
 	// +required
-	Forward Forward `json:"forward,omitempty"`
+	Forward ProxyHostForward `json:"forward,omitempty"`
 
 	// CustomLocations is the list of custom locations to add to the proxyhost
 	// +kubebuilder:validation:Optional
