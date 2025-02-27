@@ -304,7 +304,7 @@ spec:
       directive: allow
 ```
 
-Attach this to your `ProxyHost` or `Stream` using `accessList.name` in the spec.
+Attach this to your `ProxyHost` using `accessList.name` in the spec.
 
 ## Support
 
