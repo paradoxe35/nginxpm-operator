@@ -19,6 +19,8 @@ package controller
 import (
 	"context"
 	"errors"
+	"reflect"
+	"strings"
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
 	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
@@ -167,4 +169,59 @@ func UpdateStatus(ctx context.Context, r client.Client, object client.Object, na
 	}
 
 	return nil
+}
+
+func JsonFieldExists(obj interface{}, field string) bool {
+	// Check if obj is nil
+	if obj == nil {
+		return false
+	}
+
+	val := reflect.ValueOf(obj)
+
+	// If it's a pointer, get the underlying element
+	if val.Kind() == reflect.Ptr {
+		if val.IsNil() {
+			return false
+		}
+		val = val.Elem()
+	}
+
+	// Make sure we're working with a struct
+	if val.Kind() != reflect.Struct {
+		return false
+	}
+
+	typ := val.Type()
+
+	for i := 0; i < typ.NumField(); i++ {
+		structField := typ.Field(i)
+		jsonTag := structField.Tag.Get("json")
+
+		// Parse the JSON tag to get just the name part (before any comma)
+		jsonName := strings.Split(jsonTag, ",")[0]
+
+		// Handle the case where the json tag is "-" (meaning skip this field)
+		if jsonName == "-" {
+			continue
+		}
+
+		// If the json tag is empty, use the field name
+		if jsonName == "" {
+			jsonName = structField.Name
+		}
+
+		// Check if this field matches the requested field name
+		if jsonName == field {
+			fieldValue := val.Field(i)
+
+			if fieldValue.Kind() == reflect.Ptr || fieldValue.Kind() == reflect.Slice {
+				return !fieldValue.IsNil()
+			}
+
+			return true
+		}
+	}
+
+	return false
 }

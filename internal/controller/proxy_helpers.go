@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -65,4 +66,18 @@ func GetPodsHostIPS(ctx context.Context, r client.Reader, pods *corev1.PodList) 
 	}
 
 	return nodeIPs
+}
+
+// Helper function to check if a pod matches a service's selector
+func PodMatchesServiceSelector(pod *corev1.Pod, svc *corev1.Service) bool {
+	// If the pod is being deleted, it's no longer part of the service
+	if pod.DeletionTimestamp != nil {
+		return false
+	}
+
+	// Get the service's selector
+	selector := labels.SelectorFromSet(svc.Spec.Selector)
+
+	// Check if the pod's labels match the selector
+	return selector.Matches(labels.Set(pod.Labels))
 }

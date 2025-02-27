@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -344,14 +343,17 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		nginxpmClient.EnableProxyHost(proxyHost.ID)
 	}
 
+	unscopedConfigSupported := controller.JsonFieldExists(proxyHost, nginxpm.CUSTOM_FIELD_UNSCOPED_CONFIG)
+
 	// ProxyHost forward operation
 	proxyHostForward, err := r.makeForward(MakeForwardOption{
-		Ctx:             ctx,
-		Req:             req,
-		ProxyHost:       ph,
-		Forward:         ph.Spec.Forward,
-		UpstreamForward: nil,
-		Label:           "upstream-forward",
+		Ctx:                     ctx,
+		Req:                     req,
+		ProxyHost:               ph,
+		Forward:                 ph.Spec.Forward,
+		UpstreamForward:         nil,
+		UnscopedConfigSupported: unscopedConfigSupported,
+		Label:                   "upstream-forward",
 	})
 
 	if err != nil {
@@ -402,7 +404,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	// CustomLocation operation
 	// pass the proxyHostForward to constructCustomLocation,
 	// so that custom locations forward can pass their nginx-upstream-config to the upstream forward
-	customLocations, err := r.constructCustomLocation(ctx, req, ph, proxyHostForward)
+	customLocations, err := r.constructCustomLocation(ctx, req, unscopedConfigSupported, ph, proxyHostForward)
 	if err != nil {
 		r.Recorder.Event(
 			ph, "Warning", "ConstructCustomLocation",
@@ -429,7 +431,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	// Handle custom fields
 	withCustomFields := func(proxyHost *nginxpm.ProxyHost, input *nginxpm.ProxyHostRequestInput) bool {
 		// Handle Unscoped custom field
-		unscopedConfigSupported := nginxpm.JsonFieldInProxyHost(proxyHost, nginxpm.CUSTOM_FIELD_UNSCOPED_CONFIG)
+		unscopedConfigSupported := controller.JsonFieldExists(proxyHost, nginxpm.CUSTOM_FIELD_UNSCOPED_CONFIG)
 		nginxUpstreamConfig := mergeNginxUpstreamConfigs(proxyHostForward.NginxUpstreamConfigs)
 
 		// We are doing this for compatibility reasons
@@ -438,6 +440,8 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 			Value:   nginxUpstreamConfig,
 			Allowed: unscopedConfigSupported,
 		}
+
+		// The reset of custom fields will go here
 
 		// All fields should be supported
 		allFieldsSupported := true
@@ -518,19 +522,20 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 
 // ############################################# CUSTOM LOCATION OPERATION ######################################
 
-func (r *ProxyHostReconciler) constructCustomLocation(ctx context.Context, req ctrl.Request, ph *nginxpmoperatoriov1.ProxyHost, upstreamForward *ProxyHostForward) ([]nginxpm.ProxyHostLocation, error) {
+func (r *ProxyHostReconciler) constructCustomLocation(ctx context.Context, req ctrl.Request, unscopedConfigSupported bool, ph *nginxpmoperatoriov1.ProxyHost, upstreamForward *ProxyHostForward) ([]nginxpm.ProxyHostLocation, error) {
 	log := log.FromContext(ctx)
 
 	customLocations := make([]nginxpm.ProxyHostLocation, len(ph.Spec.CustomLocations))
 
 	for i, location := range ph.Spec.CustomLocations {
 		forward, err := r.makeForward(MakeForwardOption{
-			Ctx:             ctx,
-			Req:             req,
-			ProxyHost:       ph,
-			UpstreamForward: upstreamForward,
-			Forward:         location.Forward,
-			Label:           fmt.Sprintf("downstream-forward-%d", i),
+			Ctx:                     ctx,
+			Req:                     req,
+			ProxyHost:               ph,
+			UpstreamForward:         upstreamForward,
+			Forward:                 location.Forward,
+			UnscopedConfigSupported: unscopedConfigSupported,
+			Label:                   fmt.Sprintf("downstream-forward-%d", i),
 		})
 
 		if err != nil {
@@ -1047,7 +1052,7 @@ func (r *ProxyHostReconciler) findProxyHostsForPod(ctx context.Context, obj clie
 		}
 
 		// Check if the pod's labels match the service's selector
-		if podMatchesServiceSelector(pod, service) {
+		if controller.PodMatchesServiceSelector(pod, service) {
 			requests = append(requests, reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      ph.GetName(),
@@ -1077,7 +1082,7 @@ func (r *ProxyHostReconciler) findProxyHostsForPod(ctx context.Context, obj clie
 				}
 
 				// Check if the pod's labels match the service's selector
-				if podMatchesServiceSelector(pod, clService) {
+				if controller.PodMatchesServiceSelector(pod, clService) {
 					requests = append(requests, reconcile.Request{
 						NamespacedName: types.NamespacedName{
 							Name:      ph.GetName(),
@@ -1092,18 +1097,4 @@ func (r *ProxyHostReconciler) findProxyHostsForPod(ctx context.Context, obj clie
 	}
 
 	return requests
-}
-
-// Helper function to check if a pod matches a service's selector
-func podMatchesServiceSelector(pod *corev1.Pod, svc *corev1.Service) bool {
-	// If the pod is being deleted, it's no longer part of the service
-	if pod.DeletionTimestamp != nil {
-		return false
-	}
-
-	// Get the service's selector
-	selector := labels.SelectorFromSet(svc.Spec.Selector)
-
-	// Check if the pod's labels match the selector
-	return selector.Matches(labels.Set(pod.Labels))
 }

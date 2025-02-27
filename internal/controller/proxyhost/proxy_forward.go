@@ -17,12 +17,13 @@ import (
 )
 
 type MakeForwardOption struct {
-	Ctx             context.Context
-	Req             ctrl.Request
-	ProxyHost       *nginxpmoperatoriov1.ProxyHost
-	UpstreamForward *ProxyHostForward
-	Forward         nginxpmoperatoriov1.Forward
-	Label           string
+	Ctx                     context.Context
+	Req                     ctrl.Request
+	ProxyHost               *nginxpmoperatoriov1.ProxyHost
+	UpstreamForward         *ProxyHostForward
+	Forward                 nginxpmoperatoriov1.Forward
+	UnscopedConfigSupported bool
+	Label                   string
 }
 
 func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostForward, error) {
@@ -76,7 +77,9 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 			serviceIP = nodePortConfig.serviceIP
 			servicePort = nodePortConfig.servicePort
 
-			if nodePortConfig.nginxUpstreamName != "" {
+			// We can serviceIP to loadBalancer Name only when UnscopedConfigSupported is true
+			// Means the Nginx Proxy Manager supports the UnscopedConfig
+			if nodePortConfig.nginxUpstreamName != "" && option.UnscopedConfigSupported {
 				nginxUpstreamConfigs[nodePortConfig.nginxUpstreamName] = nodePortConfig.nginxUpstreamConfig
 
 				// Add also the nginx-upstream-config config to upstream forward exist

@@ -23,8 +23,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"reflect"
-	"strings"
 )
 
 const (
@@ -319,35 +317,4 @@ func buildProxyHostRequestBody(input ProxyHostRequestInput) map[string]interface
 	}
 
 	return body
-}
-
-func JsonFieldInProxyHost(proxyHost *ProxyHost, field string) bool {
-	// Check if proxyHost is nil
-	if proxyHost == nil {
-		return false
-	}
-
-	val := reflect.ValueOf(proxyHost).Elem()
-	typ := val.Type()
-
-	for i := 0; i < typ.NumField(); i++ {
-		structField := typ.Field(i)
-		jsonTag := structField.Tag.Get("json")
-
-		// Parse the JSON tag to get just the name part (before any comma)
-		jsonName := strings.Split(jsonTag, ",")[0]
-
-		// Check if this field matches the requested field name
-		if jsonName == field {
-			fieldValue := val.Field(i)
-
-			if fieldValue.Kind() == reflect.Ptr || fieldValue.Kind() == reflect.Slice {
-				return !fieldValue.IsNil()
-			}
-
-			return true
-		}
-	}
-
-	return false
 }
