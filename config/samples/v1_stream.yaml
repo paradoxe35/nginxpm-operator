@@ -23,7 +23,7 @@ spec:
       hostName: 192.168.1.4 # HostName|IP
       hostPort: 80
 
-    overwriteIncomingPortWithForwardPort: false
+  overwriteIncomingPortWithForwardPort: false
 
   # Enable ssl
   # ssl:

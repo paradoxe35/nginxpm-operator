@@ -97,8 +97,8 @@ spec:
 
   # Access List
   # accessList:
-  #   name: admin-access # Access list resource
-  #   namespace: default
+  #   name: admin-access # Access list resource name
+  #   namespace: default # Access list resource namespace
   #   accessListId: 1 # if you know the accessList id of an existing accessList in the nginx-proxy-manager instance (optional)
 
   # Enable ssl here

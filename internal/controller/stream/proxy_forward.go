@@ -131,8 +131,10 @@ func (r *StreamReconciler) forwardWhenNotNodePortType(service *corev1.Service, f
 	}
 
 	serviceIP, servicePort := getServiceDestination(service, forward, func(ports []corev1.ServicePort, scheme string) int32 {
+		scheme = strings.ToLower(scheme)
 		for _, port := range ports {
-			if strings.Contains(port.Name, scheme) {
+			portName := strings.ToLower(port.Name)
+			if strings.Contains(portName, scheme) {
 				return port.Port
 			}
 		}
@@ -201,8 +203,10 @@ func (r *StreamReconciler) forwardWhenNodePortType(ctx context.Context, st *ngin
 	}
 
 	serviceIP, servicePort := getServiceDestination(service, forward, func(ports []corev1.ServicePort, scheme string) int32 {
+		scheme = strings.ToLower(scheme)
 		for _, port := range ports {
-			if strings.Contains(port.Name, scheme) {
+			portName := strings.ToLower(port.Name)
+			if strings.Contains(portName, scheme) {
 				return port.NodePort
 			}
 		}
