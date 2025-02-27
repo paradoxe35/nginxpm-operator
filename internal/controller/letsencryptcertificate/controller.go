@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package letsencryptcertificate
 
 import (
 	"context"
@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
+	"github.com/paradoxe35/nginxpm-operator/internal/controller"
 	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -101,14 +102,14 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 	// Let's add a finalizer. Then, we can define some operations which should
 	// occur before the custom resource to be deleted.
 	if !isMarkedToBeDeleted {
-		if err := AddFinalizer(r, ctx, letsEncryptCertificateFinalizer, lec); err != nil {
+		if err := controller.AddFinalizer(r, ctx, letsEncryptCertificateFinalizer, lec); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
 	// Let's just set the status as Unknown when no status is available
 	if len(lec.Status.Conditions) == 0 {
-		UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
+		controller.UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
 			meta.SetStatusCondition(&lec.Status.Conditions, metav1.Condition{
 				Status:             metav1.ConditionUnknown,
 				Type:               "Reconciling",
@@ -121,12 +122,12 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 
 	// Create a new Nginx Proxy Manager client
 	// If the client can't be created, we will remove the finalizer
-	nginxpmClient, err := InitNginxPMClient(ctx, r, req, lec.Spec.Token)
+	nginxpmClient, err := controller.InitNginxPMClient(ctx, r, req, lec.Spec.Token)
 	if err != nil {
 		// Stop reconciliation if the resource is marked for deletion and the client can't be created
 		if isMarkedToBeDeleted {
 			// Remove the finalizer
-			if err := RemoveFinalizer(r, ctx, letsEncryptCertificateFinalizer, lec); err != nil {
+			if err := controller.RemoveFinalizer(r, ctx, letsEncryptCertificateFinalizer, lec); err != nil {
 				return ctrl.Result{}, err
 			}
 
@@ -140,10 +141,10 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 		)
 
 		// Set the status as False when the client can't be created
-		UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
+		controller.UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
 			meta.SetStatusCondition(&lec.Status.Conditions, metav1.Condition{
 				Status:             metav1.ConditionFalse,
-				Type:               ConditionTypeError,
+				Type:               controller.ConditionTypeError,
 				Reason:             "InitNginxPMClient",
 				Message:            err.Error(),
 				LastTransitionTime: metav1.Now(),
@@ -171,7 +172,7 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 			}
 
 			// Remove the finalizer
-			if err := RemoveFinalizer(r, ctx, letsEncryptCertificateFinalizer, lec); err != nil {
+			if err := controller.RemoveFinalizer(r, ctx, letsEncryptCertificateFinalizer, lec); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
@@ -183,10 +184,10 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 	result, err := r.createCertificate(ctx, req, lec, nginxpmClient)
 	if err != nil {
 		// Set the status as False when the client can't be created
-		UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
+		controller.UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
 			meta.SetStatusCondition(&lec.Status.Conditions, metav1.Condition{
 				Status:             metav1.ConditionFalse,
-				Type:               ConditionTypeError,
+				Type:               controller.ConditionTypeError,
 				Reason:             "CreateCertificate",
 				Message:            err.Error(),
 				LastTransitionTime: metav1.Now(),
@@ -197,10 +198,10 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 	}
 
 	// Set the status as True when the client can be created
-	UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
+	controller.UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
 		meta.SetStatusCondition(&lec.Status.Conditions, metav1.Condition{
 			Status:             metav1.ConditionTrue,
-			Type:               ConditionTypeReady,
+			Type:               controller.ConditionTypeReady,
 			Reason:             "createCertificate",
 			Message:            fmt.Sprintf("Certificate created or bound, ResourceName: %s", req.Name),
 			LastTransitionTime: metav1.Now(),
@@ -289,7 +290,7 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 		)
 
 		// Update bound status only if the LetsEncryptCertificate is created
-		return ctrl.Result{}, UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
+		return ctrl.Result{}, controller.UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
 			lec.Status.Bound = certificate.Bound
 			lec.Status.Id = &certificate.ID
 			lec.Status.DomainNames = certificate.DomainNames
@@ -298,7 +299,7 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 	}
 
 	// Update the LetsEncryptCertificate status
-	return ctrl.Result{}, UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
+	return ctrl.Result{}, controller.UpdateStatus(ctx, r.Client, lec, req.NamespacedName, func() {
 		lec.Status.Id = &certificate.ID
 		lec.Status.DomainNames = certificate.DomainNames
 		lec.Status.ExpiresOn = &certificate.ExpiresOn
@@ -358,7 +359,7 @@ func (r *LetsEncryptCertificateReconciler) SetupWithManager(mgr ctrl.Manager) er
 
 			if lec.Spec.Token == nil {
 				// If token is not provided, use the default token name
-				return []string{TOKEN_DEFAULT_NAME}
+				return []string{controller.TOKEN_DEFAULT_NAME}
 			}
 
 			if lec.Spec.Token.Name == "" {

@@ -36,7 +36,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
-	"github.com/paradoxe35/nginxpm-operator/internal/controller"
+	"github.com/paradoxe35/nginxpm-operator/internal/controller/accesslist"
+	"github.com/paradoxe35/nginxpm-operator/internal/controller/customcertificate"
+	"github.com/paradoxe35/nginxpm-operator/internal/controller/letsencryptcertificate"
+	"github.com/paradoxe35/nginxpm-operator/internal/controller/proxyhost"
+	"github.com/paradoxe35/nginxpm-operator/internal/controller/token"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -144,14 +148,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.TokenReconciler{
+	if err = (&token.TokenReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Token")
 		os.Exit(1)
 	}
-	if err = (&controller.ProxyHostReconciler{
+	if err = (&proxyhost.ProxyHostReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor("proxyhost-controller"),
@@ -159,7 +163,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "ProxyHost")
 		os.Exit(1)
 	}
-	if err = (&controller.LetsEncryptCertificateReconciler{
+	if err = (&letsencryptcertificate.LetsEncryptCertificateReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor("letsencryptcertificate-controller"),
@@ -167,7 +171,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "LetsEncryptCertificate")
 		os.Exit(1)
 	}
-	if err = (&controller.CustomCertificateReconciler{
+	if err = (&customcertificate.CustomCertificateReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor("customcertificate-controller"),
@@ -175,7 +179,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "CustomCertificate")
 		os.Exit(1)
 	}
-	if err = (&controller.AccessListReconciler{
+	if err = (&accesslist.AccessListReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {

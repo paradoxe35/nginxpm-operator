@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package token
 
 import (
 	"context"
@@ -39,6 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
+	"github.com/paradoxe35/nginxpm-operator/internal/controller"
 	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
 	"github.com/paradoxe35/nginxpm-operator/pkg/util"
 )
@@ -86,10 +87,10 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	// Let's just set the status as Unknown when no status is available
 	if len(token.Status.Conditions) == 0 {
-		UpdateStatus(ctx, r.Client, token, req.NamespacedName, func() {
+		controller.UpdateStatus(ctx, r.Client, token, req.NamespacedName, func() {
 			meta.SetStatusCondition(&token.Status.Conditions, metav1.Condition{
 				Status:             metav1.ConditionUnknown,
-				Type:               ConditionTypeReconciling,
+				Type:               controller.ConditionTypeReconciling,
 				Reason:             "Reconciling",
 				Message:            "Starting reconciliation",
 				LastTransitionTime: metav1.Now(),
@@ -103,10 +104,10 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	nginxpmClient, err := r.initNginxPMClient(ctx, req, token)
 	if err != nil {
 		// Set the status as False when the client can't be created
-		UpdateStatus(ctx, r.Client, token, req.NamespacedName, func() {
+		controller.UpdateStatus(ctx, r.Client, token, req.NamespacedName, func() {
 			meta.SetStatusCondition(&token.Status.Conditions, metav1.Condition{
 				Status:             metav1.ConditionFalse,
-				Type:               ConditionTypeError,
+				Type:               controller.ConditionTypeError,
 				Reason:             "InitNginxPMClient",
 				Message:            err.Error(),
 				LastTransitionTime: metav1.Now(),
@@ -118,7 +119,7 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	// Update the status of the token with the new token and expiration time
 	if token.Status.Token == nil || *token.Status.Token != nginxpmClient.Token {
-		if err := UpdateStatus(ctx, r.Client, token, req.NamespacedName, func() {
+		if err := controller.UpdateStatus(ctx, r.Client, token, req.NamespacedName, func() {
 			// Update the status of the token
 			// Set the token and expiration time in the status
 			token.Status.Token = &nginxpmClient.Token
@@ -136,10 +137,10 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	requeueAfter := nginxpmClient.Expires.UTC().Sub(metav1.Now().UTC())
 
 	// Set the status as True when the client can be created
-	UpdateStatus(ctx, r.Client, token, req.NamespacedName, func() {
+	controller.UpdateStatus(ctx, r.Client, token, req.NamespacedName, func() {
 		meta.SetStatusCondition(&token.Status.Conditions, metav1.Condition{
 			Status:             metav1.ConditionTrue,
-			Type:               ConditionTypeReady,
+			Type:               controller.ConditionTypeReady,
 			Reason:             "TokenCreated",
 			Message:            fmt.Sprintf("Token created and expires at: %s", nginxpmClient.Expires.String()),
 			LastTransitionTime: metav1.Now(),

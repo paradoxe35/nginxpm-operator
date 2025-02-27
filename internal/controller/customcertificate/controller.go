@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package customcertificate
 
 import (
 	"context"
@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
+	"github.com/paradoxe35/nginxpm-operator/internal/controller"
 	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
 )
 
@@ -105,14 +106,14 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	// Let's add a finalizer. Then, we can define some operations which should
 	// occur before the custom resource to be deleted.
 	if !isMarkedToBeDeleted {
-		if err := AddFinalizer(r, ctx, customCertificateFinalizer, cc); err != nil {
+		if err := controller.AddFinalizer(r, ctx, customCertificateFinalizer, cc); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
 	// Let's just set the status as Unknown when no status is available
 	if len(cc.Status.Conditions) == 0 {
-		UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
+		controller.UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
 			meta.SetStatusCondition(&cc.Status.Conditions, metav1.Condition{
 				Status:             metav1.ConditionUnknown,
 				Type:               "Reconciling",
@@ -125,12 +126,12 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	// Create a new Nginx Proxy Manager client
 	// If the client can't be created, we will remove the finalizer
-	nginxpmClient, err := InitNginxPMClient(ctx, r, req, cc.Spec.Token)
+	nginxpmClient, err := controller.InitNginxPMClient(ctx, r, req, cc.Spec.Token)
 	if err != nil {
 		// Stop reconciliation if the resource is marked for deletion and the client can't be created
 		if isMarkedToBeDeleted {
 			// Remove the finalizer
-			if err := RemoveFinalizer(r, ctx, customCertificateFinalizer, cc); err != nil {
+			if err := controller.RemoveFinalizer(r, ctx, customCertificateFinalizer, cc); err != nil {
 				return ctrl.Result{}, err
 			}
 
@@ -144,10 +145,10 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		)
 
 		// Set the status as False when the client can't be created
-		UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
+		controller.UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
 			meta.SetStatusCondition(&cc.Status.Conditions, metav1.Condition{
 				Status:             metav1.ConditionFalse,
-				Type:               ConditionTypeError,
+				Type:               controller.ConditionTypeError,
 				Reason:             "InitNginxPMClient",
 				Message:            err.Error(),
 				LastTransitionTime: metav1.Now(),
@@ -174,7 +175,7 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			}
 
 			// Remove the finalizer
-			if err := RemoveFinalizer(r, ctx, customCertificateFinalizer, cc); err != nil {
+			if err := controller.RemoveFinalizer(r, ctx, customCertificateFinalizer, cc); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
@@ -186,10 +187,10 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	result, err := r.createCertificate(ctx, req, cc, nginxpmClient)
 	if err != nil {
 		// Set the status as False when the client can't be created
-		UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
+		controller.UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
 			meta.SetStatusCondition(&cc.Status.Conditions, metav1.Condition{
 				Status:             metav1.ConditionFalse,
-				Type:               ConditionTypeError,
+				Type:               controller.ConditionTypeError,
 				Reason:             "CreateCertificate",
 				Message:            err.Error(),
 				LastTransitionTime: metav1.Now(),
@@ -200,10 +201,10 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	// Set the status as True when the client can be created
-	UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
+	controller.UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
 		meta.SetStatusCondition(&cc.Status.Conditions, metav1.Condition{
 			Status:             metav1.ConditionTrue,
-			Type:               ConditionTypeReady,
+			Type:               controller.ConditionTypeReady,
 			Reason:             "CreateCertificate",
 			Message:            fmt.Sprintf("Certificate created, ResourceName: %s", req.Name),
 			LastTransitionTime: metav1.Now(),
@@ -225,7 +226,7 @@ func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req
 		if err != nil {
 			log.Error(err, "Failed to find CustomCertificate by ID")
 
-			UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
+			controller.UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
 				msg := "Failed to find CustomCertificate by ID"
 				cc.Status.Status = &msg
 			})
@@ -243,7 +244,7 @@ func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req
 		// Retrieve the certificate and certificate key from the secret
 		certificateKeys, err := r.getCertificateKeys(ctx, req, cc)
 		if err != nil {
-			UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
+			controller.UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
 				msg := "Failed to retrieve certificate and certificate key"
 				cc.Status.Status = &msg
 			})
@@ -279,7 +280,7 @@ func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req
 					niceName, req.Namespace, err.Error()),
 			)
 
-			UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
+			controller.UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
 				msg := "Failed to create CustomCertificate"
 				cc.Status.Status = &msg
 			})
@@ -293,7 +294,7 @@ func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req
 		)
 	}
 
-	return ctrl.Result{}, UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
+	return ctrl.Result{}, controller.UpdateStatus(ctx, r.Client, cc, req.NamespacedName, func() {
 		msg := "Certificate ready"
 
 		cc.Status.Id = &certificate.ID
@@ -355,7 +356,7 @@ func (r *CustomCertificateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 			if cc.Spec.Token == nil {
 				// If token is not provided, use the default token name
-				return []string{TOKEN_DEFAULT_NAME}
+				return []string{controller.TOKEN_DEFAULT_NAME}
 			}
 
 			if cc.Spec.Token.Name == "" {

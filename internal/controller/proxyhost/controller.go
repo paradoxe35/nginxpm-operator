@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package proxyhost
 
 import (
 	"context"
@@ -41,6 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
+	"github.com/paradoxe35/nginxpm-operator/internal/controller"
 	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
 )
 
@@ -125,17 +126,17 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Let's add a finalizer. Then, we can define some operations which should
 	// occur before the custom resource to be deleted.
 	if !isMarkedToBeDeleted {
-		if err := AddFinalizer(r, ctx, proxyHostFinalizer, ph); err != nil {
+		if err := controller.AddFinalizer(r, ctx, proxyHostFinalizer, ph); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
 	// Let's just set the status as Unknown when no status is available
 	if len(ph.Status.Conditions) == 0 {
-		UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
+		controller.UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
 			meta.SetStatusCondition(&ph.Status.Conditions, metav1.Condition{
 				Status:             metav1.ConditionUnknown,
-				Type:               ConditionTypeReconciling,
+				Type:               controller.ConditionTypeReconciling,
 				Reason:             "Reconciling",
 				Message:            "Starting reconciliation",
 				LastTransitionTime: metav1.Now(),
@@ -144,12 +145,12 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// Create a new Nginx Proxy Manager client
-	nginxpmClient, err := InitNginxPMClient(ctx, r, req, ph.Spec.Token)
+	nginxpmClient, err := controller.InitNginxPMClient(ctx, r, req, ph.Spec.Token)
 	if err != nil {
 		// Stop reconciliation if the resource is marked for deletion and the client can't be created
 		if isMarkedToBeDeleted {
 			// Remove the finalizer
-			if err := RemoveFinalizer(r, ctx, proxyHostFinalizer, ph); err != nil {
+			if err := controller.RemoveFinalizer(r, ctx, proxyHostFinalizer, ph); err != nil {
 				return ctrl.Result{}, err
 			}
 
@@ -163,10 +164,10 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		)
 
 		// Set the status as False when the client can't be created
-		UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
+		controller.UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
 			meta.SetStatusCondition(&ph.Status.Conditions, metav1.Condition{
 				Status:             metav1.ConditionFalse,
-				Type:               ConditionTypeError,
+				Type:               controller.ConditionTypeError,
 				Reason:             "InitNginxPMClient",
 				Message:            err.Error(),
 				LastTransitionTime: metav1.Now(),
@@ -204,7 +205,7 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			}
 
 			// Remove the finalizer
-			if err := RemoveFinalizer(r, ctx, proxyHostFinalizer, ph); err != nil {
+			if err := controller.RemoveFinalizer(r, ctx, proxyHostFinalizer, ph); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
@@ -216,10 +217,10 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	_, err = r.domainsShouldBeUnique(ctx, ph)
 	if err != nil {
 		// Set the status as False when the client can't be created
-		UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
+		controller.UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
 			meta.SetStatusCondition(&ph.Status.Conditions, metav1.Condition{
 				Status:             metav1.ConditionFalse,
-				Type:               ConditionTypeError,
+				Type:               controller.ConditionTypeError,
 				Reason:             "DomainsShouldBeUnique",
 				Message:            err.Error(),
 				LastTransitionTime: metav1.Now(),
@@ -232,10 +233,10 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	err = r.createOrUpdateProxyHost(ctx, req, ph, nginxpmClient)
 	if err != nil {
 		// Set the status as False when the client can't be created
-		UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
+		controller.UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
 			meta.SetStatusCondition(&ph.Status.Conditions, metav1.Condition{
 				Status:             metav1.ConditionFalse,
-				Type:               ConditionTypeError,
+				Type:               controller.ConditionTypeError,
 				Reason:             "CreateOrUpdateProxyHost",
 				Message:            err.Error(),
 				LastTransitionTime: metav1.Now(),
@@ -246,10 +247,10 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// Set the status as True when the client can be created
-	UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
+	controller.UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
 		meta.SetStatusCondition(&ph.Status.Conditions, metav1.Condition{
 			Status:             metav1.ConditionTrue,
-			Type:               ConditionTypeReady,
+			Type:               controller.ConditionTypeReady,
 			Reason:             "CreateOrUpdateProxyHost",
 			Message:            fmt.Sprintf("Proxy host created or updated, ResourceName: %s", req.Name),
 			LastTransitionTime: metav1.Now(),
@@ -485,7 +486,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		log.Info("ProxyHost created successfully")
 	}
 
-	return UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
+	return controller.UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
 		ph.Status.Id = &proxyHost.ID
 		ph.Status.CertificateId = certificateID
 		ph.Status.Bound = bound
@@ -751,7 +752,7 @@ func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 			if ph.Spec.Token == nil {
 				// If token is not provided, use the default token name
-				return []string{TOKEN_DEFAULT_NAME}
+				return []string{controller.TOKEN_DEFAULT_NAME}
 			}
 
 			if ph.Spec.Token.Name == "" {
