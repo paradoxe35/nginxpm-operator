@@ -153,7 +153,7 @@ spec:
                 description: Expiration time of the certificate
                 type: string
               id:
-                description: CustomCertificateStatus ID in the Nginx Proxy Manager
+                description: CustomCertificateStatus ID from remote  Nginx Proxy Manager
                   instance
                 type: integer
               status:

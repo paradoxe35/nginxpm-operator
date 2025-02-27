@@ -760,7 +760,7 @@ spec:
                 description: Whether the ProxyHost was bound with an existing proxyhost
                 type: boolean
               certificateId:
-                description: ProxyHost certificate ID in the Nginx Proxy Manager instance
+                description: ProxyHost certificate ID from remote  Nginx Proxy Manager instance
                 type: integer
               conditions:
                 items:
@@ -819,7 +819,7 @@ spec:
                   type: object
                 type: array
               id:
-                description: ProxyHost ID in the Nginx Proxy Manager instance
+                description: ProxyHost ID from remote  Nginx Proxy Manager instance
                 type: integer
             type: object
         type: object

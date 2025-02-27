@@ -255,7 +255,7 @@ spec:
                 description: Expiration time of the certificate
                 type: string
               id:
-                description: LetsEncryptCertificate ID in the Nginx Proxy Manager
+                description: LetsEncryptCertificate ID from remote  Nginx Proxy Manager
                   instance
                 type: integer
             required:

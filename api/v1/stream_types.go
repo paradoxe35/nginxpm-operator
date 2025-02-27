@@ -28,18 +28,35 @@ type StreamSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of Stream. Edit stream_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Incoming Port
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=integer
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +required
+	IncomingPort int `json:"incomingPort,omitempty"`
 }
 
 // StreamStatus defines the observed state of Stream.
 type StreamStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	// Stream ID from remote  Nginx Proxy Manager instance
+	Id *int `json:"id,omitempty"`
+
+	// Online status from remote  Nginx Proxy Manager instance
+	Online bool `json:"online,omitempty"`
+
+	// Represents the observations of a Stream's current state.
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="ID",type="integer",JSONPath=".status.id"
+// +kubebuilder:printcolumn:name="Online",type="boolean",JSONPath=".status.online"
+// +kubebuilder:printcolumn:name="Incoming Port",type="boolean",JSONPath=".spec.incomingPort"
 
 // Stream is the Schema for the streams API.
 type Stream struct {

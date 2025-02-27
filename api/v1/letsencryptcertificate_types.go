@@ -101,7 +101,7 @@ type LetsEncryptCertificateStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// LetsEncryptCertificate ID in the Nginx Proxy Manager instance
+	// LetsEncryptCertificate ID from remote  Nginx Proxy Manager instance
 	Id *int `json:"id,omitempty"`
 
 	// Whether the LetsEncryptCertificate was bound with an existing certificate

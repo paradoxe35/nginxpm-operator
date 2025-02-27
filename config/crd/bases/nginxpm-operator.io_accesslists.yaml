@@ -23,7 +23,7 @@ spec:
       type: string
     - jsonPath: .status.proxyHostCount
       name: Proxy Host Count
-      type: string
+      type: integer
     name: v1
     schema:
       openAPIV3Schema:
@@ -94,7 +94,7 @@ spec:
                   type: object
                 type: array
               name:
-                description: Access list name that will be displayed in the Nginx
+                description: Access list name that will be displayed from remote  Nginx
                   Proxy Manager instance
                 maxLength: 255
                 minLength: 1
@@ -194,7 +194,7 @@ spec:
                   type: object
                 type: array
               id:
-                description: AccessList ID in the Nginx Proxy Manager instance
+                description: AccessList ID from remote  Nginx Proxy Manager instance
                 type: integer
               proxyHostCount:
                 description: Number of proxy hosts associated with this AccessList

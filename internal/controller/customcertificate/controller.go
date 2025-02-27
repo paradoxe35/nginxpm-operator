@@ -159,12 +159,12 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	// If the resource is marked for deletion
-	// Delete the CustomCertificate record in the Nginx Proxy Manager instance before deleting the resource
+	// Delete the CustomCertificate record from remote  Nginx Proxy Manager instance before deleting the resource
 	if isMarkedToBeDeleted {
 		if controllerutil.ContainsFinalizer(cc, customCertificateFinalizer) {
 			log.Info("Performing Finalizer Operations for CustomCertificate")
 
-			// Delete the CustomCertificate record in the Nginx Proxy Manager instance
+			// Delete the CustomCertificate record from remote  Nginx Proxy Manager instance
 			if cc.Status.Id != nil {
 				log.Info("Deleting CustomCertificate record from remote NPM")
 				err := nginxpmClient.DeleteCertificate(int(*cc.Status.Id))

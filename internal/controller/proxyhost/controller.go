@@ -180,12 +180,12 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	// Delete the ProxyHost record in the Nginx Proxy Manager instance before deleting the resource
+	// Delete the ProxyHost record from remote  Nginx Proxy Manager instance before deleting the resource
 	if isMarkedToBeDeleted {
 		if controllerutil.ContainsFinalizer(ph, proxyHostFinalizer) {
 			log.Info("Performing Finalizer Operations for ProxyHost")
 
-			// Delete the ProxyHost record in the Nginx Proxy Manager instance
+			// Delete the ProxyHost record from remote  Nginx Proxy Manager instance
 			//
 			if ph.Status.Id != nil {
 				// If the ProxyHost is bound, we delete the record

@@ -155,12 +155,12 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 	}
 
 	// If the resource is marked for deletion
-	// Delete the LetsEncryptCertificate record in the Nginx Proxy Manager instance before deleting the resource
+	// Delete the LetsEncryptCertificate record from remote  Nginx Proxy Manager instance before deleting the resource
 	if isMarkedToBeDeleted {
 		if controllerutil.ContainsFinalizer(lec, letsEncryptCertificateFinalizer) {
 			log.Info("Performing Finalizer Operations for LetsEncryptCertificate")
 
-			// Delete the LetsEncryptCertificate record in the Nginx Proxy Manager instance
+			// Delete the LetsEncryptCertificate record from remote  Nginx Proxy Manager instance
 			// If the LetsEncryptCertificate is bound, we will not delete the record
 			if lec.Status.Id != nil && !lec.Status.Bound {
 				log.Info("Deleting LetsEncryptCertificate record from remote NPM")

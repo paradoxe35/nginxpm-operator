@@ -318,10 +318,10 @@ type ProxyHostStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// ProxyHost ID in the Nginx Proxy Manager instance
+	// ProxyHost ID from remote  Nginx Proxy Manager instance
 	Id *int `json:"id,omitempty"`
 
-	// ProxyHost certificate ID in the Nginx Proxy Manager instance
+	// ProxyHost certificate ID from remote  Nginx Proxy Manager instance
 	CertificateId *int `json:"certificateId,omitempty"`
 
 	// Whether the ProxyHost was bound with an existing proxyhost

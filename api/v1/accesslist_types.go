@@ -65,7 +65,7 @@ type AccessListSpec struct {
 	// +Optional
 	Token *TokenName `json:"token,omitempty"`
 
-	// Access list name that will be displayed in the Nginx Proxy Manager instance
+	// Access list name that will be displayed from remote  Nginx Proxy Manager instance
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=255
 	// +kubebuilder:validation:Required
@@ -99,7 +99,7 @@ type AccessListStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// AccessList ID in the Nginx Proxy Manager instance
+	// AccessList ID from remote  Nginx Proxy Manager instance
 	Id *int `json:"id,omitempty"`
 
 	// Number of proxy hosts associated with this AccessList
@@ -114,7 +114,7 @@ type AccessListStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="ID",type="integer",JSONPath=".status.id"
 // +kubebuilder:printcolumn:name="Name",type="string",JSONPath=".spec.name"
-// +kubebuilder:printcolumn:name="Proxy Host Count",type="string",JSONPath=".status.proxyHostCount"
+// +kubebuilder:printcolumn:name="Proxy Host Count",type="integer",JSONPath=".status.proxyHostCount"
 
 // AccessList is the Schema for the accesslists API.
 type AccessList struct {
