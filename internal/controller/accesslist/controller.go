@@ -18,17 +18,21 @@ package accesslist
 
 import (
 	"context"
+	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
 	"github.com/paradoxe35/nginxpm-operator/internal/controller"
+	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
 )
 
 const (
@@ -40,7 +44,8 @@ const (
 // AccessListReconciler reconciles a AccessList object
 type AccessListReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=accesslists,verbs=get;list;watch;create;update;patch;delete
@@ -96,7 +101,168 @@ func (r *AccessListReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		})
 	}
 
+	// Create a new Nginx Proxy Manager client
+	nginxpmClient, err := controller.InitNginxPMClient(ctx, r, req, acl.Spec.Token)
+	if err != nil {
+		if isMarkedToBeDeleted {
+			// Remove the finalizer
+			if err := controller.RemoveFinalizer(r, ctx, accessListFinalizer, acl); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{}, nil
+		}
+
+		r.Recorder.Event(
+			acl, "Warning", "InitNginxPMClient",
+			fmt.Sprintf("Failed to init nginxpm client: ResourceName: %s, Namespace: %s, err: %s",
+				req.Name, req.Namespace, err.Error()),
+		)
+
+		// Set the status as False when the client can't be created
+		controller.UpdateStatus(ctx, r.Client, acl, req.NamespacedName, func() {
+			meta.SetStatusCondition(&acl.Status.Conditions, metav1.Condition{
+				Status:             metav1.ConditionFalse,
+				Type:               controller.ConditionTypeError,
+				Reason:             "InitNginxPMClient",
+				Message:            err.Error(),
+				LastTransitionTime: metav1.Now(),
+			})
+		})
+
+		return ctrl.Result{}, err
+	}
+
+	if isMarkedToBeDeleted {
+		if controllerutil.ContainsFinalizer(acl, accessListFinalizer) {
+			log.Info("Performing Finalizer Operations for AccessList")
+
+			if acl.Status.Id != nil {
+				// Delete access list here
+				err := nginxpmClient.DeleteAccessList(int(*acl.Status.Id))
+				if err != nil {
+					log.Error(err, "Failed to delete access from remote NPM")
+				}
+			}
+
+			// Remove the finalizer
+			if err := controller.RemoveFinalizer(r, ctx, accessListFinalizer, acl); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+
+		return ctrl.Result{}, nil
+	}
+
+	// Create or update access list
+	err = r.createOrUpdateAccessList(ctx, req, acl, nginxpmClient)
+	if err != nil {
+		// Set the status as False when the client can't be created
+		controller.UpdateStatus(ctx, r.Client, acl, req.NamespacedName, func() {
+			meta.SetStatusCondition(&acl.Status.Conditions, metav1.Condition{
+				Status:             metav1.ConditionFalse,
+				Type:               controller.ConditionTypeError,
+				Reason:             "createOrUpdateAccessList",
+				Message:            err.Error(),
+				LastTransitionTime: metav1.Now(),
+			})
+		})
+
+		return ctrl.Result{}, err
+	}
+
+	// Set the status as True when the client can be created
+	controller.UpdateStatus(ctx, r.Client, acl, req.NamespacedName, func() {
+		meta.SetStatusCondition(&acl.Status.Conditions, metav1.Condition{
+			Status:             metav1.ConditionTrue,
+			Type:               controller.ConditionTypeReady,
+			Reason:             "createOrUpdateAccessList",
+			Message:            fmt.Sprintf("access list created or updated, ResourceName: %s", req.Name),
+			LastTransitionTime: metav1.Now(),
+		})
+	})
+
 	return ctrl.Result{}, nil
+}
+
+func (r *AccessListReconciler) createOrUpdateAccessList(ctx context.Context, req ctrl.Request, acl *nginxpmoperatoriov1.AccessList, nginxpmClient *nginxpm.Client) error {
+	log := log.FromContext(ctx)
+
+	var accessList *nginxpm.AccessList
+	var err error
+
+	if acl.Status.Id != nil {
+		accessList, err = nginxpmClient.FindAccessListByID(*acl.Status.Id)
+		if err != nil {
+			r.Recorder.Event(
+				acl, "Warning", "FindAccessListByID",
+				fmt.Sprintf("Failed to find access list by ID, ResourceName: %s, Namespace: %s, err: %s",
+					req.Name, req.Namespace, err.Error()),
+			)
+
+			log.Error(err, "Failed to find access list by ID")
+			return err
+		}
+	}
+
+	authorizations := make([]nginxpm.AccessListItem, len(acl.Spec.Authorizations))
+	for i, authorization := range acl.Spec.Authorizations {
+		authorizations[i] = nginxpm.AccessListItem{
+			Username: authorization.Username,
+			Password: authorization.Password,
+		}
+	}
+
+	clients := make([]nginxpm.AccessListClient, len(acl.Spec.Clients))
+	for i, client := range acl.Spec.Clients {
+		clients[i] = nginxpm.AccessListClient{
+			Address:   client.Address,
+			Directive: client.Directive,
+		}
+	}
+
+	input := nginxpm.AccessListRequestInput{
+		Name:       acl.Name,
+		SatisfyAny: acl.Spec.SatisfyAny,
+		PassAuth:   acl.Spec.PassAuth,
+		Items:      authorizations,
+		Clients:    clients,
+	}
+
+	if accessList == nil {
+		accessList, err = nginxpmClient.CreateAccessList(input)
+		if err != nil {
+			r.Recorder.Event(
+				acl, "Warning", "CreateAccessList",
+				fmt.Sprintf("Failed to create access list, ResourceName: %s, Namespace: %s, err: %s",
+					req.Name, req.Namespace, err.Error()),
+			)
+
+			log.Error(err, "Failed to create access list")
+			return err
+		}
+
+		log.Info("AccessList created successfully")
+	} else {
+		accessList, err = nginxpmClient.UpdateAccessList(accessList.ID, input)
+		if err != nil {
+			r.Recorder.Event(
+				acl, "Warning", "UpdateAccessList",
+				fmt.Sprintf("Failed to update access list, ResourceName: %s, Namespace: %s, err: %s",
+					req.Name, req.Namespace, err.Error()),
+			)
+
+			log.Error(err, "Failed to update access list")
+			return err
+		}
+
+		log.Info("AccessList updated successfully")
+	}
+
+	return controller.UpdateStatus(ctx, r.Client, acl, req.NamespacedName, func() {
+		acl.Status.Id = &accessList.ID
+		acl.Status.ProxyHostCount = accessList.ProxyHostCount
+	})
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -163,11 +163,11 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 			// Delete the LetsEncryptCertificate record in the Nginx Proxy Manager instance
 			// If the LetsEncryptCertificate is bound, we will not delete the record
 			if lec.Status.Id != nil && !lec.Status.Bound {
-				log.Info("Deleting LetsEncryptCertificate record in Nginx Proxy Manager instance")
+				log.Info("Deleting LetsEncryptCertificate record from remote NPM")
 				err := nginxpmClient.DeleteCertificate(int(*lec.Status.Id))
 
 				if err != nil {
-					log.Error(err, "Failed to delete LetsEncryptCertificate record in Nginx Proxy Manager instance")
+					log.Error(err, "Failed to delete LetsEncryptCertificate record from remote NPM")
 				}
 			}
 

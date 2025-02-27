@@ -166,11 +166,11 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 			// Delete the CustomCertificate record in the Nginx Proxy Manager instance
 			if cc.Status.Id != nil {
-				log.Info("Deleting CustomCertificate record in Nginx Proxy Manager instance")
+				log.Info("Deleting CustomCertificate record from remote NPM")
 				err := nginxpmClient.DeleteCertificate(int(*cc.Status.Id))
 
 				if err != nil {
-					log.Error(err, "Failed to delete CustomCertificate record in Nginx Proxy Manager instance")
+					log.Error(err, "Failed to delete CustomCertificate record from remote NPM")
 				}
 			}
 

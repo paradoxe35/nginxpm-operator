@@ -188,18 +188,18 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				// If the ProxyHost is bound, we delete the record
 				// If not Bound, we disable it
 				if ph.Status.Bound {
-					log.Info("Disabling ProxyHost record in Nginx Proxy Manager instance")
+					log.Info("Disabling ProxyHost record from remote NPM")
 					err := nginxpmClient.DisableProxyHost(int(*ph.Status.Id))
 
 					if err != nil {
-						log.Error(err, "Failed to disable ProxyHost record in Nginx Proxy Manager instance")
+						log.Error(err, "Failed to disable ProxyHost record from remote NPM")
 					}
 				} else {
-					log.Info("Deleting ProxyHost record in Nginx Proxy Manager instance")
+					log.Info("Deleting ProxyHost record from remote NPM")
 					err := nginxpmClient.DeleteProxyHost(int(*ph.Status.Id))
 
 					if err != nil {
-						log.Error(err, "Failed to delete ProxyHost record in Nginx Proxy Manager instance")
+						log.Error(err, "Failed to delete ProxyHost record from remote NPM")
 					}
 				}
 			}
