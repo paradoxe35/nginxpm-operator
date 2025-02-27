@@ -551,7 +551,9 @@ func (r *ProxyHostReconciler) constructCustomLocation(ctx context.Context, req c
 		}
 	}
 
-	log.Info("CustomLocations found, applying to proxy host")
+	if len(customLocations) > 0 {
+		log.Info("CustomLocations found, applying to proxy host")
+	}
 
 	return customLocations, nil
 }
@@ -872,13 +874,13 @@ func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err := mgr.GetFieldIndexer().IndexField(
 		context.Background(),
 
-		&nginxpmoperatoriov1.AccessList{},
+		&nginxpmoperatoriov1.ProxyHost{},
 
 		PH_ACCESS_LIST_FIELD,
 
 		func(rawObj client.Object) []string {
 			ph := rawObj.(*nginxpmoperatoriov1.ProxyHost)
-			if ph.Spec.AccessList.Name == "" {
+			if ph.Spec.AccessList == nil || ph.Spec.AccessList.Name == "" {
 				return nil
 			}
 
@@ -946,6 +948,7 @@ func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&nginxpmoperatoriov1.Token{}).
 		Owns(&nginxpmoperatoriov1.CustomCertificate{}).
 		Owns(&nginxpmoperatoriov1.LetsEncryptCertificate{}).
+		Owns(&nginxpmoperatoriov1.AccessList{}).
 		Owns(&corev1.Service{}).
 		Watches(
 			&nginxpmoperatoriov1.Token{},
