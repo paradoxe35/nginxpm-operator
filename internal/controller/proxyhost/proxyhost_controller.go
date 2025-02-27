@@ -424,7 +424,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		CachingEnabled:        ph.Spec.CachingEnabled,
 		Locations:             customLocations,
 		AccessListID:          accessListID,
-		CustomFields:          make(nginxpm.ProxyHostRequestCustomFields),
+		CustomFields:          make(nginxpm.RequestCustomFields),
 	}
 
 	// Handle custom fields

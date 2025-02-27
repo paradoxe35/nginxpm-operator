@@ -18,8 +18,12 @@ package stream
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -34,6 +38,7 @@ import (
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
 	"github.com/paradoxe35/nginxpm-operator/internal/controller"
+	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
 )
 
 const (
@@ -81,11 +86,111 @@ type StreamReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.2/pkg/reconcile
 func (r *StreamReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	log := log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	st := &nginxpmoperatoriov1.Stream{}
+
+	err := r.Get(ctx, req.NamespacedName, st)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("stream resource not found. Ignoring since object must be deleted")
+			return ctrl.Result{}, nil
+		}
+		log.Error(err, "Failed to get stream")
+		return ctrl.Result{}, err
+	}
+
+	isMarkedToBeDeleted := !st.ObjectMeta.DeletionTimestamp.IsZero()
+
+	if !isMarkedToBeDeleted {
+		if err := controller.AddFinalizer(r, ctx, streamFinalizer, st); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	// Let's just set the status as Unknown when no status is available
+	if len(st.Status.Conditions) == 0 {
+		controller.UpdateStatus(ctx, r.Client, st, req.NamespacedName, func() {
+			meta.SetStatusCondition(&st.Status.Conditions, metav1.Condition{
+				Status:             metav1.ConditionUnknown,
+				Type:               controller.ConditionTypeReconciling,
+				Reason:             "Reconciling",
+				Message:            "Starting reconciliation",
+				LastTransitionTime: metav1.Now(),
+			})
+		})
+	}
+
+	// Create a new Nginx Proxy Manager client
+	nginxpmClient, err := controller.InitNginxPMClient(ctx, r, req, st.Spec.Token)
+	if err != nil {
+		if isMarkedToBeDeleted {
+			if err := controller.RemoveFinalizer(r, ctx, streamFinalizer, st); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{}, nil
+		}
+
+		r.Recorder.Event(
+			st, "Warning", "InitNginxPMClient",
+			fmt.Sprintf("Failed to init nginxpm client: ResourceName: %s, Namespace: %s, err: %s",
+				req.Name, req.Namespace, err.Error()),
+		)
+
+		// Set the status as False when the client can't be created
+		controller.UpdateStatus(ctx, r.Client, st, req.NamespacedName, func() {
+			meta.SetStatusCondition(&st.Status.Conditions, metav1.Condition{
+				Status:             metav1.ConditionFalse,
+				Type:               controller.ConditionTypeError,
+				Reason:             "InitNginxPMClient",
+				Message:            err.Error(),
+				LastTransitionTime: metav1.Now(),
+			})
+		})
+
+		return ctrl.Result{}, err
+	}
+
+	// Create or update proxy host
+	err = r.createOrUpdateStream(ctx, req, st, nginxpmClient)
+	if err != nil {
+		// Set the status as False when the client can't be created
+		controller.UpdateStatus(ctx, r.Client, st, req.NamespacedName, func() {
+			meta.SetStatusCondition(&st.Status.Conditions, metav1.Condition{
+				Status:             metav1.ConditionFalse,
+				Type:               controller.ConditionTypeError,
+				Reason:             "createOrUpdateStream",
+				Message:            err.Error(),
+				LastTransitionTime: metav1.Now(),
+			})
+		})
+
+		return ctrl.Result{}, err
+	}
+
+	// Set the status as True when the client can be created
+	controller.UpdateStatus(ctx, r.Client, st, req.NamespacedName, func() {
+		meta.SetStatusCondition(&st.Status.Conditions, metav1.Condition{
+			Status:             metav1.ConditionTrue,
+			Type:               controller.ConditionTypeReady,
+			Reason:             "createOrUpdateStream",
+			Message:            fmt.Sprintf("Proxy host created or updated, ResourceName: %s", req.Name),
+			LastTransitionTime: metav1.Now(),
+		})
+	})
 
 	return ctrl.Result{}, nil
+}
+
+func (r *StreamReconciler) createOrUpdateStream(ctx context.Context, req ctrl.Request, st *nginxpmoperatoriov1.Stream, nginxpmClient *nginxpm.Client) error {
+	// log := log.FromContext(ctx)
+
+	// var stream *nginxpm.ProxyHost
+	// var err error
+
+	return nil
+
 }
 
 // SetupWithManager sets up the controller with the Manager.

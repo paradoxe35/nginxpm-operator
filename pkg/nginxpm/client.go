@@ -31,6 +31,24 @@ const (
 	NGINX_LB_SERVER_PREFIX = "xlb"
 )
 
+// Shared Custom fields
+const (
+	CUSTOM_FIELD_UNSCOPED_CONFIG = "unscoped_config"
+)
+
+type NginxMeta struct {
+	NginxErr    *string `json:"nginx_err"`
+	NginxOnline bool    `json:"nginx_online"`
+}
+
+type RequestCustomField struct {
+	Field   string
+	Value   string
+	Allowed bool
+}
+
+type RequestCustomFields map[string]RequestCustomField
+
 // APIError represents an error returned by the API
 type APIError struct {
 	StatusCode int

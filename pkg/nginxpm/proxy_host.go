@@ -25,16 +25,13 @@ import (
 	"net/url"
 )
 
-const (
-	CUSTOM_FIELD_UNSCOPED_CONFIG = "unscoped_config"
-)
-
 // ProxyHost represents the structure of a proxy host as returned by the API.
 type ProxyHost struct {
-	ID             int      `json:"id"`
-	Enabled        bool     `json:"enabled"`
-	UnscopedConfig *string  `json:"unscoped_config"` // Custom field from https://github.com/paradoxe35/nginx-proxy-manager, it must be a string pointer
-	DomainNames    []string `json:"domain_names"`
+	ID             int       `json:"id"`
+	Enabled        bool      `json:"enabled"`
+	UnscopedConfig *string   `json:"unscoped_config"` // Custom field from https://github.com/paradoxe35/nginx-proxy-manager, it must be a string pointer
+	DomainNames    []string  `json:"domain_names"`
+	Meta           NginxMeta `json:"meta"`
 }
 
 // ProxyHostMeta represents the meta information for a proxy host.
@@ -54,14 +51,6 @@ type ProxyHostLocation struct {
 	ForwardPort    int    `json:"forward_port"`
 }
 
-type RequestCustomField struct {
-	Field   string
-	Value   string
-	Allowed bool
-}
-
-type ProxyHostRequestCustomFields map[string]RequestCustomField
-
 // ProxyHostRequestInput holds all parameters needed to create a proxy host.
 type ProxyHostRequestInput struct {
 	DomainNames           []string
@@ -79,7 +68,7 @@ type ProxyHostRequestInput struct {
 	CachingEnabled        bool
 	HSTSSubdomains        bool
 	AccessListID          int
-	CustomFields          ProxyHostRequestCustomFields
+	CustomFields          RequestCustomFields
 }
 
 // DeleteProxyHost deletes a proxy host by its ID.
@@ -173,9 +162,7 @@ func (c *Client) FindProxyHostByID(id int) (*ProxyHost, error) {
 
 // CreateProxyHost creates a new proxy host.
 func (c *Client) CreateProxyHost(input ProxyHostRequestInput) (*ProxyHost, error) {
-	body := buildProxyHostRequestBody(input)
-
-	jsonBody, err := json.Marshal(body)
+	jsonBody, err := json.Marshal(buildProxyHostRequestBody(input))
 	if err != nil {
 		return nil, fmt.Errorf("create proxy host: marshal request: %w", err)
 	}
@@ -202,9 +189,7 @@ func (c *Client) CreateProxyHost(input ProxyHostRequestInput) (*ProxyHost, error
 
 // UpdateProxyHost updates an existing proxy host.
 func (c *Client) UpdateProxyHost(id int, input ProxyHostRequestInput) (*ProxyHost, error) {
-	body := buildProxyHostRequestBody(input)
-
-	jsonBody, err := json.Marshal(body)
+	jsonBody, err := json.Marshal(buildProxyHostRequestBody(input))
 	if err != nil {
 		return nil, fmt.Errorf("update proxy host %d: marshal request: %w", id, err)
 	}
