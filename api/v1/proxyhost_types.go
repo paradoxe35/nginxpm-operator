@@ -220,6 +220,27 @@ type CustomLocation struct {
 	Forward Forward `json:"forward,omitempty"`
 }
 
+type ProxyHostAccessList struct {
+	// If you know ID of an access list, you can put it here
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=integer
+	// +optional
+	RemoteId *int `json:"remoteId,omitempty"`
+
+	// The access list resource name
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +optional
+	Name string `json:"name,omitempty"`
+
+	// Namespace of the access list resource
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern=`^[a-z]([-a-z0-9]*[a-z0-9])?$`
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
+}
+
 // ProxyHostSpec defines the desired state of ProxyHost
 type ProxyHostSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -259,6 +280,12 @@ type ProxyHostSpec struct {
 	// +kubebuilder:validation:Type=boolean
 	// +optional
 	WebsocketSupport bool `json:"websocketSupport,omitempty"`
+
+	// AccessList to add to the proxyhost
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=object
+	// +optional
+	AccessList *ProxyHostAccessList `json:"accessList,omitempty"`
 
 	// Ssl configuration for the proxyhost, default is autoCertificateRequest:true
 	// +kubebuilder:validation:Optional

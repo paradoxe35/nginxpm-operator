@@ -58,6 +58,8 @@ const (
 
 	PH_CUSTOM_LOCATION_FORWARD_FIELD = ".spec.customLocations.forward.service.name"
 
+	PH_ACCESS_LIST_FIELD = ".spec.accessList.name"
+
 	DEFAULT_EMAIL = "support@nginxpm-operator.io"
 )
 
@@ -85,6 +87,8 @@ type ProxyHostForward struct {
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=customcertificates/status,verbs=get
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=letsencryptcertificates,verbs=get;list;watch
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=letsencryptcertificates/status,verbs=get
+// +kubebuilder:rbac:groups=nginxpm-operator.io,resources=accesslist,verbs=get;list;watch
+// +kubebuilder:rbac:groups=nginxpm-operator.io,resources=accesslist/status,verbs=get
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services/status,verbs=get
@@ -377,6 +381,24 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		}
 	}
 
+	// AccessList operation
+	var accessListID int
+	if ph.Spec.AccessList != nil {
+		accessList, err := r.getAccessListByReference(ctx, req, ph.Spec.AccessList, nginxpmClient)
+		if err != nil {
+			r.Recorder.Event(
+				ph, "Warning", "GetAccessListByReference",
+				fmt.Sprintf("Failed to get access list by reference, ResourceName: %s, Namespace: %s, err: %s",
+					req.Name, req.Namespace, err.Error()),
+			)
+			return err
+		}
+
+		if accessList != nil {
+			accessListID = accessList.ID
+		}
+	}
+
 	// CustomLocation operation
 	// pass the proxyHostForward to constructCustomLocation,
 	// so that custom locations forward can pass their nginx-upstream-config to the upstream forward
@@ -400,6 +422,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		AllowWebsocketUpgrade: ph.Spec.WebsocketSupport,
 		CachingEnabled:        ph.Spec.CachingEnabled,
 		Locations:             customLocations,
+		AccessListID:          accessListID,
 		CustomFields:          make(nginxpm.ProxyHostRequestCustomFields),
 	}
 
@@ -533,6 +556,52 @@ func (r *ProxyHostReconciler) constructCustomLocation(ctx context.Context, req c
 	return customLocations, nil
 }
 
+// ############################################# ACCESS LIST OPERATION ##############################################
+
+func (r *ProxyHostReconciler) getAccessListByReference(ctx context.Context, req ctrl.Request, reference *nginxpmoperatoriov1.ProxyHostAccessList, nginxpmClient *nginxpm.Client) (*nginxpm.AccessList, error) {
+	log := log.FromContext(ctx)
+
+	if reference == nil || reference.Name == "" && reference.RemoteId == nil {
+		log.Info("AccessList is not provided, skipping access list operation")
+		return nil, nil
+	}
+
+	var accessList *nginxpm.AccessList
+
+	remoteId := reference.RemoteId
+
+	if remoteId == nil && reference.Name != "" {
+		acl := nginxpmoperatoriov1.AccessList{}
+
+		// If namespace is not provided, use the namespace of the proxyhost
+		namespace := req.Namespace
+		if reference.Namespace != nil {
+			namespace = *reference.Namespace
+		}
+
+		// Retrieve the AccessList resource
+		if err := r.Get(ctx, types.NamespacedName{Namespace: namespace, Name: reference.Name}, &acl); err != nil {
+			log.Error(err, "AccessList resource not found, please check the AccessList resource name")
+			return nil, err
+		}
+
+		if acl.Status.Id == nil {
+			log.Info("no certificate ID is provided, please check the AccessList resource")
+			return nil, fmt.Errorf("no certificate ID is provided, please check the AccessList resource")
+		}
+
+		remoteId = acl.Status.Id
+	}
+
+	accessList, err := nginxpmClient.FindAccessListByID(*remoteId)
+	if err != nil {
+		log.Error(err, "Failed to find access list by ID")
+		return nil, err
+	}
+
+	return accessList, nil
+}
+
 // ############################################# CERTIFICATE OPERATION ##############################################
 
 func (r *ProxyHostReconciler) makeCertificate(ctx context.Context, req ctrl.Request, ph *nginxpmoperatoriov1.ProxyHost, nginxpmClient *nginxpm.Client) (*nginxpm.Certificate, error) {
@@ -549,7 +618,7 @@ func (r *ProxyHostReconciler) makeCertificate(ctx context.Context, req ctrl.Requ
 	// if LetsEncryptCertificate is provided, then find the certificate from Let's Encrypt resource
 	if ph.Spec.Ssl.LetsEncryptCertificate != nil {
 		log.Info("LetsEncryptCertificate is provided, finding certificate from LetsEncryptCertificate resource")
-		certificate, err = r.getLetsEncryptCertificateFromReference(ctx, req, ph.Spec.Ssl.LetsEncryptCertificate, nginxpmClient)
+		certificate, err = r.getLetsEncryptCertificateByReference(ctx, req, ph.Spec.Ssl.LetsEncryptCertificate, nginxpmClient)
 		if err != nil {
 			return nil, err
 		}
@@ -558,7 +627,7 @@ func (r *ProxyHostReconciler) makeCertificate(ctx context.Context, req ctrl.Requ
 	// if CustomCertificate is provided, then find the certificate from CustomCertificate resource
 	if ph.Spec.Ssl.CustomCertificate != nil {
 		log.Info("CustomCertificate is provided, finding certificate from CustomCertificate resource")
-		certificate, err = r.getCustomCertificateFromReference(ctx, req, ph.Spec.Ssl.CustomCertificate, nginxpmClient)
+		certificate, err = r.getCustomCertificateByReference(ctx, req, ph.Spec.Ssl.CustomCertificate, nginxpmClient)
 		if err != nil {
 			return nil, err
 		}
@@ -587,7 +656,7 @@ func (r *ProxyHostReconciler) makeCertificate(ctx context.Context, req ctrl.Requ
 }
 
 // Get certificate from Let's Encrypt reference
-func (r *ProxyHostReconciler) getLetsEncryptCertificateFromReference(ctx context.Context, req ctrl.Request, reference *nginxpmoperatoriov1.SslLetsEncryptCertificate, nginxpmClient *nginxpm.Client) (*nginxpm.Certificate, error) {
+func (r *ProxyHostReconciler) getLetsEncryptCertificateByReference(ctx context.Context, req ctrl.Request, reference *nginxpmoperatoriov1.SslLetsEncryptCertificate, nginxpmClient *nginxpm.Client) (*nginxpm.Certificate, error) {
 	log := log.FromContext(ctx)
 
 	lec := nginxpmoperatoriov1.LetsEncryptCertificate{}
@@ -620,7 +689,7 @@ func (r *ProxyHostReconciler) getLetsEncryptCertificateFromReference(ctx context
 }
 
 // Get certificate from CustomCertificate reference
-func (r *ProxyHostReconciler) getCustomCertificateFromReference(ctx context.Context, req ctrl.Request, reference *nginxpmoperatoriov1.SslCustomCertificate, nginxpmClient *nginxpm.Client) (*nginxpm.Certificate, error) {
+func (r *ProxyHostReconciler) getCustomCertificateByReference(ctx context.Context, req ctrl.Request, reference *nginxpmoperatoriov1.SslCustomCertificate, nginxpmClient *nginxpm.Client) (*nginxpm.Certificate, error) {
 	log := log.FromContext(ctx)
 
 	customCert := nginxpmoperatoriov1.CustomCertificate{}
@@ -747,7 +816,6 @@ func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		PH_TOKEN_FIELD,
 
 		func(rawObj client.Object) []string {
-			// Extract the Secret name from the Token Spec, if one is provided
 			ph := rawObj.(*nginxpmoperatoriov1.ProxyHost)
 
 			if ph.Spec.Token == nil {
@@ -773,7 +841,6 @@ func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		PH_CUSTOM_CERTIFICATE_FIELD,
 
 		func(rawObj client.Object) []string {
-			// Extract the Secret name from the Token Spec, if one is provided
 			ph := rawObj.(*nginxpmoperatoriov1.ProxyHost)
 			if ph.Spec.Ssl == nil || ph.Spec.Ssl.CustomCertificate == nil || ph.Spec.Ssl.CustomCertificate.Name == "" {
 				return nil
@@ -792,12 +859,30 @@ func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		PH_LETSENCRYPT_CERTIFICATE_FIELD,
 
 		func(rawObj client.Object) []string {
-			// Extract the Secret name from the Token Spec, if one is provided
 			ph := rawObj.(*nginxpmoperatoriov1.ProxyHost)
 			if ph.Spec.Ssl == nil || ph.Spec.Ssl.LetsEncryptCertificate == nil || ph.Spec.Ssl.LetsEncryptCertificate.Name == "" {
 				return nil
 			}
 			return []string{ph.Spec.Ssl.LetsEncryptCertificate.Name}
+		}); err != nil {
+		return err
+	}
+
+	// Add the AccessList to the indexer
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+
+		&nginxpmoperatoriov1.AccessList{},
+
+		PH_ACCESS_LIST_FIELD,
+
+		func(rawObj client.Object) []string {
+			ph := rawObj.(*nginxpmoperatoriov1.ProxyHost)
+			if ph.Spec.AccessList.Name == "" {
+				return nil
+			}
+
+			return []string{ph.Spec.AccessList.Name}
 		}); err != nil {
 		return err
 	}
@@ -811,7 +896,6 @@ func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		PH_FORWARD_SERVICE_FIELD,
 
 		func(rawObj client.Object) []string {
-			// Extract the Secret name from the Token Spec, if one is provided
 			ph := rawObj.(*nginxpmoperatoriov1.ProxyHost)
 			if ph.Spec.Forward.Service == nil || ph.Spec.Forward.Service.Name == "" {
 				return nil
@@ -830,7 +914,6 @@ func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		PH_CUSTOM_LOCATION_FORWARD_FIELD,
 
 		func(rawObj client.Object) []string {
-			// Extract the Secret name from the Token Spec, if one is provided
 			ph := rawObj.(*nginxpmoperatoriov1.ProxyHost)
 			if len(ph.Spec.CustomLocations) == 0 {
 				return nil
@@ -877,6 +960,11 @@ func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(
 			&nginxpmoperatoriov1.LetsEncryptCertificate{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(PH_LETSENCRYPT_CERTIFICATE_FIELD)),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&nginxpmoperatoriov1.AccessList{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(PH_ACCESS_LIST_FIELD)),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Watches(

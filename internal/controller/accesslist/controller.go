@@ -23,12 +23,18 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
 	"github.com/paradoxe35/nginxpm-operator/internal/controller"
@@ -276,7 +282,6 @@ func (r *AccessListReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		ACL_TOKEN_FIELD,
 
 		func(rawObj client.Object) []string {
-			// Extract the Secret name from the Token Spec, if one is provided
 			acl := rawObj.(*nginxpmoperatoriov1.AccessList)
 
 			if acl.Spec.Token == nil {
@@ -296,6 +301,42 @@ func (r *AccessListReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&nginxpmoperatoriov1.AccessList{}).
 		Owns(&nginxpmoperatoriov1.Token{}).
+		Watches(
+			&nginxpmoperatoriov1.Token{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(ACL_TOKEN_FIELD)),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Named("accesslist").
 		Complete(r)
+}
+
+func (r *AccessListReconciler) findObjectsForMap(field string) func(ctx context.Context, obj client.Object) []reconcile.Request {
+	return func(ctx context.Context, object client.Object) []reconcile.Request {
+		attachedObjects := &nginxpmoperatoriov1.AccessListList{}
+
+		listOps := &client.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector(field, object.GetName()),
+		}
+
+		if field != ACL_TOKEN_FIELD {
+			listOps.Namespace = object.GetNamespace()
+		}
+
+		err := r.List(ctx, attachedObjects, listOps)
+		if err != nil {
+			return []reconcile.Request{}
+		}
+
+		requests := make([]reconcile.Request, len(attachedObjects.Items))
+		for i, item := range attachedObjects.Items {
+			requests[i] = reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      item.GetName(),
+					Namespace: item.GetNamespace(),
+				},
+			}
+		}
+
+		return requests
+	}
 }

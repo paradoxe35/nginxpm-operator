@@ -80,6 +80,7 @@ type ProxyHostRequestInput struct {
 	Locations             []ProxyHostLocation
 	CachingEnabled        bool
 	HSTSSubdomains        bool
+	AccessListID          int
 	CustomFields          ProxyHostRequestCustomFields
 }
 
@@ -303,6 +304,10 @@ func buildProxyHostRequestBody(input ProxyHostRequestInput) map[string]interface
 		"locations":       input.Locations,
 		"caching_enabled": input.CachingEnabled,
 		"hsts_subdomains": input.HSTSSubdomains,
+	}
+
+	if input.AccessListID != 0 {
+		body["access_list_id"] = input.AccessListID
 	}
 
 	if input.CustomFields != nil {

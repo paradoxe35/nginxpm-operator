@@ -351,7 +351,6 @@ func (r *CustomCertificateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		CC_TOKEN_FIELD,
 
 		func(rawObj client.Object) []string {
-			// Extract the Secret name from the Token Spec, if one is provided
 			cc := rawObj.(*nginxpmoperatoriov1.CustomCertificate)
 
 			if cc.Spec.Token == nil {
@@ -377,7 +376,6 @@ func (r *CustomCertificateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		CC_CERTIFICATE_FIELD,
 
 		func(rawObj client.Object) []string {
-			// Extract the Secret name from the Token Spec, if one is provided
 			cc := rawObj.(*nginxpmoperatoriov1.CustomCertificate)
 			if cc.Spec.Certificate.Secret.Name == "" {
 				return nil

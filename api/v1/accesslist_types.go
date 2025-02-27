@@ -103,7 +103,7 @@ type AccessListStatus struct {
 	Id *int `json:"id,omitempty"`
 
 	// Number of proxy hosts associated with this AccessList
-	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Default=0
 	ProxyHostCount int `json:"proxyHostCount,omitempty"`
 
 	// Represents the observations of a AccessListStatus's current state.

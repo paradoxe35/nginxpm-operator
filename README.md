@@ -14,10 +14,10 @@ This solution is particularly beneficial for homelab setups and environments whe
 | Let's Encrypt Certificate   | ✅ Implemented         |
 | Custom Certificate          | ✅ Implemented         |
 | Proxy Host                  | ✅ Implemented         |
+| Access Lists                | ✅ Implemented         |
 | Redirection Hosts           | ❌ Not yet implemented |
 | Streams                     | ❌ Not yet implemented |
 | 404 Hosts                   | ❌ Not yet implemented |
-| Access Lists                | ❌ Not yet implemented |
 
 ## Installation
 
@@ -93,6 +93,11 @@ spec:
   # blockExploits: true
   # websocketSupport: true
   # cachingEnabled: false
+
+  # Access List
+  # accessList:
+  #   remoteId: 12
+  #   name: admin-access
 
   # Enable ssl here
   # ssl:
@@ -216,6 +221,38 @@ data:
 ```
 
 Attach this to your ProxyHost using `ssl.customCertificate.name` in the spec.
+
+### 3. AccessList
+
+```yaml
+apiVersion: nginxpm-operator.io/v1
+kind: AccessList
+metadata:
+  labels:
+    app.kubernetes.io/name: nginxpm-operator
+  name: accesslist-sample
+spec:
+  # Token is optional, if not provided, the operator will try to find a token with `token-nginxpm` name
+  # in the same namespace as the letsencryptcertificate is created or in the `nginxpm-operator-system` namespace or in the `default` namespace
+  token:
+    name: token-sample
+    namespace: default
+
+  name: Admin Access
+
+  satisfyAny: true
+  passAuth: false
+
+  authorizations:
+    - username: admin
+      password: password
+
+  clients:
+    - address: 192.168.11.2/24
+      directive: allow
+```
+
+Attach this to your ProxyHost using `accessList.name` in the spec.
 
 ## Support
 

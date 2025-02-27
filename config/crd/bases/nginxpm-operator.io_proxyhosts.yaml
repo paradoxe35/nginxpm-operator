@@ -52,6 +52,21 @@ spec:
           spec:
             description: ProxyHostSpec defines the desired state of ProxyHost
             properties:
+              accessList:
+                description: AccessList to add to the proxyhost
+                properties:
+                  name:
+                    description: The access list resource name
+                    type: string
+                  namespace:
+                    description: Namespace of the access list resource
+                    pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
+                    type: string
+                  remoteId:
+                    description: If you know ID of an access list, you can put it
+                      here
+                    type: integer
+                type: object
               blockExploits:
                 default: true
                 description: BlockExploits is the flag to enable or disable blocking

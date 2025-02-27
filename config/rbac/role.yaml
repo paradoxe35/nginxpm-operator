@@ -33,6 +33,20 @@ rules:
 - apiGroups:
   - nginxpm-operator.io
   resources:
+  - accesslist
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - accesslist/status
+  verbs:
+  - get
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
   - accesslists
   - customcertificates
   - letsencryptcertificates

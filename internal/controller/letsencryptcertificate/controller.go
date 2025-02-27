@@ -354,7 +354,6 @@ func (r *LetsEncryptCertificateReconciler) SetupWithManager(mgr ctrl.Manager) er
 		LEC_TOKEN_FIELD,
 
 		func(rawObj client.Object) []string {
-			// Extract the Secret name from the Token Spec, if one is provided
 			lec := rawObj.(*nginxpmoperatoriov1.LetsEncryptCertificate)
 
 			if lec.Spec.Token == nil {
@@ -380,7 +379,6 @@ func (r *LetsEncryptCertificateReconciler) SetupWithManager(mgr ctrl.Manager) er
 		LEC_DNS_CHALLENGE_CRED_SECRET_FIELD,
 
 		func(rawObj client.Object) []string {
-			// Extract the Secret name from the Token Spec, if one is provided
 			lec := rawObj.(*nginxpmoperatoriov1.LetsEncryptCertificate)
 			if lec.Spec.DnsChallenge == nil || lec.Spec.DnsChallenge.ProviderCredentials.Secret.Name == "" {
 				return nil
