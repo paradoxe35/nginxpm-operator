@@ -33,6 +33,7 @@ rules:
 - apiGroups:
   - nginxpm-operator.io
   resources:
+  - accesslists
   - customcertificates
   - letsencryptcertificates
   - proxyhosts
@@ -48,6 +49,7 @@ rules:
 - apiGroups:
   - nginxpm-operator.io
   resources:
+  - accesslists/finalizers
   - customcertificates/finalizers
   - letsencryptcertificates/finalizers
   - proxyhosts/finalizers
@@ -57,6 +59,7 @@ rules:
 - apiGroups:
   - nginxpm-operator.io
   resources:
+  - accesslists/status
   - customcertificates/status
   - letsencryptcertificates/status
   - proxyhosts/status

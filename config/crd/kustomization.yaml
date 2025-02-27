@@ -6,6 +6,7 @@ resources:
 - bases/nginxpm-operator.io_proxyhosts.yaml
 - bases/nginxpm-operator.io_letsencryptcertificates.yaml
 - bases/nginxpm-operator.io_customcertificates.yaml
+- bases/nginxpm-operator.io_accesslists.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

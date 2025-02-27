@@ -1,0 +1,9 @@
+apiVersion: nginxpm-operator.io/v1
+kind: AccessList
+metadata:
+  labels:
+    app.kubernetes.io/name: nginxpm-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: accesslist-sample
+spec:
+  # TODO(user): Add fields here

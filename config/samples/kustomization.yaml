@@ -4,4 +4,5 @@ resources:
 - v1_proxyhost.yaml
 - v1_letsencryptcertificate.yaml
 - v1_customcertificate.yaml
+- v1_accesslist.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
