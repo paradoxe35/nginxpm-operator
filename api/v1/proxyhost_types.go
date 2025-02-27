@@ -260,6 +260,13 @@ type ProxyHostSpec struct {
 	// +required
 	DomainNames []DomainName `json:"domainNames,omitempty"`
 
+	// If set to true (the default), it will bind and update an existing remote proxy host if the domain names match; otherwise, it will create a new one.
+	// +kubebuilder:default:=true
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=boolean
+	// +optional
+	BindExisting bool `json:"bindExisting,omitempty"`
+
 	// CachingEnabled is the flag to enable or disable caching, default is false
 	// +kubebuilder:default:=false
 	// +kubebuilder:validation:Optional

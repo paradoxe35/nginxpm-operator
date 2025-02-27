@@ -67,6 +67,12 @@ spec:
                       here
                     type: integer
                 type: object
+              bindExisting:
+                default: true
+                description: If set to true (the default), it will bind and update
+                  an existing remote proxy host if the domain names match; otherwise,
+                  it will create a new one.
+                type: boolean
               blockExploits:
                 default: true
                 description: BlockExploits is the flag to enable or disable blocking

@@ -51,6 +51,7 @@ rules:
   - customcertificates
   - letsencryptcertificates
   - proxyhosts
+  - streams
   - tokens
   verbs:
   - create
@@ -67,6 +68,7 @@ rules:
   - customcertificates/finalizers
   - letsencryptcertificates/finalizers
   - proxyhosts/finalizers
+  - streams/finalizers
   - tokens/finalizers
   verbs:
   - update
@@ -77,6 +79,7 @@ rules:
   - customcertificates/status
   - letsencryptcertificates/status
   - proxyhosts/status
+  - streams/status
   - tokens/status
   verbs:
   - get
