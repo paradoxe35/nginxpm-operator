@@ -148,7 +148,7 @@ func (r *AccessListReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 				// Delete access list here
 				err := nginxpmClient.DeleteAccessList(int(*acl.Status.Id))
 				if err != nil {
-					log.Error(err, "Failed to delete access from remote NPM")
+					log.Error(err, "Failed to delete access list from remote NPM")
 				}
 			}
 

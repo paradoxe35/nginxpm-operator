@@ -32,6 +32,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -157,6 +158,27 @@ func (r *StreamReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		})
 
 		return ctrl.Result{RequeueAfter: time.Minute}, err
+	}
+
+	if isMarkedToBeDeleted {
+		if controllerutil.ContainsFinalizer(st, streamFinalizer) {
+			log.Info("Performing Finalizer Operations for Stream")
+
+			if st.Status.Id != nil {
+				// Delete stream here
+				err := nginxpmClient.DeleteStream(int(*st.Status.Id))
+				if err != nil {
+					log.Error(err, "Failed to delete stream from remote NPM")
+				}
+			}
+
+			// Remove the finalizer
+			if err := controller.RemoveFinalizer(r, ctx, streamFinalizer, st); err != nil {
+				return ctrl.Result{RequeueAfter: time.Minute}, err
+			}
+		}
+
+		return ctrl.Result{}, nil
 	}
 
 	// Create or update stream

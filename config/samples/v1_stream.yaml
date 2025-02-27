@@ -27,7 +27,7 @@ spec:
 
   # Enable ssl
   # ssl:
-  #   # certificateId: 1 # if you know the certificate id of an existing certificate in the nginx-proxy-manager instance
+  #   certificateId: 1 # if you know the certificate id of an existing certificate in the nginx-proxy-manager instance
 
   #   customCertificate:
   #     name: custom-certificate-sample
