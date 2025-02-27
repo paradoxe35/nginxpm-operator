@@ -5,4 +5,5 @@ resources:
 - v1_letsencryptcertificate.yaml
 - v1_customcertificate.yaml
 - v1_accesslist.yaml
+- v1_stream.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

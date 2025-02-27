@@ -7,6 +7,7 @@ resources:
 - bases/nginxpm-operator.io_letsencryptcertificates.yaml
 - bases/nginxpm-operator.io_customcertificates.yaml
 - bases/nginxpm-operator.io_accesslists.yaml
+- bases/nginxpm-operator.io_streams.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

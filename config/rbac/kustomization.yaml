@@ -35,6 +35,9 @@ resources:
 # default, aiding admins in cluster management. Those roles are
 # not used by the {{ .ProjectName }} itself. You can comment the following lines
 # if you do not want those helpers be installed with your Project.
+- stream_admin_role.yaml
+- stream_editor_role.yaml
+- stream_viewer_role.yaml
 - accesslist_admin_role.yaml
 - accesslist_editor_role.yaml
 - accesslist_viewer_role.yaml

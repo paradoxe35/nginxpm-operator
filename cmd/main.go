@@ -40,6 +40,7 @@ import (
 	"github.com/paradoxe35/nginxpm-operator/internal/controller/customcertificate"
 	"github.com/paradoxe35/nginxpm-operator/internal/controller/letsencryptcertificate"
 	"github.com/paradoxe35/nginxpm-operator/internal/controller/proxyhost"
+	"github.com/paradoxe35/nginxpm-operator/internal/controller/stream"
 	"github.com/paradoxe35/nginxpm-operator/internal/controller/token"
 	// +kubebuilder:scaffold:imports
 )
@@ -185,6 +186,14 @@ func main() {
 		Recorder: mgr.GetEventRecorderFor("accesslist-controller"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AccessList")
+		os.Exit(1)
+	}
+	if err = (&stream.StreamReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("stream-controller"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Stream")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

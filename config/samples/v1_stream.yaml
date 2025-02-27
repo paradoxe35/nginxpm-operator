@@ -1,0 +1,9 @@
+apiVersion: nginxpm-operator.io/v1
+kind: Stream
+metadata:
+  labels:
+    app.kubernetes.io/name: nginxpm-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: stream-sample
+spec:
+  # TODO(user): Add fields here
