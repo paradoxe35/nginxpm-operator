@@ -78,8 +78,6 @@ type StreamReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=nodes/status,verbs=get
 
 type StreamForward struct {
-	TCP                  bool
-	UDP                  bool
 	Host                 string
 	Port                 int
 	NginxUpstreamConfigs string
@@ -211,7 +209,90 @@ func (r *StreamReconciler) createOrUpdateStream(ctx context.Context, req ctrl.Re
 		}
 	}
 
-	input := nginxpm.StreamRequestInput{}
+	unscopedConfigSupported := controller.JsonFieldExists(stream, nginxpm.CUSTOM_FIELD_UNSCOPED_CONFIG)
+
+	// Stream forward operation
+	streamForward, err := r.makeForward(MakeForwardOption{
+		Ctx:                     ctx,
+		Req:                     req,
+		Stream:                  st,
+		UnscopedConfigSupported: unscopedConfigSupported,
+	})
+
+	if err != nil {
+		r.Recorder.Event(
+			st, "Warning", "MakeForward",
+			fmt.Sprintf("Failed to make forward, ResourceName: %s, Namespace: %s, err: %s",
+				req.Name, req.Namespace, err.Error()),
+		)
+		return err
+	}
+
+	// Certificate operation
+	var certificateID int
+	if st.Spec.Ssl != nil {
+		certificate, err := controller.RetrieveCertificate(controller.RetrieveCertificateOption{
+			Cxt:                    ctx,
+			Req:                    req,
+			Reader:                 r,
+			NginxpmClient:          nginxpmClient,
+			LetsEncryptCertificate: st.Spec.Ssl.LetsEncryptCertificate,
+			CustomCertificate:      st.Spec.Ssl.CustomCertificate,
+			CertificateId:          st.Spec.Ssl.CertificateId,
+		})
+
+		if err != nil {
+			r.Recorder.Event(
+				st, "Warning", "MakeCertificate",
+				fmt.Sprintf("Failed to make certificate, ResourceName: %s, Namespace: %s, err: %s",
+					req.Name, req.Namespace, err.Error()),
+			)
+			return err
+		}
+
+		if certificate != nil {
+			certificateID = certificate.ID
+		}
+	}
+
+	incomingPort := st.Spec.IncomingPort
+	if st.Spec.OverwriteIncomingPortWithForwardPort {
+		incomingPort = streamForward.Port
+	}
+
+	input := nginxpm.StreamRequestInput{
+		IncomingPort:   incomingPort,
+		ForwardingHost: streamForward.Host,
+		ForwardingPort: streamForward.Port,
+		CertificateID:  certificateID,
+		TCPForwarding:  st.Spec.Forward.TCPForwarding,
+		UDPForwarding:  st.Spec.Forward.UDPForwarding,
+	}
+
+	// Handle custom fields
+	withCustomFields := func(stream *nginxpm.Stream, input *nginxpm.StreamRequestInput) bool {
+		// We are doing this for compatibility reasons
+		input.CustomFields[nginxpm.CUSTOM_FIELD_UNSCOPED_CONFIG] = nginxpm.RequestCustomField{
+			Field:   nginxpm.CUSTOM_FIELD_UNSCOPED_CONFIG,
+			Value:   streamForward.NginxUpstreamConfigs,
+			Allowed: controller.JsonFieldExists(stream, nginxpm.CUSTOM_FIELD_UNSCOPED_CONFIG),
+		}
+
+		// The reset of custom fields will go here
+
+		// All fields should be supported
+		allFieldsSupported := true
+		for _, custom := range input.CustomFields {
+			if !custom.Allowed {
+				allFieldsSupported = false
+				break
+			}
+		}
+
+		return allFieldsSupported
+	}
+
+	allCustomFieldsSupported := withCustomFields(stream, &input)
 
 	// Update stream
 	if stream != nil {
@@ -243,10 +324,10 @@ func (r *StreamReconciler) createOrUpdateStream(ctx context.Context, req ctrl.Re
 		}
 
 		// In case not all custom field supported, we send update request
-		// if !allCustomFieldsSupported {
-		// 	withCustomFields(stream, &input) // call withCustomFields again to ensure all custom fields are supported
-		// 	nginxpmClient.UpdateStream(stream.ID, input)
-		// }
+		if !allCustomFieldsSupported {
+			withCustomFields(stream, &input) // call withCustomFields again to ensure all custom fields are supported
+			nginxpmClient.UpdateStream(stream.ID, input)
+		}
 
 		log.Info("Stream created successfully")
 	}

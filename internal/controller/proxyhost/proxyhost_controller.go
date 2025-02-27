@@ -424,6 +424,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		CachingEnabled:        ph.Spec.CachingEnabled,
 		Locations:             customLocations,
 		AccessListID:          accessListID,
+		CertificateID:         certificateID,
 		CustomFields:          make(nginxpm.RequestCustomFields),
 	}
 
@@ -462,16 +463,6 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		input.HTTP2Support = ph.Spec.Ssl.Http2Support
 		input.HSTSEnabled = ph.Spec.Ssl.HstsEnabled
 		input.HSTSSubdomains = ph.Spec.Ssl.HstsSubdomains
-	}
-
-	if certificateID != nil {
-		certId := int(*certificateID)
-		input.CertificateID = &certId
-
-		log.Info("Certificate ID found, applied to proxy host")
-	} else {
-		log.Info("No certificate found, ignoring certificate operation")
-		input.CertificateID = nil
 	}
 
 	// Update proxy host
@@ -619,34 +610,18 @@ func (r *ProxyHostReconciler) makeCertificate(ctx context.Context, req ctrl.Requ
 		return nil, nil
 	}
 
-	var certificate *nginxpm.Certificate
-	var err error
+	certificate, err := controller.RetrieveCertificate(controller.RetrieveCertificateOption{
+		Cxt:                    ctx,
+		Req:                    req,
+		Reader:                 r,
+		NginxpmClient:          nginxpmClient,
+		LetsEncryptCertificate: ph.Spec.Ssl.LetsEncryptCertificate,
+		CustomCertificate:      ph.Spec.Ssl.CustomCertificate,
+		CertificateId:          ph.Spec.Ssl.CertificateId,
+	})
 
-	// if LetsEncryptCertificate is provided, then find the certificate from Let's Encrypt resource
-	if ph.Spec.Ssl.LetsEncryptCertificate != nil {
-		log.Info("LetsEncryptCertificate is provided, finding certificate from LetsEncryptCertificate resource")
-		certificate, err = r.getLetsEncryptCertificateByReference(ctx, req, ph.Spec.Ssl.LetsEncryptCertificate, nginxpmClient)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// if CustomCertificate is provided, then find the certificate from CustomCertificate resource
-	if ph.Spec.Ssl.CustomCertificate != nil {
-		log.Info("CustomCertificate is provided, finding certificate from CustomCertificate resource")
-		certificate, err = r.getCustomCertificateByReference(ctx, req, ph.Spec.Ssl.CustomCertificate, nginxpmClient)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// if CertificateId is provided, then find the certificate from the ID
-	if ph.Spec.Ssl.CertificateId != nil {
-		log.Info("CertificateId is provided, finding certificate from ID")
-		certificate, err = r.getCertificateFromID(ctx, *ph.Spec.Ssl.CertificateId, nginxpmClient)
-		if err != nil {
-			return nil, err
-		}
+	if err != nil {
+		return nil, err
 	}
 
 	// If None of the above is provided and AutoCertificateRequest is enabled,
@@ -657,85 +632,6 @@ func (r *ProxyHostReconciler) makeCertificate(ctx context.Context, req ctrl.Requ
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	return certificate, nil
-}
-
-// Get certificate from Let's Encrypt reference
-func (r *ProxyHostReconciler) getLetsEncryptCertificateByReference(ctx context.Context, req ctrl.Request, reference *nginxpmoperatoriov1.SslLetsEncryptCertificate, nginxpmClient *nginxpm.Client) (*nginxpm.Certificate, error) {
-	log := log.FromContext(ctx)
-
-	lec := nginxpmoperatoriov1.LetsEncryptCertificate{}
-
-	// If namespace is not provided, use the namespace of the proxyhost
-	namespace := req.Namespace
-	if reference.Namespace != nil {
-		namespace = *reference.Namespace
-	}
-
-	// Retrieve the LetsEncryptCertificate resource
-	if err := r.Get(ctx, types.NamespacedName{Namespace: namespace, Name: reference.Name}, &lec); err != nil {
-		// If the LetsEncryptCertificate resource is not found, we will not be able to create the certificate
-		log.Error(err, "LetsEncryptCertificate resource not found, please check the LetsEncryptCertificate resource name")
-		return nil, err
-	}
-
-	if lec.Status.Id == nil {
-		log.Info("no certificate ID is provided, please check the LetsEncryptCertificate resource")
-		return nil, fmt.Errorf("no certificate ID is provided, please check the LetsEncryptCertificate resource")
-	}
-
-	certificate, err := nginxpmClient.FindCertificateByID(*lec.Status.Id)
-	if err != nil {
-		log.Error(err, "Failed to find certificate by ID")
-		return nil, err
-	}
-
-	return certificate, nil
-}
-
-// Get certificate from CustomCertificate reference
-func (r *ProxyHostReconciler) getCustomCertificateByReference(ctx context.Context, req ctrl.Request, reference *nginxpmoperatoriov1.SslCustomCertificate, nginxpmClient *nginxpm.Client) (*nginxpm.Certificate, error) {
-	log := log.FromContext(ctx)
-
-	customCert := nginxpmoperatoriov1.CustomCertificate{}
-
-	// If namespace is not provided, use the namespace of the proxyhost
-	namespace := req.Namespace
-	if reference.Namespace != nil {
-		namespace = *reference.Namespace
-	}
-
-	// Retrieve the CustomCertificate resource
-	if err := r.Get(ctx, types.NamespacedName{Namespace: namespace, Name: reference.Name}, &customCert); err != nil {
-		// If the CustomCertificate resource is not found, we will not be able to create the certificate
-		log.Error(err, "CustomCertificate resource not found, please check the CustomCertificate resource name")
-		return nil, err
-	}
-
-	if customCert.Status.Id == nil {
-		log.Info("no certificate ID is provided, please check the CustomCertificate resource")
-		return nil, fmt.Errorf("no certificate ID is provided, please check the CustomCertificate resource")
-	}
-
-	certificate, err := nginxpmClient.FindCertificateByID(*customCert.Status.Id)
-	if err != nil {
-		log.Error(err, "Failed to find certificate by ID")
-		return nil, err
-	}
-
-	return certificate, nil
-}
-
-// Get certificate from ID
-func (r *ProxyHostReconciler) getCertificateFromID(ctx context.Context, id int, nginxpmClient *nginxpm.Client) (*nginxpm.Certificate, error) {
-	log := log.FromContext(ctx)
-
-	certificate, err := nginxpmClient.FindCertificateByID(id)
-	if err != nil {
-		log.Error(err, "Failed to find certificate by ID")
-		return nil, err
 	}
 
 	return certificate, nil

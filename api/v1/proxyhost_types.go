@@ -56,7 +56,7 @@ type SslLetsEncryptCertificate struct {
 	Namespace *string `json:"namespace,omitempty"`
 }
 
-type Ssl struct {
+type ProxyHostSsl struct {
 	// When true, will request a certificate from Let's Encrypt automatically
 	// +kubebuilder:default:=false
 	// +kubebuilder:validation:Optional
@@ -294,7 +294,7 @@ type ProxyHostSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional
-	Ssl *Ssl `json:"ssl,omitempty"`
+	Ssl *ProxyHostSsl `json:"ssl,omitempty"`
 
 	// The Service forward configuration for the proxyhost
 	// +kubebuilder:validation:Required

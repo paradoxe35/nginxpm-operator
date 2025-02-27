@@ -21,7 +21,7 @@ type MakeForwardOption struct {
 	Req                     ctrl.Request
 	ProxyHost               *nginxpmoperatoriov1.ProxyHost
 	UpstreamForward         *ProxyHostForward
-	Forward                 nginxpmoperatoriov1.Forward
+	Forward                 nginxpmoperatoriov1.Forward // this may even come from custom locations
 	UnscopedConfigSupported bool
 	Label                   string
 }

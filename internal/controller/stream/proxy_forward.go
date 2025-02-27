@@ -20,16 +20,15 @@ type MakeForwardOption struct {
 	Ctx                     context.Context
 	Req                     ctrl.Request
 	Stream                  *nginxpmoperatoriov1.Stream
-	Forward                 nginxpmoperatoriov1.StreamForward
 	UnscopedConfigSupported bool
 }
 
 func (r *StreamReconciler) makeForward(option MakeForwardOption) (*StreamForward, error) {
 	log := log.FromContext(option.Ctx)
 
-	forward := option.Forward
 	req := option.Req
 	ctx := option.Ctx
+	forward := option.Stream.Spec.Forward
 
 	// Check if forward host or service is provided
 	if forward.Host == nil && forward.Service == nil {
@@ -66,7 +65,7 @@ func (r *StreamReconciler) makeForward(option MakeForwardOption) (*StreamForward
 
 		// When the service type is NodePort
 		if service.Spec.Type == corev1.ServiceTypeNodePort {
-			nodePortConfig, err := r.forwardWhenNodePortType(ctx, option.Stream, service, forward)
+			nodePortConfig, err := r.forwardWhenNodePortType(ctx, option.Stream, service)
 			if err != nil {
 				return nil, err
 			}
@@ -183,7 +182,9 @@ func getServiceDestination(service *corev1.Service, forward nginxpmoperatoriov1.
 	return serviceIP, servicePort
 }
 
-func (r *StreamReconciler) forwardWhenNodePortType(ctx context.Context, ph *nginxpmoperatoriov1.Stream, service *corev1.Service, forward nginxpmoperatoriov1.StreamForward) (*nodePortConfig, error) {
+func (r *StreamReconciler) forwardWhenNodePortType(ctx context.Context, st *nginxpmoperatoriov1.Stream, service *corev1.Service) (*nodePortConfig, error) {
+	forward := st.Spec.Forward
+
 	if service.Spec.Type != corev1.ServiceTypeNodePort {
 		return nil, fmt.Errorf("service type is not NodePort")
 	}
@@ -221,7 +222,7 @@ func (r *StreamReconciler) forwardWhenNodePortType(ctx context.Context, ph *ngin
 	}
 
 	conf := controller.GenerateNginxUpstreamConfig(
-		ph.Name, ph.Namespace,
+		st.Name, st.Namespace,
 		servicePort, nodeIPs,
 	)
 
