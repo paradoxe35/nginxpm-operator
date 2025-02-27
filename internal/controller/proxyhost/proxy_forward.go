@@ -94,9 +94,6 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 				// Handle this only on root upstream forward (When UpstreamForward is nil)
 				if option.UpstreamForward == nil {
 					serviceIP = nodePortConfig.nginxUpstreamName
-
-					// Unset port variable (This is used internally by nginx proxy manager to build proxy target)
-					forward.AdvancedConfig = fmt.Sprintf("%s\nset $port \"\";\n", forward.AdvancedConfig)
 				}
 			}
 

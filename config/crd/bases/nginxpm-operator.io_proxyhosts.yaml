@@ -97,8 +97,8 @@ spec:
                             for the proxyhost, at your own risk
                           type: string
                         host:
-                          description: Host configuration, the Service configuration
-                            is the preferred way
+                          description: Configure your host forwarding settings here;
+                            using the Service configuration is recommended.
                           properties:
                             hostName:
                               description: The host to forward to (This must be a
@@ -130,8 +130,8 @@ spec:
                           type: string
                         service:
                           description: |-
-                            Service resource reference to forward to
-                            This is the preferred way to forward to a service than the host configuration
+                            Service resource reference to be forwarded to
+                            This is the preferred method to forward to a service rather than using host configuration.
                           properties:
                             name:
                               description: |-
@@ -185,8 +185,8 @@ spec:
                       the proxyhost, at your own risk
                     type: string
                   host:
-                    description: Host configuration, the Service configuration is
-                      the preferred way
+                    description: Configure your host forwarding settings here; using
+                      the Service configuration is recommended.
                     properties:
                       hostName:
                         description: The host to forward to (This must be a valid
@@ -217,8 +217,8 @@ spec:
                     type: string
                   service:
                     description: |-
-                      Service resource reference to forward to
-                      This is the preferred way to forward to a service than the host configuration
+                      Service resource reference to be forwarded to
+                      This is the preferred method to forward to a service rather than using host configuration.
                     properties:
                       name:
                         description: |-
@@ -254,9 +254,7 @@ spec:
                       Encrypt automatically
                     type: boolean
                   certificateId:
-                    description: |-
-                      Bind existing certificate id to the proxyhost
-                      This will be considered only if CustomCertificate or LetsencryptCertificate is not provided
+                    description: Bind existing certificate id to the proxyhost
                     type: integer
                   customCertificate:
                     description: |-

@@ -548,8 +548,8 @@ spec:
                           type: string
                         service:
                           description: |-
-                            Service resource reference to forward to
-                            This is the preferred way to forward to a service than the host configuration
+                            Service resource reference to be forwarded to
+                            This is the preferred method to forward to a service rather than using host configuration.
                           properties:
                             name:
                               description: |-
@@ -635,8 +635,8 @@ spec:
                     type: string
                   service:
                     description: |-
-                      Service resource reference to forward to
-                      This is the preferred way to forward to a service than the host configuration
+                      Service resource reference to be forwarded to
+                      This is the preferred method to forward to a service rather than using host configuration.
                     properties:
                       name:
                         description: |-

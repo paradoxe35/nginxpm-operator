@@ -20,9 +20,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // +kubebuilder:validation:Required
 // +kubebuilder:validation:Type=string
 // +kubebuilder:validation:Pattern=`^(\*\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$`
@@ -82,7 +79,6 @@ type Ssl struct {
 	CustomCertificate *SslCustomCertificate `json:"customCertificate,omitempty"`
 
 	// Bind existing certificate id to the proxyhost
-	// This will be considered only if CustomCertificate or LetsencryptCertificate is not provided
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=integer
 	// +optional
@@ -178,14 +174,14 @@ type Forward struct {
 	// +required
 	Scheme string `json:"scheme,omitempty"`
 
-	// Service resource reference to forward to
-	// This is the preferred way to forward to a service than the host configuration
+	// Service resource reference to be forwarded to
+	// This is the preferred method to forward to a service rather than using host configuration.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional
 	Service *ForwardService `json:"service,omitempty"`
 
-	// Host configuration, the Service configuration is the preferred way
+	// Configure your host forwarding settings here; using the Service configuration is recommended.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional

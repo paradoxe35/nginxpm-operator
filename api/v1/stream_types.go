@@ -20,8 +20,52 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+type StreamForward struct {
+	// Has TCP Forwarding
+	// +kubebuilder:validation:Enum=true;false
+	// +kubebuilder:validation:Default=true
+	TCPForwarding bool `json:"tcpForwarding,omitempty"`
+
+	// Has UDP Forwarding
+	// +kubebuilder:validation:Enum=true;false
+	// +kubebuilder:validation:Default=true
+	UDPForwarding bool `json:"udpForwarding,omitempty"`
+
+	// Service resource reference to be forwarded to
+	// This is the preferred method to forward to a service rather than using host configuration.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=object
+	// +optional
+	Service *ForwardService `json:"service,omitempty"`
+
+	// Configure your host forwarding settings here; using the Service configuration is recommended.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=object
+	// +optional
+	Host *ForwardHost `json:"host,omitempty"`
+}
+
+type StreamSsl struct {
+	// Letsencrypt Certificate name managed by the letsencryptCertificate resource
+	// If CustomCertificate is provided and LetsencryptCertificate is not provided, the CustomCertificate will be prioritized
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=object
+	// +optional
+	LetsEncryptCertificate *SslLetsEncryptCertificate `json:"letsEncryptCertificate,omitempty"`
+
+	// Custom Certificate name managed by the customCertificate resource
+	// If CustomCertificate is provided and LetsencryptCertificate is not provided, the CustomCertificate will be prioritized
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=object
+	// +optional
+	CustomCertificate *SslCustomCertificate `json:"customCertificate,omitempty"`
+
+	// Bind existing certificate id to the stream
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=integer
+	// +optional
+	CertificateId *int `json:"certificateId,omitempty"`
+}
 
 // StreamSpec defines the desired state of Stream.
 type StreamSpec struct {
@@ -35,6 +79,18 @@ type StreamSpec struct {
 	// +kubebuilder:validation:Maximum=65535
 	// +required
 	IncomingPort int `json:"incomingPort,omitempty"`
+
+	// Stream forward configuration
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=object
+	// +required
+	Forward StreamForward `json:"forward,omitempty"`
+
+	// Ssl configuration for the stream
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=object
+	// +optional
+	Ssl *Ssl `json:"ssl,omitempty"`
 }
 
 // StreamStatus defines the observed state of Stream.
@@ -42,10 +98,12 @@ type StreamStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Stream ID from remote  Nginx Proxy Manager instance
+	// Stream ID from remote Nginx Proxy Manager instance
 	Id *int `json:"id,omitempty"`
 
-	// Online status from remote  Nginx Proxy Manager instance
+	// Online status from remote Nginx Proxy Manager instance
+	// +kubebuilder:validation:Enum=true;false
+	// +kubebuilder:validation:Default=false
 	Online bool `json:"online,omitempty"`
 
 	// Represents the observations of a Stream's current state.
@@ -57,6 +115,8 @@ type StreamStatus struct {
 // +kubebuilder:printcolumn:name="ID",type="integer",JSONPath=".status.id"
 // +kubebuilder:printcolumn:name="Online",type="boolean",JSONPath=".status.online"
 // +kubebuilder:printcolumn:name="Incoming Port",type="boolean",JSONPath=".spec.incomingPort"
+// +kubebuilder:printcolumn:name="TCP Forwarding",type="boolean",JSONPath=".spec.forward.tcpForwarding"
+// +kubebuilder:printcolumn:name="UDP Forwarding",type="boolean",JSONPath=".spec.forward.udpForwarding"
 
 // Stream is the Schema for the streams API.
 type Stream struct {

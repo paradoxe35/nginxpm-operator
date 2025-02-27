@@ -24,6 +24,12 @@ spec:
     - jsonPath: .spec.incomingPort
       name: Incoming Port
       type: boolean
+    - jsonPath: .spec.forward.tcpForwarding
+      name: TCP Forwarding
+      type: boolean
+    - jsonPath: .spec.forward.udpForwarding
+      name: UDP Forwarding
+      type: boolean
     name: v1
     schema:
       openAPIV3Schema:
@@ -49,12 +55,140 @@ spec:
           spec:
             description: StreamSpec defines the desired state of Stream.
             properties:
+              forward:
+                description: Stream forward configuration
+                properties:
+                  host:
+                    description: Configure your host forwarding settings here; using
+                      the Service configuration is recommended.
+                    properties:
+                      hostName:
+                        description: The host to forward to (This must be a valid
+                          DNS name or IP address)
+                        maxLength: 255
+                        minLength: 1
+                        pattern: ^((([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)\.)*[a-zA-Z]{2,63}|((25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)|(([0-9a-fA-F]{1,4}:){7}([0-9a-fA-F]{1,4}|:))|(::([0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}))$
+                        type: string
+                      hostPort:
+                        description: Service Target Port is the port to forward to
+                        format: int32
+                        maximum: 65535
+                        minimum: 1
+                        type: integer
+                    required:
+                    - hostName
+                    type: object
+                  service:
+                    description: |-
+                      Service resource reference to be forwarded to
+                      This is the preferred method to forward to a service rather than using host configuration.
+                    properties:
+                      name:
+                        description: |-
+                          Name of the service resource to forward to
+                          IP and port of the service will be used as the forwarding target
+                          Only ClusterIP and LoadBalancer services are supported
+                        maxLength: 255
+                        minLength: 1
+                        type: string
+                      namespace:
+                        description: Namespace of the service resource to forward
+                          to
+                        pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
+                        type: string
+                      port:
+                        description: Port of the service resource to forward to
+                        format: int32
+                        maximum: 65535
+                        minimum: 1
+                        type: integer
+                    required:
+                    - name
+                    type: object
+                  tcpForwarding:
+                    description: Has TCP Forwarding
+                    enum:
+                    - true
+                    - false
+                    type: boolean
+                  udpForwarding:
+                    description: Has UDP Forwarding
+                    enum:
+                    - true
+                    - false
+                    type: boolean
+                type: object
               incomingPort:
                 description: Incoming Port
                 maximum: 65535
                 minimum: 1
                 type: integer
+              ssl:
+                description: Ssl configuration for the stream
+                properties:
+                  autoCertificateRequest:
+                    default: false
+                    description: When true, will request a certificate from Let's
+                      Encrypt automatically
+                    type: boolean
+                  certificateId:
+                    description: Bind existing certificate id to the proxyhost
+                    type: integer
+                  customCertificate:
+                    description: |-
+                      Custom Certificate name created or managed by the customCertificate resource
+                      If CustomCertificate is provided and LetsencryptCertificate is not provided, the CustomCertificate will be prioritized
+                    properties:
+                      name:
+                        description: Name of the custom certificate resource
+                        type: string
+                      namespace:
+                        description: Namespace of the custom certificate resource
+                        pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  hstsEnabled:
+                    default: false
+                    description: Enable HSTS, default is false
+                    type: boolean
+                  hstsSubdomains:
+                    default: false
+                    description: Enable HSTS subdomains, default is false
+                    type: boolean
+                  http2Support:
+                    default: true
+                    description: Enable http2 support, default is true
+                    type: boolean
+                  letsEncryptCertificate:
+                    description: |-
+                      Letsencrypt Certificate name created or managed by the letsencryptCertificate resource
+                      If CustomCertificate is provided and LetsencryptCertificate is not provided, the CustomCertificate will be prioritized
+                    properties:
+                      name:
+                        description: Name of the letsencrypt certificate resource
+                        type: string
+                      namespace:
+                        description: Namespace of the letsencrypt certificate resource
+                        pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  letsEncryptEmail:
+                    description: LetsEncrypt Email address to request a certificate
+                      for
+                    pattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
+                    type: string
+                  sslForced:
+                    default: true
+                    description: Force SSL https, redirect http to https. default
+                      is true
+                    type: boolean
+                type: object
             required:
+            - forward
             - incomingPort
             type: object
           status:
@@ -118,10 +252,13 @@ spec:
                   type: object
                 type: array
               id:
-                description: Stream ID from remote  Nginx Proxy Manager instance
+                description: Stream ID from remote Nginx Proxy Manager instance
                 type: integer
               online:
-                description: Online status from remote  Nginx Proxy Manager instance
+                description: Online status from remote Nginx Proxy Manager instance
+                enum:
+                - true
+                - false
                 type: boolean
             type: object
         type: object
