@@ -412,9 +412,9 @@ func (r *CustomCertificateReconciler) findObjectsForMap(field string) func(ctx c
 			FieldSelector: fields.OneTermEqualSelector(field, object.GetName()),
 		}
 
-		if field != CC_TOKEN_FIELD {
-			listOps.Namespace = object.GetNamespace()
-		}
+		// if field != CC_TOKEN_FIELD {
+		// 	listOps.Namespace = object.GetNamespace()
+		// }
 
 		err := r.List(ctx, attachedObjects, listOps)
 		if err != nil {

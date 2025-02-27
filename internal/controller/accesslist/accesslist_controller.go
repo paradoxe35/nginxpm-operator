@@ -318,9 +318,9 @@ func (r *AccessListReconciler) findObjectsForMap(field string) func(ctx context.
 			FieldSelector: fields.OneTermEqualSelector(field, object.GetName()),
 		}
 
-		if field != ACL_TOKEN_FIELD {
-			listOps.Namespace = object.GetNamespace()
-		}
+		// if field != ACL_TOKEN_FIELD {
+		// 	listOps.Namespace = object.GetNamespace()
+		// }
 
 		err := r.List(ctx, attachedObjects, listOps)
 		if err != nil {

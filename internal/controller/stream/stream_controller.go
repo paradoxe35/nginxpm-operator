@@ -19,13 +19,21 @@ package stream
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
+	"github.com/paradoxe35/nginxpm-operator/internal/controller"
 )
 
 const (
@@ -82,8 +90,190 @@ func (r *StreamReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *StreamReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Add the Token to the indexer
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+
+		&nginxpmoperatoriov1.Stream{},
+
+		ST_TOKEN_FIELD,
+
+		func(rawObj client.Object) []string {
+			st := rawObj.(*nginxpmoperatoriov1.Stream)
+
+			if st.Spec.Token == nil {
+				// If token is not provided, use the default token name
+				return []string{controller.TOKEN_DEFAULT_NAME}
+			}
+
+			if st.Spec.Token.Name == "" {
+				return nil
+			}
+
+			return []string{st.Spec.Token.Name}
+		}); err != nil {
+		return err
+	}
+
+	// Add the CustomCertificate to the indexer
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+
+		&nginxpmoperatoriov1.Stream{},
+
+		ST_CUSTOM_CERTIFICATE_FIELD,
+
+		func(rawObj client.Object) []string {
+			st := rawObj.(*nginxpmoperatoriov1.Stream)
+			if st.Spec.Ssl == nil || st.Spec.Ssl.CustomCertificate == nil || st.Spec.Ssl.CustomCertificate.Name == "" {
+				return nil
+			}
+			return []string{st.Spec.Ssl.CustomCertificate.Name}
+		}); err != nil {
+		return err
+	}
+
+	// Add the LetsEncryptCertificate to the indexer
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+
+		&nginxpmoperatoriov1.Stream{},
+
+		ST_LETSENCRYPT_CERTIFICATE_FIELD,
+
+		func(rawObj client.Object) []string {
+			st := rawObj.(*nginxpmoperatoriov1.Stream)
+			if st.Spec.Ssl == nil || st.Spec.Ssl.LetsEncryptCertificate == nil || st.Spec.Ssl.LetsEncryptCertificate.Name == "" {
+				return nil
+			}
+			return []string{st.Spec.Ssl.LetsEncryptCertificate.Name}
+		}); err != nil {
+		return err
+	}
+
+	// Add the Forward Service to the indexer
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+
+		&nginxpmoperatoriov1.Stream{},
+
+		ST_FORWARD_SERVICE_FIELD,
+
+		func(rawObj client.Object) []string {
+			st := rawObj.(*nginxpmoperatoriov1.Stream)
+			if st.Spec.Forward.Service == nil || st.Spec.Forward.Service.Name == "" {
+				return nil
+			}
+			return []string{st.Spec.Forward.Service.Name}
+		}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&nginxpmoperatoriov1.Stream{}).
+		Owns(&nginxpmoperatoriov1.Token{}).
+		Owns(&nginxpmoperatoriov1.CustomCertificate{}).
+		Owns(&nginxpmoperatoriov1.LetsEncryptCertificate{}).
+		Owns(&corev1.Service{}).
+		Watches(
+			&nginxpmoperatoriov1.Token{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(ST_TOKEN_FIELD)),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&nginxpmoperatoriov1.CustomCertificate{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(ST_CUSTOM_CERTIFICATE_FIELD)),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&nginxpmoperatoriov1.LetsEncryptCertificate{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(ST_LETSENCRYPT_CERTIFICATE_FIELD)),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&corev1.Service{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(ST_FORWARD_SERVICE_FIELD)),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&corev1.Pod{},
+			handler.EnqueueRequestsFromMapFunc(r.findStreamsForPod),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Named("stream").
 		Complete(r)
+}
+
+func (r *StreamReconciler) findObjectsForMap(field string) func(ctx context.Context, obj client.Object) []reconcile.Request {
+	return func(ctx context.Context, object client.Object) []reconcile.Request {
+		attachedObjects := &nginxpmoperatoriov1.StreamList{}
+
+		listOps := &client.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector(field, object.GetName()),
+		}
+
+		err := r.List(ctx, attachedObjects, listOps)
+		if err != nil {
+			return []reconcile.Request{}
+		}
+
+		requests := make([]reconcile.Request, len(attachedObjects.Items))
+		for i, item := range attachedObjects.Items {
+			requests[i] = reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      item.GetName(),
+					Namespace: item.GetNamespace(),
+				},
+			}
+		}
+
+		return requests
+	}
+}
+
+func (r *StreamReconciler) findStreamsForPod(ctx context.Context, obj client.Object) []reconcile.Request {
+	pod := obj.(*corev1.Pod)
+	log := log.FromContext(ctx)
+
+	// Get all Stream resources
+	streams := &nginxpmoperatoriov1.StreamList{}
+	if err := r.List(ctx, streams); err != nil {
+		log.Error(err, "Unable to list Stream resources")
+		return []reconcile.Request{}
+	}
+
+	var requests []reconcile.Request
+
+	// For each Stream, check if the pod is associated with the referenced service
+	for _, st := range streams.Items {
+		// Skip if no service is specified
+		if st.Spec.Forward.Service == nil || st.Spec.Forward.Service.Name == "" {
+			continue
+		}
+
+		// Get the service
+		service := &corev1.Service{}
+		if err := r.Get(ctx, types.NamespacedName{
+			Name:      st.Spec.Forward.Service.Name,
+			Namespace: st.GetNamespace(),
+		}, service); err != nil {
+			// Service not found, skip
+			continue
+		}
+
+		// Check if the pod's labels match the service's selector
+		if controller.PodMatchesServiceSelector(pod, service) {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      st.GetName(),
+					Namespace: st.GetNamespace(),
+				},
+			})
+			// Once we've added this Stream, we don't need to check other services
+			// referenced in CustomLocations since we'll reconcile the entire Stream anyway
+			continue
+		}
+	}
+
+	return requests
 }

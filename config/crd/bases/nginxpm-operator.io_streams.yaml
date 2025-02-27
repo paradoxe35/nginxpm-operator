@@ -168,6 +168,22 @@ spec:
                     - name
                     type: object
                 type: object
+              token:
+                description: Token resource, if not provided, the operator will try
+                  to find a token with `token-nginxpm` name in the same namespace
+                  as the proxyhost is created or in the `nginxpm-operator-system`
+                  namespace or in the `default` namespace
+                properties:
+                  name:
+                    description: Name of the token resource
+                    type: string
+                  namespace:
+                    description: Namespace of the token resource
+                    pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
+                    type: string
+                required:
+                - name
+                type: object
             required:
             - forward
             - incomingPort
