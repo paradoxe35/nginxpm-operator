@@ -12,6 +12,213 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.1
+  name: accesslists.nginxpm-operator.io
+spec:
+  group: nginxpm-operator.io
+  names:
+    kind: AccessList
+    listKind: AccessListList
+    plural: accesslists
+    singular: accesslist
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.id
+      name: ID
+      type: integer
+    - jsonPath: .spec.name
+      name: Name
+      type: string
+    - jsonPath: .status.proxyHostCount
+      name: Proxy Host Count
+      type: integer
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: AccessList is the Schema for the accesslists API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AccessListSpec defines the desired state of AccessList.
+            properties:
+              authorizations:
+                description: Basic Authorization via Nginx HTTP Basic Authentication
+                  (https://nginx.org/en/docs/http/ngx_http_auth_basic_module.html)
+                items:
+                  properties:
+                    password:
+                      description: |-
+                        Password to be used for authentication with the access list service.
+                        Must be between 1 and 255 characters.
+                      maxLength: 255
+                      minLength: 1
+                      type: string
+                    username:
+                      description: |-
+                        Username to be used for authentication with the access list service.
+                        Must be between 1 and 255 characters.
+                      maxLength: 255
+                      minLength: 1
+                      type: string
+                  required:
+                  - password
+                  - username
+                  type: object
+                type: array
+              clients:
+                description: IP Address Whitelist/Blacklist via Nginx HTTP Access
+                  (https://nginx.org/en/docs/http/ngx_http_access_module.html)
+                items:
+                  properties:
+                    address:
+                      description: Address (IPv4 IP/SUBNET) for authentication use
+                      pattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))?$
+                      type: string
+                    directive:
+                      description: Directive for Authentication Use
+                      enum:
+                      - allow
+                      - deny
+                      type: string
+                  required:
+                  - address
+                  - directive
+                  type: object
+                type: array
+              name:
+                description: Access list name that will be displayed from remote  Nginx
+                  Proxy Manager instance
+                maxLength: 255
+                minLength: 1
+                type: string
+              passAuth:
+                description: Authorization to host should only be enabled if the host
+                  has basic authentication enabled.
+                enum:
+                - true
+                - false
+                type: boolean
+              satisfyAny:
+                description: If set true, allow access if at least one condition is
+                  met when multiple authentication or access control methods are defined.
+                enum:
+                - true
+                - false
+                type: boolean
+              token:
+                description: Token resource, if not provided, the operator will try
+                  to find a token with `token-nginxpm` name in the same namespace
+                  as the proxyhost is created or in the `nginxpm-operator-system`
+                  namespace or in the `default` namespace
+                properties:
+                  name:
+                    description: Name of the token resource
+                    type: string
+                  namespace:
+                    description: Namespace of the token resource
+                    pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
+                    type: string
+                required:
+                - name
+                type: object
+            required:
+            - name
+            type: object
+          status:
+            description: AccessListStatus defines the observed state of AccessList.
+            properties:
+              conditions:
+                description: Represents the observations of a AccessListStatus's current
+                  state.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              id:
+                description: AccessList ID from remote  Nginx Proxy Manager instance
+                type: integer
+              proxyHostCount:
+                description: Number of proxy hosts associated with this AccessList
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.1
   name: customcertificates.nginxpm-operator.io
 spec:
   group: nginxpm-operator.io
@@ -78,8 +285,10 @@ spec:
                 maxLength: 64
                 type: string
               token:
-                description: Token resource reference to add to the CustomCertificate
-                  requests
+                description: Token resource, if not provided, the operator will try
+                  to find a token with `token-nginxpm` name in the same namespace
+                  as the proxyhost is created or in the `nginxpm-operator-system`
+                  namespace or in the `default` namespace
                 properties:
                   name:
                     description: Name of the token resource
@@ -159,7 +368,7 @@ spec:
                 description: Expiration time of the certificate
                 type: string
               id:
-                description: CustomCertificateStatus ID in the Nginx Proxy Manager
+                description: CustomCertificateStatus ID from remote  Nginx Proxy Manager
                   instance
                 type: integer
               status:
@@ -329,8 +538,10 @@ spec:
                 pattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
                 type: string
               token:
-                description: Token resource reference to add to the LetsEncryptCertificate
-                  requests
+                description: Token resource, if not provided, the operator will try
+                  to find a token with `token-nginxpm` name in the same namespace
+                  as the proxyhost is created or in the `nginxpm-operator-system`
+                  namespace or in the `default` namespace
                 properties:
                   name:
                     description: Name of the token resource
@@ -426,7 +637,7 @@ spec:
                 description: Expiration time of the certificate
                 type: string
               id:
-                description: LetsEncryptCertificate ID in the Nginx Proxy Manager
+                description: LetsEncryptCertificate ID from remote  Nginx Proxy Manager
                   instance
                 type: integer
             required:
@@ -457,6 +668,9 @@ spec:
     - jsonPath: .status.id
       name: ID
       type: integer
+    - jsonPath: .status.online
+      name: Online
+      type: boolean
     - jsonPath: .status.certificateId
       name: CertificateId
       type: string
@@ -491,6 +705,27 @@ spec:
           spec:
             description: ProxyHostSpec defines the desired state of ProxyHost
             properties:
+              accessList:
+                description: AccessList to add to the proxyhost
+                properties:
+                  accessListId:
+                    description: If you know ID of an access list, you can put it
+                      here
+                    type: integer
+                  name:
+                    description: The access list resource name
+                    type: string
+                  namespace:
+                    description: Namespace of the access list resource
+                    pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
+                    type: string
+                type: object
+              bindExisting:
+                default: true
+                description: If set to true (the default), it will bind and update
+                  an existing remote proxy host if the domain names match; otherwise,
+                  it will create a new one.
+                type: boolean
               blockExploits:
                 default: true
                 description: BlockExploits is the flag to enable or disable blocking
@@ -515,8 +750,8 @@ spec:
                             for the proxyhost, at your own risk
                           type: string
                         host:
-                          description: Host configuration, the Service configuration
-                            is the preferred way
+                          description: Configure your host forwarding settings here;
+                            using the Service configuration is recommended.
                           properties:
                             hostName:
                               description: The host to forward to (This must be a
@@ -565,8 +800,7 @@ spec:
                               pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                               type: string
                             port:
-                              description: Port of the service resource to forward
-                                to
+                              description: Force forwarding to a known service port
                               format: int32
                               maximum: 65535
                               minimum: 1
@@ -603,8 +837,8 @@ spec:
                       the proxyhost, at your own risk
                     type: string
                   host:
-                    description: Host configuration, the Service configuration is
-                      the preferred way
+                    description: Configure your host forwarding settings here; using
+                      the Service configuration is recommended.
                     properties:
                       hostName:
                         description: The host to forward to (This must be a valid
@@ -652,7 +886,7 @@ spec:
                         pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                         type: string
                       port:
-                        description: Port of the service resource to forward to
+                        description: Force forwarding to a known service port
                         format: int32
                         maximum: 65535
                         minimum: 1
@@ -673,13 +907,13 @@ spec:
                     type: boolean
                   certificateId:
                     description: |-
-                      Bind existing certificate id to the proxyhost
-                      This will be considered only if CustomCertificate or LetsencryptCertificate is not provided
+                      Bind existing certificate id to the stream
+                      CustomCertificate has priority over LetsencryptCertificate and  CustomCertificate
                     type: integer
                   customCertificate:
                     description: |-
-                      Custom Certificate name created or managed by the customCertificate resource
-                      If CustomCertificate is provided and LetsencryptCertificate is not provided, the CustomCertificate will be prioritized
+                      Custom Certificate name managed by the customCertificate resource
+                      CustomCertificate has priority over LetsencryptCertificate
                     properties:
                       name:
                         description: Name of the custom certificate resource
@@ -704,9 +938,8 @@ spec:
                     description: Enable http2 support, default is true
                     type: boolean
                   letsEncryptCertificate:
-                    description: |-
-                      Letsencrypt Certificate name created or managed by the letsencryptCertificate resource
-                      If CustomCertificate is provided and LetsencryptCertificate is not provided, the CustomCertificate will be prioritized
+                    description: Letsencrypt Certificate name managed by the letsencryptCertificate
+                      resource
                     properties:
                       name:
                         description: Name of the letsencrypt certificate resource
@@ -730,8 +963,10 @@ spec:
                     type: boolean
                 type: object
               token:
-                description: Token resource reference to add to the proxyhost, this
-                  is the created auth token
+                description: Token resource, if not provided, the operator will try
+                  to find a token with `token-nginxpm` name in the same namespace
+                  as the proxyhost is created or in the `nginxpm-operator-system`
+                  namespace or in the `default` namespace
                 properties:
                   name:
                     description: Name of the token resource
@@ -760,7 +995,8 @@ spec:
                 description: Whether the ProxyHost was bound with an existing proxyhost
                 type: boolean
               certificateId:
-                description: ProxyHost certificate ID from remote  Nginx Proxy Manager instance
+                description: ProxyHost certificate ID from remote  Nginx Proxy Manager
+                  instance
                 type: integer
               conditions:
                 items:
@@ -821,6 +1057,277 @@ spec:
               id:
                 description: ProxyHost ID from remote  Nginx Proxy Manager instance
                 type: integer
+              online:
+                description: Online status from remote Nginx Proxy Manager instance
+                enum:
+                - true
+                - false
+                type: boolean
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.1
+  name: streams.nginxpm-operator.io
+spec:
+  group: nginxpm-operator.io
+  names:
+    kind: Stream
+    listKind: StreamList
+    plural: streams
+    singular: stream
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.id
+      name: ID
+      type: integer
+    - jsonPath: .status.online
+      name: Online
+      type: boolean
+    - jsonPath: .spec.incomingPort
+      name: Incoming Port
+      type: boolean
+    - jsonPath: .spec.forward.tcpForwarding
+      name: TCP Forwarding
+      type: boolean
+    - jsonPath: .spec.forward.udpForwarding
+      name: UDP Forwarding
+      type: boolean
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: Stream is the Schema for the streams API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: StreamSpec defines the desired state of Stream.
+            properties:
+              forward:
+                description: Stream forward configuration
+                properties:
+                  host:
+                    description: Configure your host forwarding settings here; using
+                      the Service configuration is recommended.
+                    properties:
+                      hostName:
+                        description: The host to forward to (This must be a valid
+                          DNS name or IP address)
+                        maxLength: 255
+                        minLength: 1
+                        pattern: ^((([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)\.)*[a-zA-Z]{2,63}|((25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)|(([0-9a-fA-F]{1,4}:){7}([0-9a-fA-F]{1,4}|:))|(::([0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}))$
+                        type: string
+                      hostPort:
+                        description: Service Target Port is the port to forward to
+                        format: int32
+                        maximum: 65535
+                        minimum: 1
+                        type: integer
+                    required:
+                    - hostName
+                    type: object
+                  service:
+                    description: |-
+                      Service resource reference to be forwarded to
+                      This is the preferred method to forward to a service rather than using host configuration.
+                    properties:
+                      name:
+                        description: |-
+                          Name of the service resource to forward to
+                          IP and port of the service will be used as the forwarding target
+                          Only ClusterIP and LoadBalancer services are supported
+                        maxLength: 255
+                        minLength: 1
+                        type: string
+                      namespace:
+                        description: Namespace of the service resource to forward
+                          to
+                        pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
+                        type: string
+                      port:
+                        description: Force forwarding to a known service port
+                        format: int32
+                        maximum: 65535
+                        minimum: 1
+                        type: integer
+                    required:
+                    - name
+                    type: object
+                  tcpForwarding:
+                    description: Has TCP Forwarding
+                    enum:
+                    - true
+                    - false
+                    type: boolean
+                  udpForwarding:
+                    description: Has UDP Forwarding
+                    enum:
+                    - true
+                    - false
+                    type: boolean
+                type: object
+              incomingPort:
+                description: Incoming Port
+                maximum: 65535
+                minimum: 1
+                type: integer
+              overwriteIncomingPortWithForwardPort:
+                description: If True the incoming port will be overwritten with the
+                  forward port
+                enum:
+                - true
+                - false
+                type: boolean
+              ssl:
+                description: Ssl configuration for the stream
+                properties:
+                  certificateId:
+                    description: |-
+                      Bind existing certificate id to the stream
+                      CustomCertificate has priority over LetsencryptCertificate and  CustomCertificate
+                    type: integer
+                  customCertificate:
+                    description: |-
+                      Custom Certificate name managed by the customCertificate resource
+                      CustomCertificate has priority over LetsencryptCertificate
+                    properties:
+                      name:
+                        description: Name of the custom certificate resource
+                        type: string
+                      namespace:
+                        description: Namespace of the custom certificate resource
+                        pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  letsEncryptCertificate:
+                    description: Letsencrypt Certificate name managed by the letsencryptCertificate
+                      resource
+                    properties:
+                      name:
+                        description: Name of the letsencrypt certificate resource
+                        type: string
+                      namespace:
+                        description: Namespace of the letsencrypt certificate resource
+                        pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
+                        type: string
+                    required:
+                    - name
+                    type: object
+                type: object
+              token:
+                description: Token resource, if not provided, the operator will try
+                  to find a token with `token-nginxpm` name in the same namespace
+                  as the proxyhost is created or in the `nginxpm-operator-system`
+                  namespace or in the `default` namespace
+                properties:
+                  name:
+                    description: Name of the token resource
+                    type: string
+                  namespace:
+                    description: Namespace of the token resource
+                    pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
+                    type: string
+                required:
+                - name
+                type: object
+            required:
+            - forward
+            - incomingPort
+            type: object
+          status:
+            description: StreamStatus defines the observed state of Stream.
+            properties:
+              conditions:
+                description: Represents the observations of a Stream's current state.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              id:
+                description: Stream ID from remote Nginx Proxy Manager instance
+                type: integer
+              online:
+                description: Online status from remote Nginx Proxy Manager instance
+                enum:
+                - true
+                - false
+                type: boolean
             type: object
         type: object
     served: true
@@ -1031,6 +1538,77 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: nginxpm-operator
+  name: nginxpm-operator-accesslist-admin-role
+rules:
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - accesslists
+  verbs:
+  - '*'
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - accesslists/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: nginxpm-operator
+  name: nginxpm-operator-accesslist-editor-role
+rules:
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - accesslists
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - accesslists/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: nginxpm-operator
+  name: nginxpm-operator-accesslist-viewer-role
+rules:
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - accesslists
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - accesslists/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: nginxpm-operator
   name: nginxpm-operator-customcertificate-editor-role
 rules:
 - apiGroups:
@@ -1142,12 +1720,6 @@ rules:
   resources:
   - nodes
   - pods
-  verbs:
-  - get
-  - list
-- apiGroups:
-  - ""
-  resources:
   - secrets
   - services
   verbs:
@@ -1157,15 +1729,33 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - nodes/status
+  - pods/status
   - services/status
   verbs:
   - get
 - apiGroups:
   - nginxpm-operator.io
   resources:
+  - accesslist
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - accesslist/status
+  verbs:
+  - get
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - accesslists
   - customcertificates
   - letsencryptcertificates
   - proxyhosts
+  - streams
   - tokens
   verbs:
   - create
@@ -1178,18 +1768,22 @@ rules:
 - apiGroups:
   - nginxpm-operator.io
   resources:
+  - accesslists/finalizers
   - customcertificates/finalizers
   - letsencryptcertificates/finalizers
   - proxyhosts/finalizers
+  - streams/finalizers
   - tokens/finalizers
   verbs:
   - update
 - apiGroups:
   - nginxpm-operator.io
   resources:
+  - accesslists/status
   - customcertificates/status
   - letsencryptcertificates/status
   - proxyhosts/status
+  - streams/status
   - tokens/status
   verbs:
   - get
@@ -1271,6 +1865,77 @@ rules:
   - nginxpm-operator.io
   resources:
   - proxyhosts/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: nginxpm-operator
+  name: nginxpm-operator-stream-admin-role
+rules:
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - streams
+  verbs:
+  - '*'
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - streams/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: nginxpm-operator
+  name: nginxpm-operator-stream-editor-role
+rules:
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - streams
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - streams/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: nginxpm-operator
+  name: nginxpm-operator-stream-viewer-role
+rules:
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - streams
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - nginxpm-operator.io
+  resources:
+  - streams/status
   verbs:
   - get
 ---
