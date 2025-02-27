@@ -404,6 +404,7 @@ func (r *LetsEncryptCertificateReconciler) SetupWithManager(mgr ctrl.Manager) er
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(LEC_TOKEN_FIELD)),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
+		Named("letsencryptcertificate").
 		Complete(r)
 }
 

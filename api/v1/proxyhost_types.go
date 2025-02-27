@@ -29,21 +29,6 @@ import (
 // +required
 type DomainName string
 
-type TokenName struct {
-	// Name of the token resource
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Type=string
-	// +required
-	Name string `json:"name,omitempty"`
-
-	// Namespace of the token resource
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Type=string
-	// +kubebuilder:validation:Pattern=`^[a-z]([-a-z0-9]*[a-z0-9])?$`
-	// +optional
-	Namespace *string `json:"namespace,omitempty"`
-}
-
 type SslCustomCertificate struct {
 	// Name of the custom certificate resource
 	// +kubebuilder:validation:Required
@@ -240,7 +225,8 @@ type ProxyHostSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Token resource reference to add to the proxyhost, this is the created auth token
+	// Token resource, if not provided, the operator will try to find a token with `token-nginxpm` name
+	// in the same namespace as the proxyhost is created or in the `nginxpm-operator-system` namespace or in the `default` namespace
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional

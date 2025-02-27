@@ -59,6 +59,13 @@ type AccessListSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	// Token resource, if not provided, the operator will try to find a token with `token-nginxpm` name
+	// in the same namespace as the proxyhost is created or in the `nginxpm-operator-system` namespace or in the `default` namespace
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=object
+	// +Optional
+	Token *TokenName `json:"token,omitempty"`
+
 	// Access list name that will be displayed in the Nginx Proxy Manager instance
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=255

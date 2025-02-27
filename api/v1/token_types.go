@@ -23,6 +23,22 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// This is used by other resources
+type TokenName struct {
+	// Name of the token resource
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=string
+	// +required
+	Name string `json:"name,omitempty"`
+
+	// Namespace of the token resource
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern=`^[a-z]([-a-z0-9]*[a-z0-9])?$`
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
+}
+
 // SecretData is the data of the secret resource
 type SecretData struct {
 	// In nginx-proxy-manager, this is normally the username or email address

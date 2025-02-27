@@ -401,6 +401,7 @@ func (r *CustomCertificateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(CC_TOKEN_FIELD)),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
+		Named("customcertificate").
 		Complete(r)
 }
 

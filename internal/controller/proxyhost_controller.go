@@ -532,8 +532,6 @@ func (r *ProxyHostReconciler) constructCustomLocation(ctx context.Context, req c
 	return customLocations, nil
 }
 
-// ############################################# FORWARD OPERATION ##############################################
-
 // ############################################# CERTIFICATE OPERATION ##############################################
 
 func (r *ProxyHostReconciler) makeCertificate(ctx context.Context, req ctrl.Request, ph *nginxpmoperatoriov1.ProxyHost, nginxpmClient *nginxpm.Client) (*nginxpm.Certificate, error) {
@@ -895,6 +893,7 @@ func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.findProxyHostsForPod),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
+		Named("proxyhost").
 		Complete(r)
 }
 
