@@ -27,6 +27,10 @@ import (
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
 )
 
+const (
+	NGINX_LB_SERVER_PREFIX = "xlb"
+)
+
 // APIError represents an error returned by the API
 type APIError struct {
 	StatusCode int

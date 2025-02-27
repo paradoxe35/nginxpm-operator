@@ -4,11 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 
-	"github.com/cespare/xxhash/v2"
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
+	"github.com/paradoxe35/nginxpm-operator/internal/controller"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -243,7 +242,7 @@ func (r *ProxyHostReconciler) forwardWhenNodePortType(ctx context.Context, ph *n
 	}
 
 	// Get the host IPs of the pods
-	nodeIPs := r.getPodsHostIPS(ctx, pods)
+	nodeIPs := controller.GetPodsHostIPS(ctx, r, pods)
 
 	nginxUpstreamName := ""
 	nginxUpstreamConfig := ""
@@ -252,7 +251,10 @@ func (r *ProxyHostReconciler) forwardWhenNodePortType(ctx context.Context, ph *n
 	if len(nodeIPs) > 0 {
 		serviceIP = nodeIPs[0]
 
-		nginxUpstreamName = getUpstreamName(ph, servicePort, nodeIPs)
+		nginxUpstreamName = controller.GenerateNginxUpstreamName(
+			ph.Name, ph.Namespace,
+			servicePort, nodeIPs,
+		)
 
 		nginxUpstreamConfig = fmt.Sprintf("upstream %s {\n least_conn;\n", nginxUpstreamName)
 		for _, nodeIP := range nodeIPs {
@@ -276,54 +278,4 @@ func mergeNginxUpstreamConfigs(configs map[string]string) string {
 	}
 
 	return strings.Join(values, "\n")
-}
-
-func getUpstreamName(ph *nginxpmoperatoriov1.ProxyHost, servicePort int32, hostIPS []string) string {
-	name := strings.Join([]string{ph.Name, ph.Namespace}, "-")
-	name = strings.TrimSuffix(name, "-")
-
-	h := xxhash.New()
-	h.Write([]byte(strings.Join(hostIPS, "-")))
-	h.Write([]byte(fmt.Sprintf("%d", servicePort)))
-
-	ipsHash := fmt.Sprintf("%x", h.Sum(nil))
-
-	return fmt.Sprintf("%s-%s", name, ipsHash)
-}
-
-func (r *ProxyHostReconciler) getPodsHostIPS(ctx context.Context, pods *corev1.PodList) []string {
-	log := log.FromContext(ctx)
-
-	var nodeIPs []string
-	for _, pod := range pods.Items {
-		// Skip pods that aren't running
-		if pod.Status.Phase != corev1.PodRunning {
-			continue
-		}
-
-		// Get the node name the pod is running on
-		nodeName := pod.Spec.NodeName
-
-		// If you have direct access to the node object, you can get its IP:
-		node := &corev1.Node{}
-		if err := r.Get(ctx, types.NamespacedName{Name: nodeName}, node); err != nil {
-			log.Error(err, "Failed to get node", "nodeName", nodeName)
-			continue
-		}
-
-		// Get the node's IP address (typically from InternalIP)
-		var nodeIP string
-		for _, address := range node.Status.Addresses {
-			if address.Type == corev1.NodeInternalIP {
-				nodeIP = address.Address
-				break
-			}
-		}
-
-		if !slices.Contains(nodeIPs, nodeIP) {
-			nodeIPs = append(nodeIPs, nodeIP)
-		}
-	}
-
-	return nodeIPs
 }
