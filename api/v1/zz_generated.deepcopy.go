@@ -990,6 +990,16 @@ func (in *StreamStatus) DeepCopyInto(out *StreamStatus) {
 		*out = new(int)
 		**out = **in
 	}
+	if in.IncomingPort != nil {
+		in, out := &in.IncomingPort, &out.IncomingPort
+		*out = new(int)
+		**out = **in
+	}
+	if in.ForwardingPort != nil {
+		in, out := &in.ForwardingPort, &out.ForwardingPort
+		*out = new(int)
+		**out = **in
+	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
 		*out = make([]metav1.Condition, len(*in))

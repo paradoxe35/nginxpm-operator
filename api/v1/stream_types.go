@@ -112,6 +112,12 @@ type StreamStatus struct {
 	// Stream ID from remote Nginx Proxy Manager instance
 	Id *int `json:"id,omitempty"`
 
+	// Incoming port
+	IncomingPort *int `json:"incomingPort,omitempty"`
+
+	// Forwarding port
+	ForwardingPort *int `json:"forwardingPort,omitempty"`
+
 	// Online status from remote Nginx Proxy Manager instance
 	// +kubebuilder:validation:Enum=true;false
 	// +kubebuilder:validation:Default=false
@@ -125,9 +131,10 @@ type StreamStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="ID",type="integer",JSONPath=".status.id"
 // +kubebuilder:printcolumn:name="Online",type="boolean",JSONPath=".status.online"
-// +kubebuilder:printcolumn:name="Incoming Port",type="boolean",JSONPath=".spec.incomingPort"
-// +kubebuilder:printcolumn:name="TCP Forwarding",type="boolean",JSONPath=".spec.forward.tcpForwarding"
-// +kubebuilder:printcolumn:name="UDP Forwarding",type="boolean",JSONPath=".spec.forward.udpForwarding"
+// +kubebuilder:printcolumn:name="Incoming",type="integer",JSONPath=".status.incomingPort"
+// +kubebuilder:printcolumn:name="Forwarding",type="integer",JSONPath=".status.forwardingPort"
+// +kubebuilder:printcolumn:name="TCP",type="boolean",JSONPath=".spec.forward.tcpForwarding"
+// +kubebuilder:printcolumn:name="UDP",type="boolean",JSONPath=".spec.forward.udpForwarding"
 
 // Stream is the Schema for the streams API.
 type Stream struct {

@@ -357,6 +357,8 @@ func (r *StreamReconciler) createOrUpdateStream(ctx context.Context, req ctrl.Re
 	return controller.UpdateStatus(ctx, r.Client, st, req.NamespacedName, func() {
 		st.Status.Id = &stream.ID
 		st.Status.Online = stream.Meta.NginxOnline
+		st.Status.IncomingPort = &incomingPort
+		st.Status.ForwardingPort = &streamForward.Port
 	})
 
 }
