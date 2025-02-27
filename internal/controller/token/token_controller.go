@@ -82,7 +82,7 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 		// Error reading the object - requeue the request.
 		log.Error(err, "Failed to get token")
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	// Let's just set the status as Unknown when no status is available
@@ -114,7 +114,7 @@ func (r *TokenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			})
 		})
 
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	// Update the status of the token with the new token and expiration time

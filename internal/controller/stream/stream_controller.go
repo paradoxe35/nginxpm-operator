@@ -19,6 +19,7 @@ package stream
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -103,14 +104,14 @@ func (r *StreamReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return ctrl.Result{}, nil
 		}
 		log.Error(err, "Failed to get stream")
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	isMarkedToBeDeleted := !st.ObjectMeta.DeletionTimestamp.IsZero()
 
 	if !isMarkedToBeDeleted {
 		if err := controller.AddFinalizer(r, ctx, streamFinalizer, st); err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: time.Minute}, err
 		}
 	}
 
@@ -132,7 +133,7 @@ func (r *StreamReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if err != nil {
 		if isMarkedToBeDeleted {
 			if err := controller.RemoveFinalizer(r, ctx, streamFinalizer, st); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: time.Minute}, err
 			}
 
 			return ctrl.Result{}, nil
@@ -155,7 +156,7 @@ func (r *StreamReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			})
 		})
 
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	// Create or update stream
@@ -172,7 +173,7 @@ func (r *StreamReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			})
 		})
 
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	// Set the status as True when the client can be created
@@ -200,11 +201,11 @@ func (r *StreamReconciler) createOrUpdateStream(ctx context.Context, req ctrl.Re
 		if err != nil {
 			r.Recorder.Event(
 				st, "Warning", "FindStreamByID",
-				fmt.Sprintf("Failed to find access list by ID, ResourceName: %s, Namespace: %s, err: %s",
+				fmt.Sprintf("Failed to find stream by ID, ResourceName: %s, Namespace: %s, err: %s",
 					req.Name, req.Namespace, err.Error()),
 			)
 
-			log.Error(err, "Failed to find access list by ID")
+			log.Error(err, "Failed to find stream by ID")
 			return err
 		}
 	}
@@ -267,6 +268,7 @@ func (r *StreamReconciler) createOrUpdateStream(ctx context.Context, req ctrl.Re
 		CertificateID:  certificateID,
 		TCPForwarding:  st.Spec.Forward.TCPForwarding,
 		UDPForwarding:  st.Spec.Forward.UDPForwarding,
+		CustomFields:   make(nginxpm.RequestCustomFields),
 	}
 
 	// Handle custom fields

@@ -94,7 +94,7 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 		}
 		// Error reading the object - requeue the request.
 		log.Error(err, "Failed to get letsEncryptCertificate")
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	isMarkedToBeDeleted := !lec.ObjectMeta.DeletionTimestamp.IsZero()
@@ -103,7 +103,7 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 	// occur before the custom resource to be deleted.
 	if !isMarkedToBeDeleted {
 		if err := controller.AddFinalizer(r, ctx, letsEncryptCertificateFinalizer, lec); err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: time.Minute}, err
 		}
 	}
 
@@ -128,7 +128,7 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 		if isMarkedToBeDeleted {
 			// Remove the finalizer
 			if err := controller.RemoveFinalizer(r, ctx, letsEncryptCertificateFinalizer, lec); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: time.Minute}, err
 			}
 
 			return ctrl.Result{}, nil
@@ -151,7 +151,7 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 			})
 		})
 
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	// If the resource is marked for deletion
@@ -173,7 +173,7 @@ func (r *LetsEncryptCertificateReconciler) Reconcile(ctx context.Context, req ct
 
 			// Remove the finalizer
 			if err := controller.RemoveFinalizer(r, ctx, letsEncryptCertificateFinalizer, lec); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: time.Minute}, err
 			}
 		}
 
@@ -228,7 +228,7 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 		certificate, err = nginxpmClient.FindLetEncryptCertificateByID(*lec.Status.Id)
 		if err != nil {
 			log.Error(err, "Failed to find LetsEncryptCertificate by ID")
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: time.Minute}, err
 		}
 
 		return ctrl.Result{}, nil
@@ -249,7 +249,7 @@ func (r *LetsEncryptCertificateReconciler) createCertificate(ctx context.Context
 			// Retrieve the ProviderCredentials secret
 			credentials, err = r.getDnsChallengeProviderCredentials(ctx, req, lec)
 			if err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: time.Minute}, err
 			}
 
 		}

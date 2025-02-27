@@ -98,7 +98,7 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 		// Error reading the object - requeue the request.
 		log.Error(err, "Failed to get customCertificate")
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	isMarkedToBeDeleted := !cc.ObjectMeta.DeletionTimestamp.IsZero()
@@ -107,7 +107,7 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	// occur before the custom resource to be deleted.
 	if !isMarkedToBeDeleted {
 		if err := controller.AddFinalizer(r, ctx, customCertificateFinalizer, cc); err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: time.Minute}, err
 		}
 	}
 
@@ -132,7 +132,7 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		if isMarkedToBeDeleted {
 			// Remove the finalizer
 			if err := controller.RemoveFinalizer(r, ctx, customCertificateFinalizer, cc); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: time.Minute}, err
 			}
 
 			return ctrl.Result{}, nil
@@ -155,7 +155,7 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			})
 		})
 
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	// If the resource is marked for deletion
@@ -176,7 +176,7 @@ func (r *CustomCertificateReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 			// Remove the finalizer
 			if err := controller.RemoveFinalizer(r, ctx, customCertificateFinalizer, cc); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: time.Minute}, err
 			}
 		}
 
@@ -231,7 +231,7 @@ func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req
 				cc.Status.Status = &msg
 			})
 
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: time.Minute}, err
 		}
 
 		return ctrl.Result{}, nil
@@ -249,7 +249,7 @@ func (r *CustomCertificateReconciler) createCertificate(ctx context.Context, req
 				cc.Status.Status = &msg
 			})
 
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: time.Minute}, err
 		}
 
 		var niceName string = req.Name

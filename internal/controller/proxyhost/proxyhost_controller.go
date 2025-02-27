@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -120,7 +121,7 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 		// Error reading the object - requeue the request.
 		log.Error(err, "Failed to get proxyHost")
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	isMarkedToBeDeleted := !ph.ObjectMeta.DeletionTimestamp.IsZero()
@@ -129,7 +130,7 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// occur before the custom resource to be deleted.
 	if !isMarkedToBeDeleted {
 		if err := controller.AddFinalizer(r, ctx, proxyHostFinalizer, ph); err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: time.Minute}, err
 		}
 	}
 
@@ -153,7 +154,7 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if isMarkedToBeDeleted {
 			// Remove the finalizer
 			if err := controller.RemoveFinalizer(r, ctx, proxyHostFinalizer, ph); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: time.Minute}, err
 			}
 
 			return ctrl.Result{}, nil
@@ -176,7 +177,7 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			})
 		})
 
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	// Delete the ProxyHost record from remote  Nginx Proxy Manager instance before deleting the resource
@@ -208,7 +209,7 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 			// Remove the finalizer
 			if err := controller.RemoveFinalizer(r, ctx, proxyHostFinalizer, ph); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: time.Minute}, err
 			}
 		}
 
@@ -228,7 +229,7 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				LastTransitionTime: metav1.Now(),
 			})
 		})
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	// Create or update proxy host
@@ -245,7 +246,7 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			})
 		})
 
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	// Set the status as True when the client can be created

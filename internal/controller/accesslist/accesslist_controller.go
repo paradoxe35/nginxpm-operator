@@ -19,6 +19,7 @@ package accesslist
 import (
 	"context"
 	"fmt"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -81,7 +82,7 @@ func (r *AccessListReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			return ctrl.Result{}, nil
 		}
 		log.Error(err, "Failed to get accessList")
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	isMarkedToBeDeleted := !acl.ObjectMeta.DeletionTimestamp.IsZero()
@@ -90,7 +91,7 @@ func (r *AccessListReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	// occur before the custom resource to be deleted.
 	if !isMarkedToBeDeleted {
 		if err := controller.AddFinalizer(r, ctx, accessListFinalizer, acl); err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: time.Minute}, err
 		}
 	}
 
@@ -113,7 +114,7 @@ func (r *AccessListReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		if isMarkedToBeDeleted {
 			// Remove the finalizer
 			if err := controller.RemoveFinalizer(r, ctx, accessListFinalizer, acl); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: time.Minute}, err
 			}
 
 			return ctrl.Result{}, nil
@@ -136,7 +137,7 @@ func (r *AccessListReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			})
 		})
 
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	if isMarkedToBeDeleted {
@@ -153,7 +154,7 @@ func (r *AccessListReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 			// Remove the finalizer
 			if err := controller.RemoveFinalizer(r, ctx, accessListFinalizer, acl); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: time.Minute}, err
 			}
 		}
 
@@ -174,7 +175,7 @@ func (r *AccessListReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			})
 		})
 
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 
 	// Set the status as True when the client can be created
