@@ -156,9 +156,10 @@ spec:
                 pattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
                 type: string
               token:
-                description: |-
-                  Token resource, if not provided, the operator will try to find a token with `token-nginxpm` name
-                  in the same namespace as the proxyhost is created or in the `nginxpm-operator-system` namespace or in the `default` namespace
+                description: Token resource, if not provided, the operator will try
+                  to find a token with `token-nginxpm` name in the same namespace
+                  as the proxyhost is created or in the `nginxpm-operator-system`
+                  namespace or in the `default` namespace
                 properties:
                   name:
                     description: Name of the token resource

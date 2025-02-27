@@ -6,4 +6,19 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: accesslist-sample
 spec:
-  # TODO(user): Add fields here
+  token:
+    name: token-sample
+    namespace: nginxpm-operator-system
+
+  name: internal-access
+
+  satisfyAny: true
+  passAuth: false
+
+  authorizations:
+    - username: admin
+      password: password
+
+  clients:
+    - address: 192.168.11.2/24
+      directive: allow
