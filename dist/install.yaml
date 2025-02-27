@@ -1092,14 +1092,17 @@ spec:
     - jsonPath: .status.online
       name: Online
       type: boolean
-    - jsonPath: .spec.incomingPort
-      name: Incoming Port
-      type: boolean
+    - jsonPath: .status.incomingPort
+      name: Incoming
+      type: integer
+    - jsonPath: .status.forwardingPort
+      name: Forwarding
+      type: integer
     - jsonPath: .spec.forward.tcpForwarding
-      name: TCP Forwarding
+      name: TCP
       type: boolean
     - jsonPath: .spec.forward.udpForwarding
-      name: UDP Forwarding
+      name: UDP
       type: boolean
     name: v1
     schema:
@@ -1319,8 +1322,14 @@ spec:
                   - type
                   type: object
                 type: array
+              forwardingPort:
+                description: Forwarding port
+                type: integer
               id:
                 description: Stream ID from remote Nginx Proxy Manager instance
+                type: integer
+              incomingPort:
+                description: Incoming port
                 type: integer
               online:
                 description: Online status from remote Nginx Proxy Manager instance
