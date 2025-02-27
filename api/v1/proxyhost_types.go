@@ -327,6 +327,11 @@ type ProxyHostStatus struct {
 	// +optional
 	Bound bool `json:"bound,omitempty"`
 
+	// Online status from remote Nginx Proxy Manager instance
+	// +kubebuilder:validation:Enum=true;false
+	// +kubebuilder:validation:Default=false
+	Online bool `json:"online,omitempty"`
+
 	// Represents the observations of a ProxyHost's current state.
 	// ProxyHost.status.conditions.type are: "Available", "Progressing", and "Degraded"
 	// ProxyHost.status.conditions.status are one of True, False, Unknown.
@@ -342,6 +347,7 @@ type ProxyHostStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="ID",type="integer",JSONPath=".status.id"
+// +kubebuilder:printcolumn:name="Online",type="boolean",JSONPath=".status.online"
 // +kubebuilder:printcolumn:name="CertificateId",type="string",JSONPath=".status.certificateId"
 // +kubebuilder:printcolumn:name="DomainNames",type="string",JSONPath=".spec.domainNames"
 // +kubebuilder:printcolumn:name="Bound",type="boolean",JSONPath=".status.bound"

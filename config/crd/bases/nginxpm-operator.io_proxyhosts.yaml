@@ -18,6 +18,9 @@ spec:
     - jsonPath: .status.id
       name: ID
       type: integer
+    - jsonPath: .status.online
+      name: Online
+      type: boolean
     - jsonPath: .status.certificateId
       name: CertificateId
       type: string
@@ -404,6 +407,12 @@ spec:
               id:
                 description: ProxyHost ID from remote  Nginx Proxy Manager instance
                 type: integer
+              online:
+                description: Online status from remote Nginx Proxy Manager instance
+                enum:
+                - true
+                - false
+                type: boolean
             type: object
         type: object
     served: true
