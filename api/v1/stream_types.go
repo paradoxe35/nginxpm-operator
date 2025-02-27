@@ -47,20 +47,20 @@ type StreamForward struct {
 
 type StreamSsl struct {
 	// Letsencrypt Certificate name managed by the letsencryptCertificate resource
-	// If CustomCertificate is provided and LetsencryptCertificate is not provided, the CustomCertificate will be prioritized
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional
 	LetsEncryptCertificate *SslLetsEncryptCertificate `json:"letsEncryptCertificate,omitempty"`
 
 	// Custom Certificate name managed by the customCertificate resource
-	// If CustomCertificate is provided and LetsencryptCertificate is not provided, the CustomCertificate will be prioritized
+	// CustomCertificate has priority over LetsencryptCertificate
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional
 	CustomCertificate *SslCustomCertificate `json:"customCertificate,omitempty"`
 
 	// Bind existing certificate id to the stream
+	// CustomCertificate has priority over LetsencryptCertificate and  CustomCertificate
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=integer
 	// +optional
@@ -95,7 +95,7 @@ type StreamSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional
-	Ssl *Ssl `json:"ssl,omitempty"`
+	Ssl *StreamSsl `json:"ssl,omitempty"`
 }
 
 // StreamStatus defines the observed state of Stream.

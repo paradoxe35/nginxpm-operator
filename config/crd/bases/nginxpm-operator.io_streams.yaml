@@ -133,18 +133,15 @@ spec:
               ssl:
                 description: Ssl configuration for the stream
                 properties:
-                  autoCertificateRequest:
-                    default: false
-                    description: When true, will request a certificate from Let's
-                      Encrypt automatically
-                    type: boolean
                   certificateId:
-                    description: Bind existing certificate id to the proxyhost
+                    description: |-
+                      Bind existing certificate id to the stream
+                      CustomCertificate has priority over LetsencryptCertificate and  CustomCertificate
                     type: integer
                   customCertificate:
                     description: |-
-                      Custom Certificate name created or managed by the customCertificate resource
-                      If CustomCertificate is provided and LetsencryptCertificate is not provided, the CustomCertificate will be prioritized
+                      Custom Certificate name managed by the customCertificate resource
+                      CustomCertificate has priority over LetsencryptCertificate
                     properties:
                       name:
                         description: Name of the custom certificate resource
@@ -156,22 +153,9 @@ spec:
                     required:
                     - name
                     type: object
-                  hstsEnabled:
-                    default: false
-                    description: Enable HSTS, default is false
-                    type: boolean
-                  hstsSubdomains:
-                    default: false
-                    description: Enable HSTS subdomains, default is false
-                    type: boolean
-                  http2Support:
-                    default: true
-                    description: Enable http2 support, default is true
-                    type: boolean
                   letsEncryptCertificate:
-                    description: |-
-                      Letsencrypt Certificate name created or managed by the letsencryptCertificate resource
-                      If CustomCertificate is provided and LetsencryptCertificate is not provided, the CustomCertificate will be prioritized
+                    description: Letsencrypt Certificate name managed by the letsencryptCertificate
+                      resource
                     properties:
                       name:
                         description: Name of the letsencrypt certificate resource
@@ -183,16 +167,6 @@ spec:
                     required:
                     - name
                     type: object
-                  letsEncryptEmail:
-                    description: LetsEncrypt Email address to request a certificate
-                      for
-                    pattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
-                    type: string
-                  sslForced:
-                    default: true
-                    description: Force SSL https, redirect http to https. default
-                      is true
-                    type: boolean
                 type: object
             required:
             - forward

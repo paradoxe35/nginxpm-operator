@@ -28,6 +28,18 @@ import (
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
 )
 
+const (
+	streamFinalizer = "stream.nginxpm-operator.io/finalizers"
+
+	ST_TOKEN_FIELD = ".spec.token.name"
+
+	ST_CUSTOM_CERTIFICATE_FIELD = ".spec.ssl.customCertificate.name"
+
+	ST_LETSENCRYPT_CERTIFICATE_FIELD = ".spec.ssl.letsEncryptCertificate.name"
+
+	ST_FORWARD_SERVICE_FIELD = ".spec.forward.service.name"
+)
+
 // StreamReconciler reconciles a Stream object
 type StreamReconciler struct {
 	client.Client
@@ -38,6 +50,19 @@ type StreamReconciler struct {
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=streams,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=streams/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=streams/finalizers,verbs=update
+// +kubebuilder:rbac:groups=nginxpm-operator.io,resources=tokens,verbs=get;list;watch
+// +kubebuilder:rbac:groups=nginxpm-operator.io,resources=tokens/status,verbs=get
+// +kubebuilder:rbac:groups=nginxpm-operator.io,resources=customcertificates,verbs=get;list;watch
+// +kubebuilder:rbac:groups=nginxpm-operator.io,resources=customcertificates/status,verbs=get
+// +kubebuilder:rbac:groups=nginxpm-operator.io,resources=letsencryptcertificates,verbs=get;list;watch
+// +kubebuilder:rbac:groups=nginxpm-operator.io,resources=letsencryptcertificates/status,verbs=get
+// +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=services/status,verbs=get
+// +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=pods/status,verbs=get
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=nodes/status,verbs=get
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.

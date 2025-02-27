@@ -64,21 +64,21 @@ type Ssl struct {
 	// +optional
 	AutoCertificateRequest bool `json:"autoCertificateRequest,omitempty"`
 
-	// Letsencrypt Certificate name created or managed by the letsencryptCertificate resource
-	// If CustomCertificate is provided and LetsencryptCertificate is not provided, the CustomCertificate will be prioritized
+	// Letsencrypt Certificate name managed by the letsencryptCertificate resource
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional
 	LetsEncryptCertificate *SslLetsEncryptCertificate `json:"letsEncryptCertificate,omitempty"`
 
-	// Custom Certificate name created or managed by the customCertificate resource
-	// If CustomCertificate is provided and LetsencryptCertificate is not provided, the CustomCertificate will be prioritized
+	// Custom Certificate name managed by the customCertificate resource
+	// CustomCertificate has priority over LetsencryptCertificate
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional
 	CustomCertificate *SslCustomCertificate `json:"customCertificate,omitempty"`
 
-	// Bind existing certificate id to the proxyhost
+	// Bind existing certificate id to the stream
+	// CustomCertificate has priority over LetsencryptCertificate and  CustomCertificate
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=integer
 	// +optional

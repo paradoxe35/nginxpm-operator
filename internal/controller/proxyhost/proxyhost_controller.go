@@ -88,7 +88,6 @@ type ProxyHostForward struct {
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=letsencryptcertificates/status,verbs=get
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=accesslist,verbs=get;list;watch
 // +kubebuilder:rbac:groups=nginxpm-operator.io,resources=accesslist/status,verbs=get
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services/status,verbs=get
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch

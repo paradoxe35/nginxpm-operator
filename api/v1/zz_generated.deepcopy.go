@@ -932,7 +932,7 @@ func (in *StreamSpec) DeepCopyInto(out *StreamSpec) {
 	in.Forward.DeepCopyInto(&out.Forward)
 	if in.Ssl != nil {
 		in, out := &in.Ssl, &out.Ssl
-		*out = new(Ssl)
+		*out = new(StreamSsl)
 		(*in).DeepCopyInto(*out)
 	}
 }
