@@ -77,7 +77,7 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 			serviceIP = nodePortConfig.serviceIP
 			servicePort = nodePortConfig.servicePort
 
-			// We can serviceIP to loadBalancer Name only when UnscopedConfigSupported is true
+			// We set can serviceIP to loadBalancer Name only when UnscopedConfigSupported is true
 			// Means the Nginx Proxy Manager supports the UnscopedConfig
 			if nodePortConfig.nginxUpstreamName != "" && option.UnscopedConfigSupported {
 				nginxUpstreamConfigs[nodePortConfig.nginxUpstreamName] = nodePortConfig.nginxUpstreamConfig
@@ -160,14 +160,16 @@ func (r *ProxyHostReconciler) forwardWhenNotNodePortType(service *corev1.Service
 	}
 
 	matchPort := func(ports []corev1.ServicePort, scheme string) int32 {
+		scheme = strings.ToLower(scheme)
 		for _, port := range ports {
-			contains := strings.Contains(port.Name, scheme)
+			portName := strings.ToLower(port.Name)
+			contains := strings.Contains(portName, scheme)
 
 			if scheme == "http" {
-				if contains && !strings.Contains(port.Name, "https") {
+				if contains && !strings.Contains(portName, "https") {
 					return port.Port
 				}
-			} else if strings.Contains(port.Name, scheme) {
+			} else if strings.Contains(portName, scheme) {
 				return port.Port
 			}
 		}
@@ -218,14 +220,16 @@ func (r *ProxyHostReconciler) forwardWhenNodePortType(ctx context.Context, ph *n
 	serviceIP := service.Spec.ClusterIP
 
 	matchPort := func(ports []corev1.ServicePort, scheme string) int32 {
+		scheme = strings.ToLower(scheme)
 		for _, port := range ports {
-			contains := strings.Contains(port.Name, scheme)
+			portName := strings.ToLower(port.Name)
+			contains := strings.Contains(portName, scheme)
 
 			if scheme == "http" {
-				if contains && !strings.Contains(port.Name, "https") {
+				if contains && !strings.Contains(portName, "https") {
 					return port.NodePort
 				}
-			} else if strings.Contains(port.Name, scheme) {
+			} else if strings.Contains(portName, scheme) {
 				return port.NodePort
 			}
 		}
@@ -244,30 +248,21 @@ func (r *ProxyHostReconciler) forwardWhenNodePortType(ctx context.Context, ph *n
 	// Get the host IPs of the pods
 	nodeIPs := controller.GetPodsHostIPS(ctx, r, pods)
 
-	nginxUpstreamName := ""
-	nginxUpstreamConfig := ""
-
 	// Save the first node IP as the service IP
 	if len(nodeIPs) > 0 {
 		serviceIP = nodeIPs[0]
-
-		nginxUpstreamName = controller.GenerateNginxUpstreamName(
-			ph.Name, ph.Namespace,
-			servicePort, nodeIPs,
-		)
-
-		nginxUpstreamConfig = fmt.Sprintf("upstream %s {\n least_conn;\n", nginxUpstreamName)
-		for _, nodeIP := range nodeIPs {
-			nginxUpstreamConfig += fmt.Sprintf(" server %s:%d;\n", nodeIP, servicePort)
-		}
-		nginxUpstreamConfig += "}"
 	}
+
+	conf := controller.GenerateNginxUpstreamConfig(
+		ph.Name, ph.Namespace,
+		servicePort, nodeIPs,
+	)
 
 	return &nodePortConfig{
 		serviceIP:           serviceIP,
 		servicePort:         int(servicePort),
-		nginxUpstreamName:   nginxUpstreamName,
-		nginxUpstreamConfig: nginxUpstreamConfig,
+		nginxUpstreamName:   conf.Name,
+		nginxUpstreamConfig: conf.Config,
 	}, nil
 }
 

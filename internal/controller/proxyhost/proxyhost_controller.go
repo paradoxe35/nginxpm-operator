@@ -514,6 +514,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 
 	return controller.UpdateStatus(ctx, r.Client, ph, req.NamespacedName, func() {
 		ph.Status.Id = &proxyHost.ID
+		ph.Status.Online = proxyHost.Meta.NginxOnline
 		ph.Status.CertificateId = certificateID
 		ph.Status.Bound = bound
 	})

@@ -77,6 +77,14 @@ type StreamReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=nodes/status,verbs=get
 
+type StreamForward struct {
+	TCP                  bool
+	UDP                  bool
+	Host                 string
+	Port                 int
+	NginxUpstreamConfigs string
+}
+
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // the Stream object against the actual cluster state, and then
@@ -152,7 +160,7 @@ func (r *StreamReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	// Create or update proxy host
+	// Create or update stream
 	err = r.createOrUpdateStream(ctx, req, st, nginxpmClient)
 	if err != nil {
 		// Set the status as False when the client can't be created
@@ -175,7 +183,7 @@ func (r *StreamReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			Status:             metav1.ConditionTrue,
 			Type:               controller.ConditionTypeReady,
 			Reason:             "createOrUpdateStream",
-			Message:            fmt.Sprintf("Proxy host created or updated, ResourceName: %s", req.Name),
+			Message:            fmt.Sprintf("Stream created or updated, ResourceName: %s", req.Name),
 			LastTransitionTime: metav1.Now(),
 		})
 	})
@@ -184,12 +192,69 @@ func (r *StreamReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 }
 
 func (r *StreamReconciler) createOrUpdateStream(ctx context.Context, req ctrl.Request, st *nginxpmoperatoriov1.Stream, nginxpmClient *nginxpm.Client) error {
-	// log := log.FromContext(ctx)
+	log := log.FromContext(ctx)
 
-	// var stream *nginxpm.ProxyHost
-	// var err error
+	var stream *nginxpm.Stream
+	var err error
 
-	return nil
+	if st.Status.Id != nil {
+		stream, err = nginxpmClient.FindStreamByID(*st.Status.Id)
+		if err != nil {
+			r.Recorder.Event(
+				st, "Warning", "FindStreamByID",
+				fmt.Sprintf("Failed to find access list by ID, ResourceName: %s, Namespace: %s, err: %s",
+					req.Name, req.Namespace, err.Error()),
+			)
+
+			log.Error(err, "Failed to find access list by ID")
+			return err
+		}
+	}
+
+	input := nginxpm.StreamRequestInput{}
+
+	// Update stream
+	if stream != nil {
+		stream, err = nginxpmClient.UpdateStream(stream.ID, input)
+		if err != nil {
+			r.Recorder.Event(
+				st, "Warning", "UpdateStream",
+				fmt.Sprintf("Failed to update stream, ResourceName: %s, Namespace: %s, err: %s",
+					req.Name, req.Namespace, err.Error()),
+			)
+
+			log.Error(err, "Failed to update stream")
+			return err
+		}
+
+		log.Info("Stream updated successfully")
+	} else {
+		// Create stream
+		stream, err = nginxpmClient.CreateStream(input)
+		if err != nil {
+			r.Recorder.Event(
+				st, "Warning", "CreateStream",
+				fmt.Sprintf("Failed to create stream, ResourceName: %s, Namespace: %s, err: %s",
+					req.Name, req.Namespace, err.Error()),
+			)
+
+			log.Error(err, "Failed to create stream")
+			return err
+		}
+
+		// In case not all custom field supported, we send update request
+		// if !allCustomFieldsSupported {
+		// 	withCustomFields(stream, &input) // call withCustomFields again to ensure all custom fields are supported
+		// 	nginxpmClient.UpdateStream(stream.ID, input)
+		// }
+
+		log.Info("Stream created successfully")
+	}
+
+	return controller.UpdateStatus(ctx, r.Client, st, req.NamespacedName, func() {
+		st.Status.Id = &stream.ID
+		st.Status.Online = stream.Meta.NginxOnline
+	})
 
 }
 

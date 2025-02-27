@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func GenerateNginxUpstreamName(rName, rNamespace string, servicePort int32, hostIPS []string) string {
+func generateNginxUpstreamName(rName, rNamespace string, servicePort int32, hostIPS []string) string {
 	name := strings.Join([]string{rName, rNamespace}, "-")
 	name = strings.TrimSuffix(name, "-")
 
@@ -29,6 +29,34 @@ func GenerateNginxUpstreamName(rName, rNamespace string, servicePort int32, host
 	baseName := fmt.Sprintf("%s-%s", name, ipsHash)
 
 	return fmt.Sprintf("%s-%s", nginxpm.NGINX_LB_SERVER_PREFIX, baseName)
+}
+
+type upstreamConfig struct {
+	Name   string
+	Config string
+}
+
+func GenerateNginxUpstreamConfig(rName, rNamespace string, servicePort int32, hostIPS []string) upstreamConfig {
+	nginxUpstreamName := ""
+	nginxUpstreamConfig := ""
+
+	if len(hostIPS) > 0 {
+		nginxUpstreamName = generateNginxUpstreamName(
+			rName, rNamespace,
+			servicePort, hostIPS,
+		)
+
+		nginxUpstreamConfig = fmt.Sprintf("upstream %s {\n least_conn;\n", nginxUpstreamName)
+		for _, nodeIP := range hostIPS {
+			nginxUpstreamConfig += fmt.Sprintf(" server %s:%d;\n", nodeIP, servicePort)
+		}
+		nginxUpstreamConfig += "}"
+	}
+
+	return upstreamConfig{
+		Name:   nginxUpstreamName,
+		Config: nginxUpstreamConfig,
+	}
 }
 
 func GetPodsHostIPS(ctx context.Context, r client.Reader, pods *corev1.PodList) []string {
