@@ -232,14 +232,12 @@ func (r *StreamReconciler) createOrUpdateStream(ctx context.Context, req ctrl.Re
 		}
 	}
 
-	unscopedConfigSupported := controller.JsonFieldExists(stream, nginxpm.CUSTOM_FIELD_UNSCOPED_CONFIG)
-
 	// Stream forward operation
 	streamForward, err := r.makeForward(MakeForwardOption{
 		Ctx:                     ctx,
 		Req:                     req,
 		Stream:                  st,
-		UnscopedConfigSupported: unscopedConfigSupported,
+		UnscopedConfigSupported: controller.JsonFieldExists(stream, nginxpm.CUSTOM_FIELD_UNSCOPED_CONFIG),
 	})
 
 	if err != nil {
