@@ -6,4 +6,33 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: stream-sample
 spec:
-  # TODO(user): Add fields here
+  token:
+    name: token-sample
+    namespace: default
+
+  incomingPort: 3000
+
+  forward:
+    tcpForwarding: true
+    udpForwarding: false
+    # service:
+    #   name: nginx-service
+    #   namespace: default
+    # Or you can use the host configuration
+    host:
+      hostName: 192.168.1.4 # HostName|IP
+      hostPort: 80
+
+    overwriteIncomingPortWithForwardPort: false
+
+  # Enable ssl
+  # ssl:
+  #   # certificateId: 1 # if you know the certificate id of an existing certificate in the nginx-proxy-manager instance
+
+  #   customCertificate:
+  #     name: custom-certificate-sample
+  #     namespace: nginxpm-operator-system
+
+  #   letsEncryptCertificate:
+  #     name: letsencrypt-certificate-sample
+  #     namespace: nginxpm-operator-system

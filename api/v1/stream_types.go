@@ -80,6 +80,11 @@ type StreamSpec struct {
 	// +required
 	IncomingPort int `json:"incomingPort,omitempty"`
 
+	// If True the incoming port will be overwritten with the forward port
+	// +kubebuilder:validation:Enum=true;false
+	// +kubebuilder:validation:Default=false
+	OverwriteIncomingPortWithForwardPort bool `json:"overwriteIncomingPortWithForwardPort,omitempty"`
+
 	// Stream forward configuration
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=object

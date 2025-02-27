@@ -157,7 +157,7 @@ type ForwardService struct {
 	// +optional
 	Namespace *string `json:"namespace,omitempty"`
 
-	// Port of the service resource to forward to
+	// Force forwarding to a known service port
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=integer
 	// +kubebuilder:validation:Minimum=1

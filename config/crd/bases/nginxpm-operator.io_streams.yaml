@@ -97,7 +97,7 @@ spec:
                         pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                         type: string
                       port:
-                        description: Port of the service resource to forward to
+                        description: Force forwarding to a known service port
                         format: int32
                         maximum: 65535
                         minimum: 1
@@ -123,6 +123,13 @@ spec:
                 maximum: 65535
                 minimum: 1
                 type: integer
+              overwriteIncomingPortWithForwardPort:
+                description: If True the incoming port will be overwritten with the
+                  forward port
+                enum:
+                - true
+                - false
+                type: boolean
               ssl:
                 description: Ssl configuration for the stream
                 properties:
