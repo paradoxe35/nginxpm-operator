@@ -234,7 +234,7 @@ func getServiceDestination(service *corev1.Service, forward nginxpmoperatoriov1.
 	}
 
 	if forward.UDPForwarding {
-		if v := matchPort(service.Spec.Ports, "TCP"); v != 0 {
+		if v := matchPort(service.Spec.Ports, "UDP"); v != 0 {
 			servicePort = v
 		}
 	}
