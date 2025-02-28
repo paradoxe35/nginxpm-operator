@@ -131,10 +131,8 @@ func (r *StreamReconciler) forwardWhenNotNodePortType(service *corev1.Service, f
 	}
 
 	serviceIP, servicePort := getServiceDestination(service, forward, func(ports []corev1.ServicePort, scheme string) int32 {
-		scheme = strings.ToLower(scheme)
 		for _, port := range ports {
-			portName := strings.ToLower(port.Name)
-			if strings.Contains(portName, scheme) {
+			if portMatched(scheme, port) {
 				return port.Port
 			}
 		}
@@ -165,25 +163,6 @@ type nodePortConfig struct {
 	nginxUpstreamConfig string
 }
 
-type MatchPort func(ports []corev1.ServicePort, scheme string) int32
-
-func getServiceDestination(service *corev1.Service, forward nginxpmoperatoriov1.StreamForward, matchPort MatchPort) (string, int32) {
-	serviceIP := service.Spec.ClusterIP
-
-	var servicePort int32
-	if forward.TCPForwarding {
-		servicePort = matchPort(service.Spec.Ports, "TCP")
-	}
-
-	if forward.UDPForwarding {
-		if v := matchPort(service.Spec.Ports, "TCP"); v != 0 {
-			servicePort = v
-		}
-	}
-
-	return serviceIP, servicePort
-}
-
 func (r *StreamReconciler) forwardWhenNodePortType(ctx context.Context, st *nginxpmoperatoriov1.Stream, service *corev1.Service) (*nodePortConfig, error) {
 	forward := st.Spec.Forward
 
@@ -203,10 +182,8 @@ func (r *StreamReconciler) forwardWhenNodePortType(ctx context.Context, st *ngin
 	}
 
 	serviceIP, servicePort := getServiceDestination(service, forward, func(ports []corev1.ServicePort, scheme string) int32 {
-		scheme = strings.ToLower(scheme)
 		for _, port := range ports {
-			portName := strings.ToLower(port.Name)
-			if strings.Contains(portName, scheme) {
+			if portMatched(scheme, port) {
 				return port.NodePort
 			}
 		}
@@ -236,4 +213,31 @@ func (r *StreamReconciler) forwardWhenNodePortType(ctx context.Context, st *ngin
 		nginxUpstreamName:   conf.Name,
 		nginxUpstreamConfig: conf.Config,
 	}, nil
+}
+
+type MatchPort func(ports []corev1.ServicePort, scheme string) int32
+
+func portMatched(scheme string, port corev1.ServicePort) bool {
+	scheme = strings.ToLower(scheme)
+	protocol := strings.ToLower(string(port.Protocol))
+	portName := strings.ToLower(port.Name)
+
+	return scheme == protocol || strings.Contains(portName, scheme)
+}
+
+func getServiceDestination(service *corev1.Service, forward nginxpmoperatoriov1.StreamForward, matchPort MatchPort) (string, int32) {
+	serviceIP := service.Spec.ClusterIP
+
+	var servicePort int32
+	if forward.TCPForwarding {
+		servicePort = matchPort(service.Spec.Ports, "TCP")
+	}
+
+	if forward.UDPForwarding {
+		if v := matchPort(service.Spec.Ports, "TCP"); v != 0 {
+			servicePort = v
+		}
+	}
+
+	return serviceIP, servicePort
 }

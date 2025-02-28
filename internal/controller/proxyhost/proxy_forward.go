@@ -169,7 +169,7 @@ func (r *ProxyHostReconciler) forwardWhenNotNodePortType(service *corev1.Service
 				if contains && !strings.Contains(portName, "https") {
 					return port.Port
 				}
-			} else if strings.Contains(portName, scheme) {
+			} else if contains {
 				return port.Port
 			}
 		}
@@ -229,7 +229,7 @@ func (r *ProxyHostReconciler) forwardWhenNodePortType(ctx context.Context, ph *n
 				if contains && !strings.Contains(portName, "https") {
 					return port.NodePort
 				}
-			} else if strings.Contains(portName, scheme) {
+			} else if contains {
 				return port.NodePort
 			}
 		}
