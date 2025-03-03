@@ -62,14 +62,6 @@ type AccessListSpec struct {
 	// +Optional
 	Token *TokenName `json:"token,omitempty"`
 
-	// Access list name that will be displayed from remote  Nginx Proxy Manager instance
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=255
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Type=string
-	// +required
-	Name string `json:"name,omitempty"`
-
 	// If set true, allow access if at least one condition is met when multiple authentication or access control methods are defined.
 	// +kubebuilder:validation:Enum=true;false
 	// +kubebuilder:validation:Default=false
