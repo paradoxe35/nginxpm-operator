@@ -877,10 +877,10 @@ func (in *StreamForward) DeepCopyInto(out *StreamForward) {
 		*out = new(ForwardService)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.Host != nil {
-		in, out := &in.Host, &out.Host
-		*out = new(ForwardHost)
-		**out = **in
+	if in.Hosts != nil {
+		in, out := &in.Hosts, &out.Hosts
+		*out = make([]ForwardHost, len(*in))
+		copy(*out, *in)
 	}
 }
 

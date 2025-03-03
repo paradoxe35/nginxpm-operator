@@ -61,30 +61,31 @@ spec:
               forward:
                 description: Stream forward configuration
                 properties:
-                  host:
-                    description: Configure your host forwarding settings here; using
-                      the Service configuration is recommended.
-                    properties:
-                      hostName:
-                        description: The host to forward to (This must be a valid
-                          DNS name or IP address)
-                        maxLength: 255
-                        minLength: 1
-                        pattern: ^((([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)\.)*[a-zA-Z]{2,63}|((25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)|(([0-9a-fA-F]{1,4}:){7}([0-9a-fA-F]{1,4}|:))|(::([0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}))$
-                        type: string
-                      hostPort:
-                        description: Service Target Port is the port to forward to
-                        format: int32
-                        maximum: 65535
-                        minimum: 1
-                        type: integer
-                    required:
-                    - hostName
-                    type: object
+                  hosts:
+                    description: List of your forward hosts; if specified, this will
+                      take priority over the service.
+                    items:
+                      properties:
+                        hostName:
+                          description: The host to forward to (This must be a valid
+                            DNS name or IP address)
+                          maxLength: 255
+                          minLength: 1
+                          pattern: ^((([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)\.)*[a-zA-Z]{2,63}|((25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)|(([0-9a-fA-F]{1,4}:){7}([0-9a-fA-F]{1,4}|:))|(::([0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}))$
+                          type: string
+                        hostPort:
+                          description: Service Target Port is the port to forward
+                            to
+                          format: int32
+                          maximum: 65535
+                          minimum: 1
+                          type: integer
+                      required:
+                      - hostName
+                      type: object
+                    type: array
                   service:
-                    description: |-
-                      Service resource reference to be forwarded to
-                      This is the preferred method to forward to a service rather than using host configuration.
+                    description: Service resource reference to be forwarded to
                     properties:
                       name:
                         description: |-

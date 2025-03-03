@@ -32,17 +32,16 @@ type StreamForward struct {
 	UDPForwarding bool `json:"udpForwarding,omitempty"`
 
 	// Service resource reference to be forwarded to
-	// This is the preferred method to forward to a service rather than using host configuration.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional
 	Service *ForwardService `json:"service,omitempty"`
 
-	// Configure your host forwarding settings here; using the Service configuration is recommended.
+	// List of your forward hosts; if specified, this will take priority over the service.
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Type=object
+	// +kubebuilder:validation:Type=array
 	// +optional
-	Host *ForwardHost `json:"host,omitempty"`
+	Hosts []ForwardHost `json:"hosts,omitempty"`
 }
 
 type StreamSsl struct {

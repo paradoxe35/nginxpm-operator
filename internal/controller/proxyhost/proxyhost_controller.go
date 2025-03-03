@@ -432,6 +432,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	// Handle custom fields
 	withCustomFields := func(proxyHost *nginxpm.ProxyHost, input *nginxpm.ProxyHostRequestInput) bool {
 		// Handle Unscoped custom field
+		// We need to call again controller.JsonFieldExists here since the proxyHost could be nil
 		unscopedConfigSupported := controller.JsonFieldExists(proxyHost, nginxpm.CUSTOM_FIELD_UNSCOPED_CONFIG)
 		nginxUpstreamConfig := mergeNginxUpstreamConfigs(proxyHostForward.NginxUpstreamConfigs)
 

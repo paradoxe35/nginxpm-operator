@@ -29,18 +29,20 @@ func (r *StreamReconciler) makeForward(option MakeForwardOption) (*StreamForward
 	req := option.Req
 	ctx := option.Ctx
 	forward := option.Stream.Spec.Forward
+	stream := option.Stream
 
 	// Check if forward host or service is provided
-	if forward.Host == nil && forward.Service == nil {
+	if len(forward.Hosts) == 0 && forward.Service == nil {
 		err := fmt.Errorf("no forward host or service is provided, one of them is required")
 		log.Error(err, "no forward host or service is provided, one of them is required")
 		return nil, err
 	}
 
 	var streamForward *StreamForward
+	var nginxUpstreamConfigs string
 
 	// When forward service is provided
-	if forward.Service != nil && forward.Host == nil {
+	if forward.Service != nil && len(forward.Hosts) == 0 {
 		log.Info("Service resource is provided, finding service from Service resource")
 
 		service := &corev1.Service{}
@@ -61,11 +63,9 @@ func (r *StreamReconciler) makeForward(option MakeForwardOption) (*StreamForward
 		var serviceIP string
 		servicePort := 0
 
-		var nginxUpstreamConfigs string
-
 		// When the service type is NodePort
 		if service.Spec.Type == corev1.ServiceTypeNodePort {
-			nodePortConfig, err := r.forwardWhenNodePortType(ctx, option.Stream, service)
+			nodePortConfig, err := r.forwardWhenNodePortType(ctx, stream, service)
 			if err != nil {
 				return nil, err
 			}
@@ -76,8 +76,8 @@ func (r *StreamReconciler) makeForward(option MakeForwardOption) (*StreamForward
 			// We can set serviceIP to loadBalancer Name only when UnscopedConfigSupported is true
 			// Means the Nginx Proxy Manager supports the UnscopedConfig
 			if nodePortConfig.nginxUpstreamName != "" && option.UnscopedConfigSupported {
-				nginxUpstreamConfigs = nodePortConfig.nginxUpstreamConfig
 				serviceIP = nodePortConfig.nginxUpstreamName
+				nginxUpstreamConfigs = nodePortConfig.nginxUpstreamConfig
 			}
 
 		} else {
@@ -109,12 +109,28 @@ func (r *StreamReconciler) makeForward(option MakeForwardOption) (*StreamForward
 	}
 
 	// When forward host is provided
-	if forward.Host != nil {
+	if len(forward.Hosts) > 0 {
 		log.Info("Host configuration is provided, applying to stream")
 
+		hostName := forward.Hosts[0].HostName
+		hostPort := forward.Hosts[0].HostPort
+		hosts := forward.Hosts
+
+		nginxUpstreamHosts := make([]controller.NginxUpstreamHost, len(hosts))
+		for i, host := range hosts {
+			nginxUpstreamHosts[i] = controller.NginxUpstreamHost{Hostname: host.HostName, Port: host.HostPort}
+		}
+
+		upstreamConf := controller.GenerateNginxUpstreamConfig(stream.Name, stream.Namespace, nginxUpstreamHosts)
+		if upstreamConf.Name != "" && option.UnscopedConfigSupported && len(hosts) > 1 { // we pass upstream have more that one host
+			hostName = upstreamConf.Name
+			nginxUpstreamConfigs = upstreamConf.Config
+		}
+
 		streamForward = &StreamForward{
-			Host: forward.Host.HostName,
-			Port: int(forward.Host.HostPort),
+			Host:                 hostName,
+			Port:                 int(hostPort),
+			NginxUpstreamConfigs: nginxUpstreamConfigs,
 		}
 	}
 
@@ -202,10 +218,12 @@ func (r *StreamReconciler) forwardWhenNodePortType(ctx context.Context, st *ngin
 		serviceIP = nodeIPs[0]
 	}
 
-	conf := controller.GenerateNginxUpstreamConfig(
-		st.Name, st.Namespace,
-		servicePort, nodeIPs,
-	)
+	nginxUpstreamHosts := make([]controller.NginxUpstreamHost, len(nodeIPs))
+	for i, nodeIP := range nodeIPs {
+		nginxUpstreamHosts[i] = controller.NginxUpstreamHost{Hostname: nodeIP, Port: servicePort}
+	}
+
+	conf := controller.GenerateNginxUpstreamConfig(st.Name, st.Namespace, nginxUpstreamHosts)
 
 	return &nodePortConfig{
 		serviceIP:           serviceIP,
