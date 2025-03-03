@@ -122,7 +122,7 @@ func (r *StreamReconciler) makeForward(option MakeForwardOption) (*StreamForward
 		}
 
 		upstreamConf := controller.GenerateNginxUpstreamConfig(stream.Name, stream.Namespace, nginxUpstreamHosts)
-		if upstreamConf.Name != "" && option.UnscopedConfigSupported && len(hosts) > 1 { // we pass upstream have more that one host
+		if upstreamConf.Name != "" && option.UnscopedConfigSupported && len(hosts) > 1 { // we pass upstream when have more that one host
 			hostName = upstreamConf.Name
 			nginxUpstreamConfigs = upstreamConf.Config
 		}

@@ -141,7 +141,7 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 		}
 
 		upstreamConf := controller.GenerateNginxUpstreamConfig(ph.Name, ph.Namespace, nginxUpstreamHosts)
-		if upstreamConf.Name != "" && option.UnscopedConfigSupported && len(hosts) > 1 { // we pass upstream have more that one host
+		if upstreamConf.Name != "" && option.UnscopedConfigSupported && len(hosts) > 1 { // we pass upstream when have more that one host
 			nginxUpstreamConfigs[upstreamConf.Name] = upstreamConf.Config
 
 			// Add also the nginx-upstream-config config to upstream forward exist
