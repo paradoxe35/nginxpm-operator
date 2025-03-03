@@ -82,6 +82,7 @@ spec:
                           type: integer
                       required:
                       - hostName
+                      - hostPort
                       type: object
                     type: array
                   service:

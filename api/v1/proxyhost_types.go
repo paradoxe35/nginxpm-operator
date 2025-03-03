@@ -131,11 +131,11 @@ type ForwardHost struct {
 	HostName string `json:"hostName,omitempty"`
 
 	// Service Target Port is the port to forward to
-	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=integer
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=65535
-	// +optional
+	// +required
 	HostPort int32 `json:"hostPort,omitempty"`
 }
 

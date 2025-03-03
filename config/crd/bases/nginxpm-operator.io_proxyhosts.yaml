@@ -120,6 +120,7 @@ spec:
                                 type: integer
                             required:
                             - hostName
+                            - hostPort
                             type: object
                           type: array
                         path:
@@ -208,6 +209,7 @@ spec:
                           type: integer
                       required:
                       - hostName
+                      - hostPort
                       type: object
                     type: array
                   path:
