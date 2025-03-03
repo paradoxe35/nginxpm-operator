@@ -84,10 +84,10 @@ spec:
     # service:
     #   name: nginx-svc
     #   namespace: default
-    # Or you can use the host configuration
-    host:
-      hostName: 192.168.1.4 # HostName|IP
-      hostPort: 80
+    # Or you can use hosts configuration
+    hosts:
+      - hostName: 192.168.1.4 # HostName|IP
+        hostPort: 80
 
   # Uncomment and modify the following sections as needed
   # bindExisting: true
@@ -128,10 +128,10 @@ spec:
   #       # service:
   #       #   name: nginx-svc
   #       #   namespace: default
-  #       # Or you can use the host configuration
-  #       host:
-  #         hostName: 192.168.1.4 # HostName|IP
-  #         hostPort: 80
+  #       # Or you can use the hosts configuration
+  #       hosts:
+  #         - hostName: 192.168.1.4 # HostName|IP
+  #           hostPort: 80
 ```
 
 Apply these resources to your Kubernetes cluster:
@@ -169,10 +169,10 @@ spec:
     # service:
     #   name: nginx-service
     #   namespace: default
-    # Or you can use the host configuration
-    host:
-      hostName: 192.168.1.4 # HostName|IP
-      hostPort: 80
+    # Or you can use the hosts configuration
+    hosts:
+      - hostName: 192.168.1.4 # HostName|IP
+        hostPort: 80
 
   # overwriteIncomingPortWithForwardPort: false
 

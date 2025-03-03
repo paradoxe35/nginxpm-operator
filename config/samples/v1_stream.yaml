@@ -18,10 +18,10 @@ spec:
     # service:
     #   name: nginx-service
     #   namespace: default
-    # Or you can use the host configuration
-    host:
-      hostName: 192.168.1.4 # HostName|IP
-      hostPort: 80
+    # Or you can use the hosts configuration
+    hosts:
+      - hostName: 192.168.1.4 # HostName|IP
+        hostPort: 80
 
   overwriteIncomingPortWithForwardPort: false
 
