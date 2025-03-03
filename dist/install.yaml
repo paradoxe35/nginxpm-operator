@@ -101,12 +101,6 @@ spec:
                   - directive
                   type: object
                 type: array
-              name:
-                description: Access list name that will be displayed from remote  Nginx
-                  Proxy Manager instance
-                maxLength: 255
-                minLength: 1
-                type: string
               passAuth:
                 description: Authorization to host should only be enabled if the host
                   has basic authentication enabled.
@@ -137,8 +131,6 @@ spec:
                 required:
                 - name
                 type: object
-            required:
-            - name
             type: object
           status:
             description: AccessListStatus defines the observed state of AccessList.
@@ -2096,7 +2088,7 @@ spec:
         - --health-probe-bind-address=:8081
         command:
         - /manager
-        image: ghcr.io/paradoxe35/nginxpm-operator:latest
+        image: ghcr.io/paradoxe35/nginxpm-operator:v0.1.1
         livenessProbe:
           httpGet:
             path: /healthz
