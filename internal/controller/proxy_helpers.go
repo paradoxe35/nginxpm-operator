@@ -25,13 +25,13 @@ func generateNginxUpstreamName(rName, rNamespace string, hosts []NginxUpstreamHo
 	name := strings.Join([]string{rName, rNamespace}, "-")
 	name = strings.TrimSuffix(name, "-")
 
-	joinedHost := ""
+	strHosts := ""
 	for _, host := range hosts {
-		joinedHost += fmt.Sprintf("%s-%d", host.Hostname, host.Port)
+		strHosts += fmt.Sprintf("%s-%d", host.Hostname, host.Port)
 	}
 
 	h := xxhash.New()
-	h.Write([]byte(joinedHost))
+	h.Write([]byte(strHosts))
 
 	ipsHash := fmt.Sprintf("%x", h.Sum(nil))
 
@@ -50,10 +50,7 @@ func GenerateNginxUpstreamConfig(rName, rNamespace string, hosts []NginxUpstream
 	nginxUpstreamConfig := ""
 
 	if len(hosts) > 0 {
-		nginxUpstreamName = generateNginxUpstreamName(
-			rName, rNamespace,
-			hosts,
-		)
+		nginxUpstreamName = generateNginxUpstreamName(rName, rNamespace, hosts)
 
 		nginxUpstreamConfig = fmt.Sprintf("upstream %s {\n least_conn;\n", nginxUpstreamName)
 		for _, host := range hosts {
