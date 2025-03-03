@@ -80,6 +80,7 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 			// We set can serviceIP to loadBalancer Name only when UnscopedConfigSupported is true
 			// Means the Nginx Proxy Manager supports the UnscopedConfig
 			if nodePortConfig.nginxUpstreamName != "" && option.UnscopedConfigSupported {
+				serviceIP = nodePortConfig.nginxUpstreamName
 				nginxUpstreamConfigs[nodePortConfig.nginxUpstreamName] = nodePortConfig.nginxUpstreamConfig
 
 				// Add also the nginx-upstream-config config to upstream forward exist
@@ -89,11 +90,6 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 					}
 
 					option.UpstreamForward.NginxUpstreamConfigs[nodePortConfig.nginxUpstreamName] = nodePortConfig.nginxUpstreamConfig
-				}
-
-				// Handle this only on root upstream forward (When UpstreamForward is nil)
-				if option.UpstreamForward == nil {
-					serviceIP = nodePortConfig.nginxUpstreamName
 				}
 			}
 
@@ -142,6 +138,7 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 
 		upstreamConf := controller.GenerateNginxUpstreamConfig(ph.Name, ph.Namespace, nginxUpstreamHosts)
 		if upstreamConf.Name != "" && option.UnscopedConfigSupported && len(hosts) > 1 { // we pass upstream when have more that one host
+			hostName = upstreamConf.Name
 			nginxUpstreamConfigs[upstreamConf.Name] = upstreamConf.Config
 
 			// Add also the nginx-upstream-config config to upstream forward exist
@@ -151,11 +148,6 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 				}
 
 				option.UpstreamForward.NginxUpstreamConfigs[upstreamConf.Name] = upstreamConf.Config
-			}
-
-			// Handle this only on root upstream forward (When UpstreamForward is nil)
-			if option.UpstreamForward == nil {
-				hostName = upstreamConf.Name
 			}
 		}
 
