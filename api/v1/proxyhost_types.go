@@ -175,17 +175,16 @@ type ProxyHostForward struct {
 	Scheme string `json:"scheme,omitempty"`
 
 	// Service resource reference to be forwarded to
-	// This is the preferred method to forward to a service rather than using host configuration.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional
 	Service *ForwardService `json:"service,omitempty"`
 
-	// Configure your host forwarding settings here; using the Service configuration is recommended.
+	// List of your forward hosts; if specified, this will take priority over the service.
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Type=object
+	// +kubebuilder:validation:Type=array
 	// +optional
-	Host *ForwardHost `json:"host,omitempty"`
+	Hosts []ForwardHost `json:"hosts,omitempty"`
 
 	// Add a path for sub-folder forwarding
 	// +kubebuilder:validation:Optional
@@ -349,7 +348,7 @@ type ProxyHostStatus struct {
 // +kubebuilder:printcolumn:name="ID",type="integer",JSONPath=".status.id"
 // +kubebuilder:printcolumn:name="Online",type="boolean",JSONPath=".status.online"
 // +kubebuilder:printcolumn:name="CertificateId",type="string",JSONPath=".status.certificateId"
-// +kubebuilder:printcolumn:name="DomainNames",type="string",JSONPath=".spec.domainNames"
+// +kubebuilder:printcolumn:name="Domains",type="string",JSONPath=".spec.domainNames"
 // +kubebuilder:printcolumn:name="Bound",type="boolean",JSONPath=".status.bound"
 
 // ProxyHost is the Schema for the proxyhosts API

@@ -35,16 +35,17 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 	label := option.Label
 
 	// Check if forward host or service is provided
-	if forward.Host == nil && forward.Service == nil {
+	if len(forward.Hosts) == 0 && forward.Service == nil {
 		err := fmt.Errorf("no forward host or service is provided, one of them is required, label: %s", label)
 		log.Error(err, "no forward host or service is provided, one of them is required, label: %s", label)
 		return nil, err
 	}
 
 	var proxyHostForward *ProxyHostForward
+	nginxUpstreamConfigs := make(map[string]string)
 
 	// When forward service is provided
-	if forward.Service != nil && forward.Host == nil {
+	if forward.Service != nil && len(forward.Hosts) == 0 {
 		log.Info(fmt.Sprintf("Service resource is provided, finding service from Service resource, label: %s", label))
 
 		service := &corev1.Service{}
@@ -64,8 +65,6 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 		// Extract service IP
 		var serviceIP string
 		servicePort := 0
-
-		nginxUpstreamConfigs := make(map[string]string)
 
 		// When the service type is NodePort
 		if service.Spec.Type == corev1.ServiceTypeNodePort {
@@ -128,15 +127,43 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 	}
 
 	// When forward host is provided
-	if forward.Host != nil {
+	if len(forward.Hosts) > 0 {
 		log.Info(fmt.Sprintf("Host configuration is provided, applying to proxy host, label: %s", label))
+
+		hostName := forward.Hosts[0].HostName
+		hostPort := forward.Hosts[0].HostPort
+		ph := option.ProxyHost
+
+		nginxUpstreamHosts := make([]controller.NginxUpstreamHost, len(forward.Hosts))
+		for i, host := range forward.Hosts {
+			nginxUpstreamHosts[i] = controller.NginxUpstreamHost{Hostname: host.HostName, Port: host.HostPort}
+		}
+
+		upstreamConf := controller.GenerateNginxUpstreamConfig(ph.Name, ph.Namespace, nginxUpstreamHosts)
+		if upstreamConf.Name != "" && option.UnscopedConfigSupported {
+			nginxUpstreamConfigs[upstreamConf.Name] = upstreamConf.Config
+
+			// Add also the nginx-upstream-config config to upstream forward exist
+			if option.UpstreamForward != nil {
+				if option.UpstreamForward.NginxUpstreamConfigs == nil {
+					option.UpstreamForward.NginxUpstreamConfigs = make(map[string]string)
+				}
+
+				option.UpstreamForward.NginxUpstreamConfigs[upstreamConf.Name] = upstreamConf.Config
+			}
+
+			// Handle this only on root upstream forward (When UpstreamForward is nil)
+			if option.UpstreamForward == nil {
+				hostName = upstreamConf.Name
+			}
+		}
 
 		proxyHostForward = &ProxyHostForward{
 			Scheme:               forward.Scheme,
-			Host:                 forward.Host.HostName,
-			Port:                 int(forward.Host.HostPort),
+			Host:                 hostName,
+			Port:                 int(hostPort),
 			AdvancedConfig:       forward.AdvancedConfig,
-			NginxUpstreamConfigs: map[string]string{},
+			NginxUpstreamConfigs: nginxUpstreamConfigs,
 		}
 	}
 
@@ -253,10 +280,12 @@ func (r *ProxyHostReconciler) forwardWhenNodePortType(ctx context.Context, ph *n
 		serviceIP = nodeIPs[0]
 	}
 
-	conf := controller.GenerateNginxUpstreamConfig(
-		ph.Name, ph.Namespace,
-		servicePort, nodeIPs,
-	)
+	nginxUpstreamHosts := make([]controller.NginxUpstreamHost, len(nodeIPs))
+	for i, nodeIP := range nodeIPs {
+		nginxUpstreamHosts[i] = controller.NginxUpstreamHost{Hostname: nodeIP, Port: servicePort}
+	}
+
+	conf := controller.GenerateNginxUpstreamConfig(ph.Name, ph.Namespace, nginxUpstreamHosts)
 
 	return &nodePortConfig{
 		serviceIP:           serviceIP,

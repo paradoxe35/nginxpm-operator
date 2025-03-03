@@ -16,13 +16,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func generateNginxUpstreamName(rName, rNamespace string, servicePort int32, hostIPS []string) string {
+type NginxUpstreamHost struct {
+	Hostname string // IP or Hostname
+	Port     int32
+}
+
+func generateNginxUpstreamName(rName, rNamespace string, hosts []NginxUpstreamHost) string {
 	name := strings.Join([]string{rName, rNamespace}, "-")
 	name = strings.TrimSuffix(name, "-")
 
+	joinedHost := ""
+	for _, host := range hosts {
+		joinedHost += fmt.Sprintf("%s-%d", host.Hostname, host.Port)
+	}
+
 	h := xxhash.New()
-	h.Write([]byte(strings.Join(hostIPS, "-")))
-	h.Write([]byte(fmt.Sprintf("%d", servicePort)))
+	h.Write([]byte(joinedHost))
 
 	ipsHash := fmt.Sprintf("%x", h.Sum(nil))
 
@@ -36,19 +45,19 @@ type upstreamConfig struct {
 	Config string
 }
 
-func GenerateNginxUpstreamConfig(rName, rNamespace string, servicePort int32, hostIPS []string) upstreamConfig {
+func GenerateNginxUpstreamConfig(rName, rNamespace string, hosts []NginxUpstreamHost) upstreamConfig {
 	nginxUpstreamName := ""
 	nginxUpstreamConfig := ""
 
-	if len(hostIPS) > 0 {
+	if len(hosts) > 0 {
 		nginxUpstreamName = generateNginxUpstreamName(
 			rName, rNamespace,
-			servicePort, hostIPS,
+			hosts,
 		)
 
 		nginxUpstreamConfig = fmt.Sprintf("upstream %s {\n least_conn;\n", nginxUpstreamName)
-		for _, nodeIP := range hostIPS {
-			nginxUpstreamConfig += fmt.Sprintf(" server %s:%d;\n", nodeIP, servicePort)
+		for _, host := range hosts {
+			nginxUpstreamConfig += fmt.Sprintf(" server %s:%d;\n", host.Hostname, host.Port)
 		}
 		nginxUpstreamConfig += "}"
 	}
