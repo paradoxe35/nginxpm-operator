@@ -61,7 +61,7 @@ func GenerateNginxUpstreamConfig(rName, rNamespace string, hosts []NginxUpstream
 	if len(hosts) > 0 {
 		nginxUpstreamName = generateNginxUpstreamName(rName, rNamespace, hosts)
 
-		nginxUpstreamConfig := fmt.Sprintf("upstream %s {\n", nginxUpstreamName)
+		nginxUpstreamConfig = fmt.Sprintf("upstream %s {\n", nginxUpstreamName)
 		nginxUpstreamConfig += "    least_conn;\n"
 		// keepalive config
 		nginxUpstreamConfig += fmt.Sprintf("    keepalive %d;\n", keepaliveCount)
