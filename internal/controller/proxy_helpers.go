@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/cespare/xxhash"
 	corev1 "k8s.io/api/core/v1"
@@ -45,6 +46,14 @@ type upstreamConfig struct {
 	Config string
 }
 
+const (
+	keepaliveCount    = 32               // Reasonable pool size per worker
+	keepaliveTimeout  = 60 * time.Second // Nginx default is 60s
+	keepaliveRequests = 1000             // Nginx default is 1000 since 1.19.10 (prev 100)
+	maxFails          = 3                // Times to fail before marking down
+	failTimeout       = 30 * time.Second // Duration to mark down
+)
+
 func GenerateNginxUpstreamConfig(rName, rNamespace string, hosts []NginxUpstreamHost) upstreamConfig {
 	nginxUpstreamName := ""
 	nginxUpstreamConfig := ""
@@ -52,9 +61,22 @@ func GenerateNginxUpstreamConfig(rName, rNamespace string, hosts []NginxUpstream
 	if len(hosts) > 0 {
 		nginxUpstreamName = generateNginxUpstreamName(rName, rNamespace, hosts)
 
-		nginxUpstreamConfig = fmt.Sprintf("upstream %s {\n least_conn;\n", nginxUpstreamName)
+		nginxUpstreamConfig := fmt.Sprintf("upstream %s {\n", nginxUpstreamName)
+		nginxUpstreamConfig += "    least_conn;\n"
+		// keepalive config
+		nginxUpstreamConfig += fmt.Sprintf("    keepalive %d;\n", keepaliveCount)
+		nginxUpstreamConfig += fmt.Sprintf("    keepalive_timeout %ds;\n", int(keepaliveTimeout.Seconds()))
+		nginxUpstreamConfig += fmt.Sprintf("    keepalive_requests %d;\n", keepaliveRequests)
+		nginxUpstreamConfig += "\n" // Blank line for readability
+
+		failTimeoutStr := fmt.Sprintf("%ds", int(failTimeout.Seconds()))
 		for _, host := range hosts {
-			nginxUpstreamConfig += fmt.Sprintf(" server %s:%d;\n", host.Hostname, host.Port)
+			nginxUpstreamConfig += fmt.Sprintf("    server %s:%d max_fails=%d fail_timeout=%s;\n",
+				host.Hostname,
+				host.Port,
+				maxFails,
+				failTimeoutStr,
+			)
 		}
 		nginxUpstreamConfig += "}"
 	}
