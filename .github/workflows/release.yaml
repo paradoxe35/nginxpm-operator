@@ -50,6 +50,7 @@ jobs:
           path: dist
 
       - name: Update install.yaml in tag
+        if: false
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
