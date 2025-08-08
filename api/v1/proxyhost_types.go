@@ -26,6 +26,12 @@ import (
 // +required
 type DomainName string
 
+// +kubebuilder:validation:Required
+// +kubebuilder:validation:Type=string
+// +kubebuilder:validation:Pattern=`^(\*\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}(:[0-9]{1,5})?$`
+// +required
+type DomainNameWithPort string
+
 type SslCustomCertificate struct {
 	// Name of the custom certificate resource
 	// +kubebuilder:validation:Required

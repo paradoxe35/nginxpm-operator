@@ -21,6 +21,8 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -279,7 +281,7 @@ func (r *ProxyHostReconciler) domainsShouldBeUnique(ctx context.Context, ph *ngi
 		return true, nil
 	}
 
-	domains := r.toDomainList(ph)
+	domains := r.extractDomains(ph)
 
 	// add proxy hosts domains to the list
 	for _, proxyHost := range proxyHosts.Items {
@@ -287,7 +289,7 @@ func (r *ProxyHostReconciler) domainsShouldBeUnique(ctx context.Context, ph *ngi
 			continue
 		}
 
-		proxyHostDomains := r.toDomainList(&proxyHost)
+		proxyHostDomains := r.extractDomains(&proxyHost)
 		// check if the domain is already used by another proxy host
 		for _, domain := range domains {
 			if slices.Contains(proxyHostDomains, domain) {
@@ -312,7 +314,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	bound := ph.Status.Bound
 
 	// Convert domain names to []string
-	domains := r.toDomainList(ph)
+	domains := r.extractDomains(ph)
 
 	// Let's check if the proxy host is already created
 	if ph.Status.Id != nil {
@@ -649,7 +651,7 @@ func (r *ProxyHostReconciler) findOrCreateCertificate(ctx context.Context, ph *n
 		return nil, nil
 	}
 
-	domains := r.toDomainList(ph)
+	domainsWithoutPorts := r.extractDomainsWithoutPorts(ph)
 	ssl := ph.Spec.Ssl
 
 	letsEncryptEmail := DEFAULT_EMAIL
@@ -657,7 +659,7 @@ func (r *ProxyHostReconciler) findOrCreateCertificate(ctx context.Context, ph *n
 		letsEncryptEmail = *ssl.LetsEncryptEmail
 	}
 
-	certificate, err := nginxpmClient.FindCertificateByDomain(domains)
+	certificate, err := nginxpmClient.FindCertificateByDomain(domainsWithoutPorts)
 	if err != nil {
 		log.Error(err, "[autoCertificateRequest] Failed to find certificate by domain")
 		return nil, err
@@ -671,7 +673,7 @@ func (r *ProxyHostReconciler) findOrCreateCertificate(ctx context.Context, ph *n
 	if certificate == nil {
 		log.Info("[autoCertificateRequest] Certificate not found, creating new certificate...")
 		lecCertificate, err := nginxpmClient.CreateLetEncryptCertificate(nginxpm.CreateLetEncryptCertificateRequest{
-			DomainNames: domains,
+			DomainNames: domainsWithoutPorts,
 			Meta: nginxpm.CreateLetEncryptCertificateRequestMeta{
 				DNSChallenge:     false,
 				LetsEncryptAgree: true,
@@ -699,12 +701,29 @@ func (r *ProxyHostReconciler) findOrCreateCertificate(ctx context.Context, ph *n
 
 // ############################################# UTILS ##############################################
 
-func (r *ProxyHostReconciler) toDomainList(ph *nginxpmoperatoriov1.ProxyHost) []string {
+func (r *ProxyHostReconciler) extractDomains(ph *nginxpmoperatoriov1.ProxyHost) []string {
 	domains := make([]string, len(ph.Spec.DomainNames))
 	for i, domain := range ph.Spec.DomainNames {
 		domains[i] = string(domain)
 	}
 
+	return domains
+}
+
+func (r *ProxyHostReconciler) extractDomainsWithoutPorts(ph *nginxpmoperatoriov1.ProxyHost) []string {
+	domains := make([]string, len(ph.Spec.DomainNames))
+	for i, domain := range ph.Spec.DomainNames {
+		// Remove port if present
+		domainStr := string(domain)
+		if colonIndex := strings.LastIndex(domainStr, ":"); colonIndex != -1 {
+			// Verify it's actually a port (not part of IPv6)
+			portPart := domainStr[colonIndex+1:]
+			if _, err := strconv.Atoi(portPart); err == nil {
+				domainStr = domainStr[:colonIndex]
+			}
+		}
+		domains[i] = domainStr
+	}
 	return domains
 }
 
