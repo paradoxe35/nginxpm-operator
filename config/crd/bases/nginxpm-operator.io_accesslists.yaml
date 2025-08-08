@@ -50,21 +50,25 @@ spec:
             description: AccessListSpec defines the desired state of AccessList.
             properties:
               authorizations:
-                description: Basic Authorization via Nginx HTTP Basic Authentication
-                  (https://nginx.org/en/docs/http/ngx_http_auth_basic_module.html)
+                description: |-
+                  Authorizations defines the list of username/password pairs for HTTP Basic Authentication.
+                  These credentials will be required to access resources protected by this AccessList.
+                  Based on Nginx HTTP Basic Authentication module.
                 items:
                   properties:
                     password:
                       description: |-
-                        Password to be used for authentication with the access list service.
-                        Must be between 1 and 255 characters.
+                        Password defines the authentication password for HTTP Basic Authentication.
+                        This password will be paired with the username for authentication.
+                        Must be between 1 and 255 characters in length.
                       maxLength: 255
                       minLength: 1
                       type: string
                     username:
                       description: |-
-                        Username to be used for authentication with the access list service.
-                        Must be between 1 and 255 characters.
+                        Username defines the authentication username for HTTP Basic Authentication.
+                        This username will be required when accessing the protected resources.
+                        Must be between 1 and 255 characters in length.
                       maxLength: 255
                       minLength: 1
                       type: string
@@ -74,16 +78,24 @@ spec:
                   type: object
                 type: array
               clients:
-                description: IP Address Whitelist/Blacklist via Nginx HTTP Access
-                  (https://nginx.org/en/docs/http/ngx_http_access_module.html)
+                description: |-
+                  Clients defines IP-based access control rules using allow/deny directives.
+                  Each entry specifies an IP address or subnet with an associated action.
+                  Rules are evaluated in order. Based on Nginx HTTP Access module.
                 items:
                   properties:
                     address:
-                      description: Address (IPv4 IP/SUBNET) for authentication use
+                      description: |-
+                        Address specifies the IPv4 address or CIDR subnet for IP-based access control.
+                        Format: Single IP (e.g., "192.168.1.1") or CIDR notation (e.g., "192.168.0.0/24").
+                        Used in conjunction with the Directive field to allow or deny access.
                       pattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))?$
                       type: string
                     directive:
-                      description: Directive for Authentication Use
+                      description: |-
+                        Directive determines the access control action for the specified address.
+                        "allow" permits access from the address, "deny" blocks access from the address.
+                        Used with Address field to implement IP-based access control.
                       enum:
                       - allow
                       - deny
@@ -94,30 +106,43 @@ spec:
                   type: object
                 type: array
               passAuth:
-                description: Authorization to host should only be enabled if the host
-                  has basic authentication enabled.
+                description: |-
+                  PassAuth determines whether to pass authentication headers to the upstream server.
+                  When true: Basic Auth credentials are forwarded to the proxied server.
+                  When false: Authentication is handled only by Nginx, credentials are not forwarded.
+                  Enable this only if the upstream service also requires the authentication headers.
                 enum:
                 - true
                 - false
                 type: boolean
               satisfyAny:
-                description: If set true, allow access if at least one condition is
-                  met when multiple authentication or access control methods are defined.
+                description: |-
+                  SatisfyAny controls how multiple access control methods are evaluated.
+                  When true: Access is granted if ANY condition is met (logical OR).
+                  When false: Access requires ALL conditions to be met (logical AND).
+                  This applies when both IP restrictions and Basic Auth are configured.
                 enum:
                 - true
                 - false
                 type: boolean
               token:
-                description: Token resource, if not provided, the operator will try
-                  to find a token with `token-nginxpm` name in the same namespace
-                  as the proxyhost is created or in the `nginxpm-operator-system`
-                  namespace or in the `default` namespace
+                description: |-
+                  Token references the authentication token for the Nginx Proxy Manager API.
+                  If not provided, the operator will search for a token named "token-nginxpm" in:
+                  1. The same namespace as this AccessList
+                  2. The "nginxpm-operator-system" namespace
+                  3. The "default" namespace
                 properties:
                   name:
-                    description: Name of the token resource
+                    description: |-
+                      Name specifies the Token resource to reference.
+                      Used by other resources to authenticate with Nginx Proxy Manager.
                     type: string
                   namespace:
-                    description: Namespace of the token resource
+                    description: |-
+                      Namespace of the Token resource.
+                      If not specified, uses the same namespace as the referencing resource.
+                      Must follow Kubernetes namespace naming conventions.
                     pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                     type: string
                 required:
@@ -128,8 +153,10 @@ spec:
             description: AccessListStatus defines the observed state of AccessList.
             properties:
               conditions:
-                description: Represents the observations of a AccessListStatus's current
-                  state.
+                description: |-
+                  Conditions represent the current state of the AccessList resource.
+                  Common condition types include "Ready", "Synced", and "Error".
+                  The "Ready" condition indicates if the AccessList is successfully configured in NPM.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -186,10 +213,14 @@ spec:
                   type: object
                 type: array
               id:
-                description: AccessList ID from remote  Nginx Proxy Manager instance
+                description: |-
+                  Id represents the unique identifier assigned by the Nginx Proxy Manager instance.
+                  This field is populated after successful creation/synchronization with NPM.
                 type: integer
               proxyHostCount:
-                description: Number of proxy hosts associated with this AccessList
+                description: |-
+                  ProxyHostCount indicates the number of ProxyHost resources currently using this AccessList.
+                  This helps track AccessList usage and prevent accidental deletion of in-use lists.
                 type: integer
             type: object
         type: object

@@ -50,13 +50,20 @@ spec:
             description: CustomCertificateSpec defines the desired state of CustomCertificate
             properties:
               certificate:
-                description: Certificate credential secret name
+                description: |-
+                  Certificate references the Kubernetes Secret containing the SSL/TLS certificate data.
+                  The Secret must include both the certificate chain and the private key.
+                  This certificate will be uploaded to Nginx Proxy Manager for use with proxy hosts.
                 properties:
                   secret:
-                    description: Secret resource holds certificate values
+                    description: |-
+                      Secret references the Kubernetes Secret containing the SSL/TLS certificate.
+                      The referenced Secret should contain the certificate chain and private key.
                     properties:
                       name:
-                        description: Name of the secret resource
+                        description: |-
+                          Name specifies the Kubernetes Secret containing the certificate data.
+                          The Secret must contain the certificate and private key fields.
                         type: string
                     required:
                     - name
@@ -65,21 +72,30 @@ spec:
                 - secret
                 type: object
               niceName:
-                description: NiceName of the CustomCertificate (If not provided, the
-                  resource name will be used)
+                description: |-
+                  NiceName provides a human-readable display name for the certificate.
+                  If not specified, the CustomCertificate resource name will be used.
+                  This name appears in the Nginx Proxy Manager UI for easier identification.
                 maxLength: 64
                 type: string
               token:
-                description: Token resource, if not provided, the operator will try
-                  to find a token with `token-nginxpm` name in the same namespace
-                  as the proxyhost is created or in the `nginxpm-operator-system`
-                  namespace or in the `default` namespace
+                description: |-
+                  Token references the authentication token for the Nginx Proxy Manager API.
+                  If not provided, the operator will search for a token named "token-nginxpm" in:
+                  1. The same namespace as this CustomCertificate
+                  2. The "nginxpm-operator-system" namespace
+                  3. The "default" namespace
                 properties:
                   name:
-                    description: Name of the token resource
+                    description: |-
+                      Name specifies the Token resource to reference.
+                      Used by other resources to authenticate with Nginx Proxy Manager.
                     type: string
                   namespace:
-                    description: Namespace of the token resource
+                    description: |-
+                      Namespace of the Token resource.
+                      If not specified, uses the same namespace as the referencing resource.
+                      Must follow Kubernetes namespace naming conventions.
                     pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                     type: string
                 required:
@@ -92,8 +108,10 @@ spec:
             description: CustomCertificateStatus defines the observed state of CustomCertificate
             properties:
               conditions:
-                description: Represents the observations of a CustomCertificateStatus's
-                  current state.
+                description: |-
+                  Conditions represent the current state of the CustomCertificate resource.
+                  Common condition types include "Ready", "Valid", and "Synced".
+                  The "Ready" condition indicates if the certificate is successfully configured in NPM.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -150,14 +168,21 @@ spec:
                   type: object
                 type: array
               expiresOn:
-                description: Expiration time of the certificate
+                description: |-
+                  ExpiresOn indicates when the SSL/TLS certificate will expire.
+                  Format: ISO 8601 date-time string.
+                  This value is extracted from the certificate and updated during synchronization.
                 type: string
               id:
-                description: CustomCertificateStatus ID from remote  Nginx Proxy Manager
-                  instance
+                description: |-
+                  Id represents the unique identifier assigned by the Nginx Proxy Manager instance.
+                  This field is populated after successful certificate upload to NPM.
                 type: integer
               status:
-                description: Status of the certificate
+                description: |-
+                  Status reflects the current state of the certificate in Nginx Proxy Manager.
+                  Common values include "valid", "expired", "expiring_soon".
+                  This field helps monitor certificate health and renewal requirements.
                 type: string
             type: object
         type: object

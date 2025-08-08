@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: ghcr.io/paradoxe35/nginxpm-operator
-  newTag: latest
+  newTag: v0.1.2

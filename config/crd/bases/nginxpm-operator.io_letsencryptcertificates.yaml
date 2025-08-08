@@ -54,14 +54,23 @@ spec:
             description: LetsEncryptCertificateSpec defines the desired state of LetsEncryptCertificate
             properties:
               dnsChallenge:
-                description: Use DNS challenge
+                description: |-
+                  DnsChallenge configures DNS-01 challenge for domain validation.
+                  Required for wildcard certificates or when HTTP-01 challenge is not feasible.
+                  When not specified, HTTP-01 challenge is used by default.
                 properties:
                   propagationSeconds:
                     default: 0
-                    description: Propagation seconds
+                    description: |-
+                      PropagationSeconds defines the wait time after DNS record creation before validation.
+                      This allows DNS changes to propagate across name servers.
+                      Default is 0, which uses the provider's default propagation time.
                     type: integer
                   provider:
-                    description: DNS Provider to use
+                    description: |-
+                      Provider specifies the DNS provider for ACME DNS-01 challenge validation.
+                      Supported providers include major DNS services like Cloudflare, Route53, Azure, etc.
+                      The provider determines which credentials are required in the Secret.
                     enum:
                     - acmedns
                     - aliyun
@@ -122,14 +131,20 @@ spec:
                     - websupport
                     type: string
                   providerCredentials:
-                    description: Provider credentials
+                    description: |-
+                      ProviderCredentials references the Secret containing authentication for the DNS provider.
+                      Required fields in the Secret vary by provider (e.g., CF_Token for Cloudflare).
+                      These credentials must have permissions to create DNS TXT records for validation.
                     properties:
                       secret:
-                        description: Secret resource holds dns challenge provider
-                          credentials
+                        description: |-
+                          Secret references the Kubernetes Secret containing DNS challenge provider credentials.
+                          The Secret structure depends on the DNS provider being used (e.g., API keys, tokens).
                         properties:
                           name:
-                            description: Name of the secret resource
+                            description: |-
+                              Name specifies the Kubernetes Secret containing DNS provider credentials.
+                              This Secret must contain the required authentication fields for the DNS provider.
                             type: string
                         required:
                         - name
@@ -143,7 +158,10 @@ spec:
                 - providerCredentials
                 type: object
               domainNames:
-                description: Domain Names to request a certificate for
+                description: |-
+                  DomainNames lists the domain names to include in the Let's Encrypt certificate.
+                  Supports wildcards (e.g., "*.example.com") and multiple domains.
+                  All domains must be under your control for validation to succeed.
                 items:
                   pattern: ^(\*\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$
                   type: string
@@ -151,21 +169,31 @@ spec:
                 minItems: 1
                 type: array
               letsEncryptEmail:
-                description: LetsEncrypt Email address to request a certificate for
+                description: |-
+                  LetsEncryptEmail is the contact email for Let's Encrypt account and notifications.
+                  This email receives important notices about certificate expiration and account issues.
+                  Must be a valid email address format.
                 format: email
                 pattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
                 type: string
               token:
-                description: Token resource, if not provided, the operator will try
-                  to find a token with `token-nginxpm` name in the same namespace
-                  as the proxyhost is created or in the `nginxpm-operator-system`
-                  namespace or in the `default` namespace
+                description: |-
+                  Token references the authentication token for the Nginx Proxy Manager API.
+                  If not provided, the operator will search for a token named "token-nginxpm" in:
+                  1. The same namespace as this LetsEncryptCertificate
+                  2. The "nginxpm-operator-system" namespace
+                  3. The "default" namespace
                 properties:
                   name:
-                    description: Name of the token resource
+                    description: |-
+                      Name specifies the Token resource to reference.
+                      Used by other resources to authenticate with Nginx Proxy Manager.
                     type: string
                   namespace:
-                    description: Namespace of the token resource
+                    description: |-
+                      Namespace of the Token resource.
+                      If not specified, uses the same namespace as the referencing resource.
+                      Must follow Kubernetes namespace naming conventions.
                     pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                     type: string
                 required:
@@ -181,12 +209,16 @@ spec:
             properties:
               bound:
                 default: false
-                description: Whether the LetsEncryptCertificate was bound with an
-                  existing certificate
+                description: |-
+                  Bound indicates if this resource was linked to an existing NPM certificate.
+                  When true, the operator found and adopted an existing certificate with matching domains.
+                  When false, a new certificate was created in NPM.
                 type: boolean
               conditions:
-                description: Represents the observations of a LetsEncryptCertificate's
-                  current state.
+                description: |-
+                  Conditions represent the current state of the LetsEncryptCertificate resource.
+                  Common condition types include "Ready", "Issued", "Renewing", and "ValidationFailed".
+                  The "Ready" condition indicates if the certificate is successfully issued and active.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -244,19 +276,24 @@ spec:
                 type: array
               domainNames:
                 description: |-
-                  Duplicated Domain Names in status, since once the certificate is created for these domain names
-                  the spec.domainNames will never changed
+                  DomainNames contains the actual domains in the issued certificate.
+                  This is preserved in status because the certificate remains valid for these domains
+                  even if spec.domainNames is modified (which would trigger a new certificate).
                 items:
                   type: string
                 maxItems: 10
                 minItems: 1
                 type: array
               expiresOn:
-                description: Expiration time of the certificate
+                description: |-
+                  ExpiresOn indicates when the Let's Encrypt certificate will expire.
+                  Format: ISO 8601 date-time string.
+                  Let's Encrypt certificates are valid for 90 days and should be renewed before expiration.
                 type: string
               id:
-                description: LetsEncryptCertificate ID from remote  Nginx Proxy Manager
-                  instance
+                description: |-
+                  Id represents the unique identifier assigned by the Nginx Proxy Manager instance.
+                  This field is populated after successful certificate creation in NPM.
                 type: integer
             required:
             - domainNames

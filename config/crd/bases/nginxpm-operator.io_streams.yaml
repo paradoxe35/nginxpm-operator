@@ -59,23 +59,32 @@ spec:
             description: StreamSpec defines the desired state of Stream.
             properties:
               forward:
-                description: Stream forward configuration
+                description: |-
+                  Forward defines the upstream configuration for this stream.
+                  Specifies protocol support (TCP/UDP) and target hosts or services.
+                  At least one protocol (TCP or UDP) must be enabled.
                 properties:
                   hosts:
-                    description: List of your forward hosts; if specified, this will
-                      take priority over the service.
+                    description: |-
+                      Hosts defines explicit forwarding targets by hostname/IP and port.
+                      Takes priority over Service field when both are specified.
+                      Use for non-Kubernetes backends or load balancing across multiple hosts.
                     items:
                       properties:
                         hostName:
-                          description: The host to forward to (This must be a valid
-                            DNS name or IP address)
+                          description: |-
+                            HostName specifies the target host for forwarding requests.
+                            Accepts valid DNS names (e.g., "backend.local") or IP addresses (IPv4/IPv6).
+                            This host receives the proxied traffic from Nginx.
                           maxLength: 255
                           minLength: 1
                           pattern: ^((([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)\.)*[a-zA-Z]{2,63}|((25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)|(([0-9a-fA-F]{1,4}:){7}([0-9a-fA-F]{1,4}|:))|(::([0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}))$
                           type: string
                         hostPort:
-                          description: Service Target Port is the port to forward
-                            to
+                          description: |-
+                            HostPort specifies the TCP port on the target host.
+                            Must be a valid port number (1-65535).
+                            Common values: 80 (HTTP), 443 (HTTPS), 8080 (alternative HTTP).
                           format: int32
                           maximum: 65535
                           minimum: 1
@@ -86,23 +95,32 @@ spec:
                       type: object
                     type: array
                   service:
-                    description: Service resource reference to be forwarded to
+                    description: |-
+                      Service references a Kubernetes Service as the forwarding target.
+                      The Service's ClusterIP and port will be used for stream forwarding.
+                      Mutually exclusive with Hosts field.
                     properties:
                       name:
                         description: |-
-                          Name of the service resource to forward to
-                          IP and port of the service will be used as the forwarding target
-                          Only ClusterIP and LoadBalancer services are supported
+                          Name of the Kubernetes Service to forward requests to.
+                          The Service's ClusterIP and port will be used as the forwarding target.
+                          Supports ClusterIP and LoadBalancer service types.
+                          Service must be accessible from the Nginx Proxy Manager instance.
                         maxLength: 255
                         minLength: 1
                         type: string
                       namespace:
-                        description: Namespace of the service resource to forward
-                          to
+                        description: |-
+                          Namespace of the target Kubernetes Service.
+                          If not specified, uses the same namespace as the ProxyHost.
+                          Must follow Kubernetes namespace naming conventions.
                         pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                         type: string
                       port:
-                        description: Force forwarding to a known service port
+                        description: |-
+                          Port overrides the Service port selection.
+                          If not specified, uses the first port from the Service definition.
+                          Use when the Service exposes multiple ports and you need a specific one.
                         format: int32
                         maximum: 65535
                         minimum: 1
@@ -111,62 +129,90 @@ spec:
                     - name
                     type: object
                   tcpForwarding:
-                    description: Has TCP Forwarding
+                    description: |-
+                      TCPForwarding enables TCP protocol forwarding for this stream.
+                      When true, TCP traffic on the incoming port is forwarded to the target.
+                      Default is true. Set to false if only UDP forwarding is needed.
                     enum:
                     - true
                     - false
                     type: boolean
                   udpForwarding:
-                    description: Has UDP Forwarding
+                    description: |-
+                      UDPForwarding enables UDP protocol forwarding for this stream.
+                      When true, UDP traffic on the incoming port is forwarded to the target.
+                      Default is true. Set to false if only TCP forwarding is needed.
                     enum:
                     - true
                     - false
                     type: boolean
                 type: object
               incomingPort:
-                description: Incoming Port
+                description: |-
+                  IncomingPort defines the port where the stream will listen for connections.
+                  Must be available and not in use by other services.
+                  Common ranges: 1024-65535 for non-privileged ports.
                 maximum: 65535
                 minimum: 1
                 type: integer
               overwriteIncomingPortWithForwardPort:
-                description: If True the incoming port will be overwritten with the
-                  forward port
+                description: |-
+                  OverwriteIncomingPortWithForwardPort allows automatic port matching.
+                  When true, the incoming port is set to match the forwarding port.
+                  Useful for transparent proxying where ports should remain the same.
                 enum:
                 - true
                 - false
                 type: boolean
               ssl:
-                description: Ssl configuration for the stream
+                description: |-
+                  Ssl configures TLS/SSL termination for this stream.
+                  Enables encrypted connections for TCP streams (not applicable to UDP).
+                  Leave empty for unencrypted stream forwarding.
                 properties:
                   certificateId:
                     description: |-
-                      Bind existing certificate id to the stream
-                      CustomCertificate has priority over LetsencryptCertificate and  CustomCertificate
+                      CertificateId directly references an existing certificate ID in NPM.
+                      Highest priority - overrides both CustomCertificate and LetsEncryptCertificate.
+                      Use when binding to pre-existing NPM certificates not managed by this operator.
                     type: integer
                   customCertificate:
                     description: |-
-                      Custom Certificate name managed by the customCertificate resource
-                      CustomCertificate has priority over LetsencryptCertificate
+                      CustomCertificate references a managed custom SSL/TLS certificate resource.
+                      Takes priority over LetsEncryptCertificate when both are specified.
+                      Use for certificates from commercial CAs or self-signed certificates.
                     properties:
                       name:
-                        description: Name of the custom certificate resource
+                        description: |-
+                          Name specifies the CustomCertificate resource to use for SSL/TLS.
+                          The referenced CustomCertificate must exist and contain valid certificate data.
                         type: string
                       namespace:
-                        description: Namespace of the custom certificate resource
+                        description: |-
+                          Namespace of the CustomCertificate resource.
+                          If not specified, uses the same namespace as the ProxyHost.
+                          Must follow Kubernetes namespace naming conventions.
                         pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                         type: string
                     required:
                     - name
                     type: object
                   letsEncryptCertificate:
-                    description: Letsencrypt Certificate name managed by the letsencryptCertificate
-                      resource
+                    description: |-
+                      LetsEncryptCertificate references a managed Let's Encrypt certificate resource.
+                      Enables TLS/SSL for the stream using Let's Encrypt certificates.
+                      The certificate must be valid for stream usage (not just HTTP/HTTPS).
                     properties:
                       name:
-                        description: Name of the letsencrypt certificate resource
+                        description: |-
+                          Name specifies the LetsEncryptCertificate resource to use for SSL/TLS.
+                          The referenced certificate must exist and be valid for the proxy domains.
                         type: string
                       namespace:
-                        description: Namespace of the letsencrypt certificate resource
+                        description: |-
+                          Namespace of the LetsEncryptCertificate resource.
+                          If not specified, uses the same namespace as the ProxyHost.
+                          Must follow Kubernetes namespace naming conventions.
                         pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                         type: string
                     required:
@@ -174,16 +220,23 @@ spec:
                     type: object
                 type: object
               token:
-                description: Token resource, if not provided, the operator will try
-                  to find a token with `token-nginxpm` name in the same namespace
-                  as the proxyhost is created or in the `nginxpm-operator-system`
-                  namespace or in the `default` namespace
+                description: |-
+                  Token references the authentication token for the Nginx Proxy Manager API.
+                  If not provided, the operator will search for a token named "token-nginxpm" in:
+                  1. The same namespace as this Stream
+                  2. The "nginxpm-operator-system" namespace
+                  3. The "default" namespace
                 properties:
                   name:
-                    description: Name of the token resource
+                    description: |-
+                      Name specifies the Token resource to reference.
+                      Used by other resources to authenticate with Nginx Proxy Manager.
                     type: string
                   namespace:
-                    description: Namespace of the token resource
+                    description: |-
+                      Namespace of the Token resource.
+                      If not specified, uses the same namespace as the referencing resource.
+                      Must follow Kubernetes namespace naming conventions.
                     pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                     type: string
                 required:
@@ -197,7 +250,10 @@ spec:
             description: StreamStatus defines the observed state of Stream.
             properties:
               conditions:
-                description: Represents the observations of a Stream's current state.
+                description: |-
+                  Conditions represent the current state of the Stream resource.
+                  Common condition types include "Ready", "PortAvailable", and "Synced".
+                  The "Ready" condition indicates if the stream is successfully configured and active.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -254,16 +310,27 @@ spec:
                   type: object
                 type: array
               forwardingPort:
-                description: Forwarding port
+                description: |-
+                  ForwardingPort shows the target port being forwarded to.
+                  Reflects the actual upstream port configuration in NPM.
+                  Useful for debugging connection issues.
                 type: integer
               id:
-                description: Stream ID from remote Nginx Proxy Manager instance
+                description: |-
+                  Id represents the unique identifier assigned by the Nginx Proxy Manager instance.
+                  This field is populated after successful stream creation in NPM.
                 type: integer
               incomingPort:
-                description: Incoming port
+                description: |-
+                  IncomingPort shows the actual listening port configured in NPM.
+                  May differ from spec if port conflicts were resolved.
+                  This is the port clients should connect to.
                 type: integer
               online:
-                description: Online status from remote Nginx Proxy Manager instance
+                description: |-
+                  Online reflects the stream's operational status in NPM.
+                  True indicates the stream is active and forwarding traffic.
+                  False may indicate configuration errors or port conflicts.
                 enum:
                 - true
                 - false

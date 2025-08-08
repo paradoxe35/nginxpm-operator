@@ -47,17 +47,25 @@ spec:
             description: TokenSpec defines the desired state of Token
             properties:
               endpoint:
-                description: Endpoint of a Nginx Proxy manager instance
+                description: |-
+                  Endpoint is the base URL of the Nginx Proxy Manager instance.
+                  Format: "http(s)://hostname:port" (e.g., "https://npm.example.com:81").
+                  This is where the operator will send API requests.
                 maxLength: 255
                 minLength: 1
                 pattern: ^(https?):\/\/([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(:[0-9]{1,5})?$
                 type: string
               secret:
-                description: Secret resource reference to add to the token cr
+                description: |-
+                  Secret references the Kubernetes Secret containing authentication credentials.
+                  The Secret must include "identity" and "secret" data fields.
+                  These credentials are used to obtain and refresh NPM API tokens.
                 properties:
                   secretName:
-                    description: SecretName is the name of the secret resource to
-                      add to the token cr
+                    description: |-
+                      SecretName references the Kubernetes Secret containing NPM credentials.
+                      The Secret must contain "identity" and "secret" fields.
+                      These credentials are used to authenticate with the NPM API.
                     maxLength: 255
                     minLength: 1
                     type: string
@@ -73,8 +81,9 @@ spec:
             properties:
               conditions:
                 description: |-
-                  Represents the observations of a Token's current state.
-                  For further information see: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
+                  Conditions represent the current state of the Token resource.
+                  Common condition types include "Ready", "Authenticated", and "TokenExpiring".
+                  The "Ready" condition indicates if the token is valid and usable for API calls.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -131,13 +140,17 @@ spec:
                   type: object
                 type: array
               expires:
-                description: Expiration time of the token, value is generated from
-                  controller reconcile
+                description: |-
+                  Expires indicates when the current JWT token will expire.
+                  The operator automatically refreshes tokens before expiration.
+                  Format: Kubernetes metav1.Time (RFC3339).
                 format: date-time
                 type: string
               token:
-                description: Authentication Token, this is generated from controller
-                  reconcile
+                description: |-
+                  Token contains the JWT authentication token from Nginx Proxy Manager.
+                  This token is automatically generated and refreshed by the operator.
+                  Used internally for API authentication - do not modify manually.
                 type: string
             type: object
         type: object

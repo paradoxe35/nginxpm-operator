@@ -58,21 +58,25 @@ spec:
             description: AccessListSpec defines the desired state of AccessList.
             properties:
               authorizations:
-                description: Basic Authorization via Nginx HTTP Basic Authentication
-                  (https://nginx.org/en/docs/http/ngx_http_auth_basic_module.html)
+                description: |-
+                  Authorizations defines the list of username/password pairs for HTTP Basic Authentication.
+                  These credentials will be required to access resources protected by this AccessList.
+                  Based on Nginx HTTP Basic Authentication module.
                 items:
                   properties:
                     password:
                       description: |-
-                        Password to be used for authentication with the access list service.
-                        Must be between 1 and 255 characters.
+                        Password defines the authentication password for HTTP Basic Authentication.
+                        This password will be paired with the username for authentication.
+                        Must be between 1 and 255 characters in length.
                       maxLength: 255
                       minLength: 1
                       type: string
                     username:
                       description: |-
-                        Username to be used for authentication with the access list service.
-                        Must be between 1 and 255 characters.
+                        Username defines the authentication username for HTTP Basic Authentication.
+                        This username will be required when accessing the protected resources.
+                        Must be between 1 and 255 characters in length.
                       maxLength: 255
                       minLength: 1
                       type: string
@@ -82,16 +86,24 @@ spec:
                   type: object
                 type: array
               clients:
-                description: IP Address Whitelist/Blacklist via Nginx HTTP Access
-                  (https://nginx.org/en/docs/http/ngx_http_access_module.html)
+                description: |-
+                  Clients defines IP-based access control rules using allow/deny directives.
+                  Each entry specifies an IP address or subnet with an associated action.
+                  Rules are evaluated in order. Based on Nginx HTTP Access module.
                 items:
                   properties:
                     address:
-                      description: Address (IPv4 IP/SUBNET) for authentication use
+                      description: |-
+                        Address specifies the IPv4 address or CIDR subnet for IP-based access control.
+                        Format: Single IP (e.g., "192.168.1.1") or CIDR notation (e.g., "192.168.0.0/24").
+                        Used in conjunction with the Directive field to allow or deny access.
                       pattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))?$
                       type: string
                     directive:
-                      description: Directive for Authentication Use
+                      description: |-
+                        Directive determines the access control action for the specified address.
+                        "allow" permits access from the address, "deny" blocks access from the address.
+                        Used with Address field to implement IP-based access control.
                       enum:
                       - allow
                       - deny
@@ -101,51 +113,58 @@ spec:
                   - directive
                   type: object
                 type: array
-              name:
-                description: Access list name that will be displayed from remote  Nginx
-                  Proxy Manager instance
-                maxLength: 255
-                minLength: 1
-                type: string
               passAuth:
-                description: Authorization to host should only be enabled if the host
-                  has basic authentication enabled.
+                description: |-
+                  PassAuth determines whether to pass authentication headers to the upstream server.
+                  When true: Basic Auth credentials are forwarded to the proxied server.
+                  When false: Authentication is handled only by Nginx, credentials are not forwarded.
+                  Enable this only if the upstream service also requires the authentication headers.
                 enum:
                 - true
                 - false
                 type: boolean
               satisfyAny:
-                description: If set true, allow access if at least one condition is
-                  met when multiple authentication or access control methods are defined.
+                description: |-
+                  SatisfyAny controls how multiple access control methods are evaluated.
+                  When true: Access is granted if ANY condition is met (logical OR).
+                  When false: Access requires ALL conditions to be met (logical AND).
+                  This applies when both IP restrictions and Basic Auth are configured.
                 enum:
                 - true
                 - false
                 type: boolean
               token:
-                description: Token resource, if not provided, the operator will try
-                  to find a token with `token-nginxpm` name in the same namespace
-                  as the proxyhost is created or in the `nginxpm-operator-system`
-                  namespace or in the `default` namespace
+                description: |-
+                  Token references the authentication token for the Nginx Proxy Manager API.
+                  If not provided, the operator will search for a token named "token-nginxpm" in:
+                  1. The same namespace as this AccessList
+                  2. The "nginxpm-operator-system" namespace
+                  3. The "default" namespace
                 properties:
                   name:
-                    description: Name of the token resource
+                    description: |-
+                      Name specifies the Token resource to reference.
+                      Used by other resources to authenticate with Nginx Proxy Manager.
                     type: string
                   namespace:
-                    description: Namespace of the token resource
+                    description: |-
+                      Namespace of the Token resource.
+                      If not specified, uses the same namespace as the referencing resource.
+                      Must follow Kubernetes namespace naming conventions.
                     pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                     type: string
                 required:
                 - name
                 type: object
-            required:
-            - name
             type: object
           status:
             description: AccessListStatus defines the observed state of AccessList.
             properties:
               conditions:
-                description: Represents the observations of a AccessListStatus's current
-                  state.
+                description: |-
+                  Conditions represent the current state of the AccessList resource.
+                  Common condition types include "Ready", "Synced", and "Error".
+                  The "Ready" condition indicates if the AccessList is successfully configured in NPM.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -202,10 +221,14 @@ spec:
                   type: object
                 type: array
               id:
-                description: AccessList ID from remote  Nginx Proxy Manager instance
+                description: |-
+                  Id represents the unique identifier assigned by the Nginx Proxy Manager instance.
+                  This field is populated after successful creation/synchronization with NPM.
                 type: integer
               proxyHostCount:
-                description: Number of proxy hosts associated with this AccessList
+                description: |-
+                  ProxyHostCount indicates the number of ProxyHost resources currently using this AccessList.
+                  This helps track AccessList usage and prevent accidental deletion of in-use lists.
                 type: integer
             type: object
         type: object
@@ -265,13 +288,20 @@ spec:
             description: CustomCertificateSpec defines the desired state of CustomCertificate
             properties:
               certificate:
-                description: Certificate credential secret name
+                description: |-
+                  Certificate references the Kubernetes Secret containing the SSL/TLS certificate data.
+                  The Secret must include both the certificate chain and the private key.
+                  This certificate will be uploaded to Nginx Proxy Manager for use with proxy hosts.
                 properties:
                   secret:
-                    description: Secret resource holds certificate values
+                    description: |-
+                      Secret references the Kubernetes Secret containing the SSL/TLS certificate.
+                      The referenced Secret should contain the certificate chain and private key.
                     properties:
                       name:
-                        description: Name of the secret resource
+                        description: |-
+                          Name specifies the Kubernetes Secret containing the certificate data.
+                          The Secret must contain the certificate and private key fields.
                         type: string
                     required:
                     - name
@@ -280,21 +310,30 @@ spec:
                 - secret
                 type: object
               niceName:
-                description: NiceName of the CustomCertificate (If not provided, the
-                  resource name will be used)
+                description: |-
+                  NiceName provides a human-readable display name for the certificate.
+                  If not specified, the CustomCertificate resource name will be used.
+                  This name appears in the Nginx Proxy Manager UI for easier identification.
                 maxLength: 64
                 type: string
               token:
-                description: Token resource, if not provided, the operator will try
-                  to find a token with `token-nginxpm` name in the same namespace
-                  as the proxyhost is created or in the `nginxpm-operator-system`
-                  namespace or in the `default` namespace
+                description: |-
+                  Token references the authentication token for the Nginx Proxy Manager API.
+                  If not provided, the operator will search for a token named "token-nginxpm" in:
+                  1. The same namespace as this CustomCertificate
+                  2. The "nginxpm-operator-system" namespace
+                  3. The "default" namespace
                 properties:
                   name:
-                    description: Name of the token resource
+                    description: |-
+                      Name specifies the Token resource to reference.
+                      Used by other resources to authenticate with Nginx Proxy Manager.
                     type: string
                   namespace:
-                    description: Namespace of the token resource
+                    description: |-
+                      Namespace of the Token resource.
+                      If not specified, uses the same namespace as the referencing resource.
+                      Must follow Kubernetes namespace naming conventions.
                     pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                     type: string
                 required:
@@ -307,8 +346,10 @@ spec:
             description: CustomCertificateStatus defines the observed state of CustomCertificate
             properties:
               conditions:
-                description: Represents the observations of a CustomCertificateStatus's
-                  current state.
+                description: |-
+                  Conditions represent the current state of the CustomCertificate resource.
+                  Common condition types include "Ready", "Valid", and "Synced".
+                  The "Ready" condition indicates if the certificate is successfully configured in NPM.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -365,14 +406,21 @@ spec:
                   type: object
                 type: array
               expiresOn:
-                description: Expiration time of the certificate
+                description: |-
+                  ExpiresOn indicates when the SSL/TLS certificate will expire.
+                  Format: ISO 8601 date-time string.
+                  This value is extracted from the certificate and updated during synchronization.
                 type: string
               id:
-                description: CustomCertificateStatus ID from remote  Nginx Proxy Manager
-                  instance
+                description: |-
+                  Id represents the unique identifier assigned by the Nginx Proxy Manager instance.
+                  This field is populated after successful certificate upload to NPM.
                 type: integer
               status:
-                description: Status of the certificate
+                description: |-
+                  Status reflects the current state of the certificate in Nginx Proxy Manager.
+                  Common values include "valid", "expired", "expiring_soon".
+                  This field helps monitor certificate health and renewal requirements.
                 type: string
             type: object
         type: object
@@ -436,14 +484,23 @@ spec:
             description: LetsEncryptCertificateSpec defines the desired state of LetsEncryptCertificate
             properties:
               dnsChallenge:
-                description: Use DNS challenge
+                description: |-
+                  DnsChallenge configures DNS-01 challenge for domain validation.
+                  Required for wildcard certificates or when HTTP-01 challenge is not feasible.
+                  When not specified, HTTP-01 challenge is used by default.
                 properties:
                   propagationSeconds:
                     default: 0
-                    description: Propagation seconds
+                    description: |-
+                      PropagationSeconds defines the wait time after DNS record creation before validation.
+                      This allows DNS changes to propagate across name servers.
+                      Default is 0, which uses the provider's default propagation time.
                     type: integer
                   provider:
-                    description: DNS Provider to use
+                    description: |-
+                      Provider specifies the DNS provider for ACME DNS-01 challenge validation.
+                      Supported providers include major DNS services like Cloudflare, Route53, Azure, etc.
+                      The provider determines which credentials are required in the Secret.
                     enum:
                     - acmedns
                     - aliyun
@@ -504,14 +561,20 @@ spec:
                     - websupport
                     type: string
                   providerCredentials:
-                    description: Provider credentials
+                    description: |-
+                      ProviderCredentials references the Secret containing authentication for the DNS provider.
+                      Required fields in the Secret vary by provider (e.g., CF_Token for Cloudflare).
+                      These credentials must have permissions to create DNS TXT records for validation.
                     properties:
                       secret:
-                        description: Secret resource holds dns challenge provider
-                          credentials
+                        description: |-
+                          Secret references the Kubernetes Secret containing DNS challenge provider credentials.
+                          The Secret structure depends on the DNS provider being used (e.g., API keys, tokens).
                         properties:
                           name:
-                            description: Name of the secret resource
+                            description: |-
+                              Name specifies the Kubernetes Secret containing DNS provider credentials.
+                              This Secret must contain the required authentication fields for the DNS provider.
                             type: string
                         required:
                         - name
@@ -525,7 +588,10 @@ spec:
                 - providerCredentials
                 type: object
               domainNames:
-                description: Domain Names to request a certificate for
+                description: |-
+                  DomainNames lists the domain names to include in the Let's Encrypt certificate.
+                  Supports wildcards (e.g., "*.example.com") and multiple domains.
+                  All domains must be under your control for validation to succeed.
                 items:
                   pattern: ^(\*\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$
                   type: string
@@ -533,21 +599,31 @@ spec:
                 minItems: 1
                 type: array
               letsEncryptEmail:
-                description: LetsEncrypt Email address to request a certificate for
+                description: |-
+                  LetsEncryptEmail is the contact email for Let's Encrypt account and notifications.
+                  This email receives important notices about certificate expiration and account issues.
+                  Must be a valid email address format.
                 format: email
                 pattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
                 type: string
               token:
-                description: Token resource, if not provided, the operator will try
-                  to find a token with `token-nginxpm` name in the same namespace
-                  as the proxyhost is created or in the `nginxpm-operator-system`
-                  namespace or in the `default` namespace
+                description: |-
+                  Token references the authentication token for the Nginx Proxy Manager API.
+                  If not provided, the operator will search for a token named "token-nginxpm" in:
+                  1. The same namespace as this LetsEncryptCertificate
+                  2. The "nginxpm-operator-system" namespace
+                  3. The "default" namespace
                 properties:
                   name:
-                    description: Name of the token resource
+                    description: |-
+                      Name specifies the Token resource to reference.
+                      Used by other resources to authenticate with Nginx Proxy Manager.
                     type: string
                   namespace:
-                    description: Namespace of the token resource
+                    description: |-
+                      Namespace of the Token resource.
+                      If not specified, uses the same namespace as the referencing resource.
+                      Must follow Kubernetes namespace naming conventions.
                     pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                     type: string
                 required:
@@ -563,12 +639,16 @@ spec:
             properties:
               bound:
                 default: false
-                description: Whether the LetsEncryptCertificate was bound with an
-                  existing certificate
+                description: |-
+                  Bound indicates if this resource was linked to an existing NPM certificate.
+                  When true, the operator found and adopted an existing certificate with matching domains.
+                  When false, a new certificate was created in NPM.
                 type: boolean
               conditions:
-                description: Represents the observations of a LetsEncryptCertificate's
-                  current state.
+                description: |-
+                  Conditions represent the current state of the LetsEncryptCertificate resource.
+                  Common condition types include "Ready", "Issued", "Renewing", and "ValidationFailed".
+                  The "Ready" condition indicates if the certificate is successfully issued and active.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -626,19 +706,24 @@ spec:
                 type: array
               domainNames:
                 description: |-
-                  Duplicated Domain Names in status, since once the certificate is created for these domain names
-                  the spec.domainNames will never changed
+                  DomainNames contains the actual domains in the issued certificate.
+                  This is preserved in status because the certificate remains valid for these domains
+                  even if spec.domainNames is modified (which would trigger a new certificate).
                 items:
                   type: string
                 maxItems: 10
                 minItems: 1
                 type: array
               expiresOn:
-                description: Expiration time of the certificate
+                description: |-
+                  ExpiresOn indicates when the Let's Encrypt certificate will expire.
+                  Format: ISO 8601 date-time string.
+                  Let's Encrypt certificates are valid for 90 days and should be renewed before expiration.
                 type: string
               id:
-                description: LetsEncryptCertificate ID from remote  Nginx Proxy Manager
-                  instance
+                description: |-
+                  Id represents the unique identifier assigned by the Nginx Proxy Manager instance.
+                  This field is populated after successful certificate creation in NPM.
                 type: integer
             required:
             - domainNames
@@ -706,64 +791,92 @@ spec:
             description: ProxyHostSpec defines the desired state of ProxyHost
             properties:
               accessList:
-                description: AccessList to add to the proxyhost
+                description: |-
+                  AccessList configures authentication and access control for this proxy.
+                  References an AccessList resource defining auth requirements and IP restrictions.
+                  Leave empty for public access without authentication.
                 properties:
                   accessListId:
-                    description: If you know ID of an access list, you can put it
-                      here
+                    description: |-
+                      AccessListId directly references an existing NPM access list by ID.
+                      Takes precedence over Name field.
+                      Use when binding to pre-existing access lists not managed by this operator.
                     type: integer
                   name:
-                    description: The access list resource name
+                    description: |-
+                      Name specifies the AccessList resource to apply to this ProxyHost.
+                      The AccessList defines authentication and IP-based access controls.
+                      Must reference an existing AccessList in the cluster.
                     type: string
                   namespace:
-                    description: Namespace of the access list resource
+                    description: |-
+                      Namespace of the AccessList resource.
+                      If not specified, uses the same namespace as the ProxyHost.
+                      Must follow Kubernetes namespace naming conventions.
                     pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                     type: string
                 type: object
               bindExisting:
                 default: true
-                description: If set to true (the default), it will bind and update
-                  an existing remote proxy host if the domain names match; otherwise,
-                  it will create a new one.
+                description: |-
+                  BindExisting controls the operator's behavior with existing NPM proxy hosts.
+                  When true (default): Updates existing proxy hosts with matching domains.
+                  When false: Always creates new proxy hosts, may cause conflicts.
                 type: boolean
               blockExploits:
                 default: true
-                description: BlockExploits is the flag to enable or disable blocking
-                  exploits, default is true
+                description: |-
+                  BlockExploits enables common exploit protection rules.
+                  Blocks various SQL injection, XSS, and other common web exploits.
+                  Default is true. Only disable if it causes issues with legitimate traffic.
                 type: boolean
               cachingEnabled:
                 default: false
-                description: CachingEnabled is the flag to enable or disable caching,
-                  default is false
+                description: |-
+                  CachingEnabled activates Nginx caching for improved performance.
+                  When true, static content and responses are cached according to cache headers.
+                  Default is false. Enable for better performance with cacheable content.
                 type: boolean
               customLocations:
-                description: CustomLocations is the list of custom locations to add
-                  to the proxyhost
+                description: |-
+                  CustomLocations defines path-specific forwarding rules.
+                  Each location can have different upstream servers and configurations.
+                  Useful for routing different paths to different backend services.
                 items:
                   properties:
                     forward:
-                      description: The Service forward configuration for the custom
-                        location
+                      description: |-
+                        Forward specifies the upstream configuration for this location.
+                        Overrides the default forward configuration for this specific path.
+                        Allows different backends for different URL paths on the same domain.
                       properties:
                         advancedConfig:
-                          description: AdvancedConfig is the advanced configuration
-                            for the proxyhost, at your own risk
+                          description: |-
+                            AdvancedConfig contains raw Nginx configuration directives.
+                            Injected directly into the location block. Use with caution.
+                            May override operator-managed settings. For advanced users only.
                           type: string
                         hosts:
-                          description: List of your forward hosts; if specified, this
-                            will take priority over the service.
+                          description: |-
+                            Hosts defines explicit forwarding targets by hostname/IP and port.
+                            Takes priority over Service field when both are specified.
+                            Use for non-Kubernetes backends or specific host requirements.
                           items:
                             properties:
                               hostName:
-                                description: The host to forward to (This must be
-                                  a valid DNS name or IP address)
+                                description: |-
+                                  HostName specifies the target host for forwarding requests.
+                                  Accepts valid DNS names (e.g., "backend.local") or IP addresses (IPv4/IPv6).
+                                  This host receives the proxied traffic from Nginx.
                                 maxLength: 255
                                 minLength: 1
                                 pattern: ^((([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)\.)*[a-zA-Z]{2,63}|((25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)|(([0-9a-fA-F]{1,4}:){7}([0-9a-fA-F]{1,4}|:))|(::([0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}))$
                                 type: string
                               hostPort:
-                                description: Service Target Port is the port to forward
-                                  to
+                                description: |-
+                                  HostPort specifies the TCP port on the target host.
+                                  Must be a valid port number (1-65535).
+                                  Common values: 80 (HTTP), 443 (HTTPS), 8080 (alternative HTTP).
                                 format: int32
                                 maximum: 65535
                                 minimum: 1
@@ -774,35 +887,48 @@ spec:
                             type: object
                           type: array
                         path:
-                          description: Add a path for sub-folder forwarding
+                          description: |-
+                            Path adds a URL path prefix to forwarded requests.
+                            Example: "/api" forwards "example.com/users" to "backend/api/users".
+                            Must start with "/". Leave empty to forward without path modification.
                           pattern: ^\/([a-zA-Z0-9._~-]+\/?)*$
                           type: string
                         scheme:
-                          description: Scheme is the scheme to use for the forwarding,
-                            (http or https)
+                          description: |-
+                            Scheme defines the protocol for upstream communication.
+                            "http" for unencrypted traffic, "https" for TLS-encrypted traffic.
+                            Choose based on your backend service's configuration.
                           enum:
                           - http
                           - https
                           type: string
                         service:
-                          description: Service resource reference to be forwarded
-                            to
+                          description: |-
+                            Service references a Kubernetes Service as the forwarding target.
+                            Mutually exclusive with Hosts field.
+                            The operator will resolve the Service to its ClusterIP automatically.
                           properties:
                             name:
                               description: |-
-                                Name of the service resource to forward to
-                                IP and port of the service will be used as the forwarding target
-                                Only ClusterIP and LoadBalancer services are supported
+                                Name of the Kubernetes Service to forward requests to.
+                                The Service's ClusterIP and port will be used as the forwarding target.
+                                Supports ClusterIP and LoadBalancer service types.
+                                Service must be accessible from the Nginx Proxy Manager instance.
                               maxLength: 255
                               minLength: 1
                               type: string
                             namespace:
-                              description: Namespace of the service resource to forward
-                                to
+                              description: |-
+                                Namespace of the target Kubernetes Service.
+                                If not specified, uses the same namespace as the ProxyHost.
+                                Must follow Kubernetes namespace naming conventions.
                               pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                               type: string
                             port:
-                              description: Force forwarding to a known service port
+                              description: |-
+                                Port overrides the Service port selection.
+                                If not specified, uses the first port from the Service definition.
+                                Use when the Service exposes multiple ports and you need a specific one.
                               format: int32
                               maximum: 65535
                               minimum: 1
@@ -814,7 +940,10 @@ spec:
                       - scheme
                       type: object
                     locationPath:
-                      description: Define location Location path
+                      description: |-
+                        LocationPath defines the URL path pattern for this custom location.
+                        Must start with "/". Supports exact matches and prefix matches.
+                        Example: "/api" matches all requests starting with "/api".
                       pattern: ^\/([a-zA-Z0-9._~-]+\/?)*$
                       type: string
                   required:
@@ -823,8 +952,10 @@ spec:
                   type: object
                 type: array
               domainNames:
-                description: DomainNames is the list of domain names to add to the
-                  proxyhost
+                description: |-
+                  DomainNames lists the domains this proxy will handle.
+                  Supports standard domains ("example.com") and wildcards ("*.example.com").
+                  All domains must point to the Nginx Proxy Manager instance.
                 items:
                   pattern: ^(\*\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$
                   type: string
@@ -832,27 +963,38 @@ spec:
                 minItems: 1
                 type: array
               forward:
-                description: The Service forward configuration for the proxyhost
+                description: |-
+                  Forward defines the default upstream configuration for all requests.
+                  Specifies where and how to forward incoming traffic.
+                  Can be overridden for specific paths using CustomLocations.
                 properties:
                   advancedConfig:
-                    description: AdvancedConfig is the advanced configuration for
-                      the proxyhost, at your own risk
+                    description: |-
+                      AdvancedConfig contains raw Nginx configuration directives.
+                      Injected directly into the location block. Use with caution.
+                      May override operator-managed settings. For advanced users only.
                     type: string
                   hosts:
-                    description: List of your forward hosts; if specified, this will
-                      take priority over the service.
+                    description: |-
+                      Hosts defines explicit forwarding targets by hostname/IP and port.
+                      Takes priority over Service field when both are specified.
+                      Use for non-Kubernetes backends or specific host requirements.
                     items:
                       properties:
                         hostName:
-                          description: The host to forward to (This must be a valid
-                            DNS name or IP address)
+                          description: |-
+                            HostName specifies the target host for forwarding requests.
+                            Accepts valid DNS names (e.g., "backend.local") or IP addresses (IPv4/IPv6).
+                            This host receives the proxied traffic from Nginx.
                           maxLength: 255
                           minLength: 1
                           pattern: ^((([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)\.)*[a-zA-Z]{2,63}|((25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)|(([0-9a-fA-F]{1,4}:){7}([0-9a-fA-F]{1,4}|:))|(::([0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}))$
                           type: string
                         hostPort:
-                          description: Service Target Port is the port to forward
-                            to
+                          description: |-
+                            HostPort specifies the TCP port on the target host.
+                            Must be a valid port number (1-65535).
+                            Common values: 80 (HTTP), 443 (HTTPS), 8080 (alternative HTTP).
                           format: int32
                           maximum: 65535
                           minimum: 1
@@ -863,34 +1005,48 @@ spec:
                       type: object
                     type: array
                   path:
-                    description: Add a path for sub-folder forwarding
+                    description: |-
+                      Path adds a URL path prefix to forwarded requests.
+                      Example: "/api" forwards "example.com/users" to "backend/api/users".
+                      Must start with "/". Leave empty to forward without path modification.
                     pattern: ^\/([a-zA-Z0-9._~-]+\/?)*$
                     type: string
                   scheme:
-                    description: Scheme is the scheme to use for the forwarding, (http
-                      or https)
+                    description: |-
+                      Scheme defines the protocol for upstream communication.
+                      "http" for unencrypted traffic, "https" for TLS-encrypted traffic.
+                      Choose based on your backend service's configuration.
                     enum:
                     - http
                     - https
                     type: string
                   service:
-                    description: Service resource reference to be forwarded to
+                    description: |-
+                      Service references a Kubernetes Service as the forwarding target.
+                      Mutually exclusive with Hosts field.
+                      The operator will resolve the Service to its ClusterIP automatically.
                     properties:
                       name:
                         description: |-
-                          Name of the service resource to forward to
-                          IP and port of the service will be used as the forwarding target
-                          Only ClusterIP and LoadBalancer services are supported
+                          Name of the Kubernetes Service to forward requests to.
+                          The Service's ClusterIP and port will be used as the forwarding target.
+                          Supports ClusterIP and LoadBalancer service types.
+                          Service must be accessible from the Nginx Proxy Manager instance.
                         maxLength: 255
                         minLength: 1
                         type: string
                       namespace:
-                        description: Namespace of the service resource to forward
-                          to
+                        description: |-
+                          Namespace of the target Kubernetes Service.
+                          If not specified, uses the same namespace as the ProxyHost.
+                          Must follow Kubernetes namespace naming conventions.
                         pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                         type: string
                       port:
-                        description: Force forwarding to a known service port
+                        description: |-
+                          Port overrides the Service port selection.
+                          If not specified, uses the first port from the Service definition.
+                          Use when the Service exposes multiple ports and you need a specific one.
                         format: int32
                         maximum: 65535
                         minimum: 1
@@ -902,28 +1058,40 @@ spec:
                 - scheme
                 type: object
               ssl:
-                description: Ssl configuration for the proxyhost, default is autoCertificateRequest:true
+                description: |-
+                  Ssl configures SSL/TLS settings for this proxy host.
+                  Controls certificate management, HTTPS redirection, and security headers.
+                  If not specified, defaults to automatic Let's Encrypt certificate.
                 properties:
                   autoCertificateRequest:
                     default: false
-                    description: When true, will request a certificate from Let's
-                      Encrypt automatically
+                    description: |-
+                      AutoCertificateRequest enables automatic Let's Encrypt certificate provisioning.
+                      When true, NPM will automatically request and manage certificates for the domains.
+                      Requires valid domain ownership and accessibility for HTTP-01 challenge.
                     type: boolean
                   certificateId:
                     description: |-
-                      Bind existing certificate id to the stream
-                      CustomCertificate has priority over LetsencryptCertificate and  CustomCertificate
+                      CertificateId directly references an existing certificate ID in NPM.
+                      Highest priority - overrides all other certificate configurations.
+                      Use when binding to pre-existing NPM certificates not managed by this operator.
                     type: integer
                   customCertificate:
                     description: |-
-                      Custom Certificate name managed by the customCertificate resource
-                      CustomCertificate has priority over LetsencryptCertificate
+                      CustomCertificate references a managed custom SSL/TLS certificate resource.
+                      Takes highest precedence - overrides both LetsEncryptCertificate and AutoCertificateRequest.
+                      Use for certificates from commercial CAs or self-signed certificates.
                     properties:
                       name:
-                        description: Name of the custom certificate resource
+                        description: |-
+                          Name specifies the CustomCertificate resource to use for SSL/TLS.
+                          The referenced CustomCertificate must exist and contain valid certificate data.
                         type: string
                       namespace:
-                        description: Namespace of the custom certificate resource
+                        description: |-
+                          Namespace of the CustomCertificate resource.
+                          If not specified, uses the same namespace as the ProxyHost.
+                          Must follow Kubernetes namespace naming conventions.
                         pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                         type: string
                     required:
@@ -931,52 +1099,79 @@ spec:
                     type: object
                   hstsEnabled:
                     default: false
-                    description: Enable HSTS, default is false
+                    description: |-
+                      HstsEnabled activates HTTP Strict Transport Security headers.
+                      HSTS forces browsers to use HTTPS and prevents protocol downgrade attacks.
+                      Default is false. Enable for enhanced security on production sites.
                     type: boolean
                   hstsSubdomains:
                     default: false
-                    description: Enable HSTS subdomains, default is false
+                    description: |-
+                      HstsSubdomains extends HSTS policy to all subdomains.
+                      When true, includeSubDomains directive is added to HSTS header.
+                      Only effective when HstsEnabled is true. Use with caution on shared domains.
                     type: boolean
                   http2Support:
                     default: true
-                    description: Enable http2 support, default is true
+                    description: |-
+                      Http2Support enables HTTP/2 protocol support for improved performance.
+                      HTTP/2 provides multiplexing, server push, and header compression.
+                      Default is true. Disable only if clients have compatibility issues.
                     type: boolean
                   letsEncryptCertificate:
-                    description: Letsencrypt Certificate name managed by the letsencryptCertificate
-                      resource
+                    description: |-
+                      LetsEncryptCertificate references a managed Let's Encrypt certificate resource.
+                      Takes precedence over AutoCertificateRequest when specified.
+                      The certificate must be valid for all domains in this ProxyHost.
                     properties:
                       name:
-                        description: Name of the letsencrypt certificate resource
+                        description: |-
+                          Name specifies the LetsEncryptCertificate resource to use for SSL/TLS.
+                          The referenced certificate must exist and be valid for the proxy domains.
                         type: string
                       namespace:
-                        description: Namespace of the letsencrypt certificate resource
+                        description: |-
+                          Namespace of the LetsEncryptCertificate resource.
+                          If not specified, uses the same namespace as the ProxyHost.
+                          Must follow Kubernetes namespace naming conventions.
                         pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                         type: string
                     required:
                     - name
                     type: object
                   letsEncryptEmail:
-                    description: LetsEncrypt Email address to request a certificate
-                      for
+                    description: |-
+                      LetsEncryptEmail is the contact email for Let's Encrypt notifications.
+                      Required when AutoCertificateRequest is true.
+                      Receives certificate expiration and account-related notifications.
                     pattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
                     type: string
                   sslForced:
                     default: true
-                    description: Force SSL https, redirect http to https. default
-                      is true
+                    description: |-
+                      SslForced enables automatic HTTP to HTTPS redirection.
+                      When true (default), all HTTP requests are redirected to HTTPS.
+                      Set to false to allow both HTTP and HTTPS access.
                     type: boolean
                 type: object
               token:
-                description: Token resource, if not provided, the operator will try
-                  to find a token with `token-nginxpm` name in the same namespace
-                  as the proxyhost is created or in the `nginxpm-operator-system`
-                  namespace or in the `default` namespace
+                description: |-
+                  Token references the authentication token for the Nginx Proxy Manager API.
+                  If not provided, the operator will search for a token named "token-nginxpm" in:
+                  1. The same namespace as this ProxyHost
+                  2. The "nginxpm-operator-system" namespace
+                  3. The "default" namespace
                 properties:
                   name:
-                    description: Name of the token resource
+                    description: |-
+                      Name specifies the Token resource to reference.
+                      Used by other resources to authenticate with Nginx Proxy Manager.
                     type: string
                   namespace:
-                    description: Namespace of the token resource
+                    description: |-
+                      Namespace of the Token resource.
+                      If not specified, uses the same namespace as the referencing resource.
+                      Must follow Kubernetes namespace naming conventions.
                     pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                     type: string
                 required:
@@ -984,8 +1179,10 @@ spec:
                 type: object
               websocketSupport:
                 default: true
-                description: WebsocketSupport is the flag to enable or disable websocket
-                  support, default is true
+                description: |-
+                  WebsocketSupport enables WebSocket protocol proxying.
+                  Required for real-time applications using WebSocket connections.
+                  Default is true. Disable only if WebSocket is not needed.
                 type: boolean
             required:
             - domainNames
@@ -996,11 +1193,16 @@ spec:
             properties:
               bound:
                 default: false
-                description: Whether the ProxyHost was bound with an existing proxyhost
+                description: |-
+                  Bound indicates if this resource was linked to an existing NPM proxy host.
+                  When true, the operator found and adopted an existing proxy with matching domains.
+                  When false, a new proxy host was created in NPM.
                 type: boolean
               certificateId:
-                description: ProxyHost certificate ID from remote  Nginx Proxy Manager
-                  instance
+                description: |-
+                  CertificateId indicates the SSL certificate ID currently used by this proxy.
+                  References the certificate in NPM that handles HTTPS for this proxy.
+                  Updated when certificates are changed or renewed.
                 type: integer
               conditions:
                 items:
@@ -1059,10 +1261,15 @@ spec:
                   type: object
                 type: array
               id:
-                description: ProxyHost ID from remote  Nginx Proxy Manager instance
+                description: |-
+                  Id represents the unique identifier assigned by the Nginx Proxy Manager instance.
+                  This field is populated after successful creation/synchronization with NPM.
                 type: integer
               online:
-                description: Online status from remote Nginx Proxy Manager instance
+                description: |-
+                  Online reflects the proxy host's operational status in NPM.
+                  True indicates the proxy is active and serving traffic.
+                  False may indicate configuration errors or NPM issues.
                 enum:
                 - true
                 - false
@@ -1134,23 +1341,32 @@ spec:
             description: StreamSpec defines the desired state of Stream.
             properties:
               forward:
-                description: Stream forward configuration
+                description: |-
+                  Forward defines the upstream configuration for this stream.
+                  Specifies protocol support (TCP/UDP) and target hosts or services.
+                  At least one protocol (TCP or UDP) must be enabled.
                 properties:
                   hosts:
-                    description: List of your forward hosts; if specified, this will
-                      take priority over the service.
+                    description: |-
+                      Hosts defines explicit forwarding targets by hostname/IP and port.
+                      Takes priority over Service field when both are specified.
+                      Use for non-Kubernetes backends or load balancing across multiple hosts.
                     items:
                       properties:
                         hostName:
-                          description: The host to forward to (This must be a valid
-                            DNS name or IP address)
+                          description: |-
+                            HostName specifies the target host for forwarding requests.
+                            Accepts valid DNS names (e.g., "backend.local") or IP addresses (IPv4/IPv6).
+                            This host receives the proxied traffic from Nginx.
                           maxLength: 255
                           minLength: 1
                           pattern: ^((([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)\.)*[a-zA-Z]{2,63}|((25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)|(([0-9a-fA-F]{1,4}:){7}([0-9a-fA-F]{1,4}|:))|(::([0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}))$
                           type: string
                         hostPort:
-                          description: Service Target Port is the port to forward
-                            to
+                          description: |-
+                            HostPort specifies the TCP port on the target host.
+                            Must be a valid port number (1-65535).
+                            Common values: 80 (HTTP), 443 (HTTPS), 8080 (alternative HTTP).
                           format: int32
                           maximum: 65535
                           minimum: 1
@@ -1161,23 +1377,32 @@ spec:
                       type: object
                     type: array
                   service:
-                    description: Service resource reference to be forwarded to
+                    description: |-
+                      Service references a Kubernetes Service as the forwarding target.
+                      The Service's ClusterIP and port will be used for stream forwarding.
+                      Mutually exclusive with Hosts field.
                     properties:
                       name:
                         description: |-
-                          Name of the service resource to forward to
-                          IP and port of the service will be used as the forwarding target
-                          Only ClusterIP and LoadBalancer services are supported
+                          Name of the Kubernetes Service to forward requests to.
+                          The Service's ClusterIP and port will be used as the forwarding target.
+                          Supports ClusterIP and LoadBalancer service types.
+                          Service must be accessible from the Nginx Proxy Manager instance.
                         maxLength: 255
                         minLength: 1
                         type: string
                       namespace:
-                        description: Namespace of the service resource to forward
-                          to
+                        description: |-
+                          Namespace of the target Kubernetes Service.
+                          If not specified, uses the same namespace as the ProxyHost.
+                          Must follow Kubernetes namespace naming conventions.
                         pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                         type: string
                       port:
-                        description: Force forwarding to a known service port
+                        description: |-
+                          Port overrides the Service port selection.
+                          If not specified, uses the first port from the Service definition.
+                          Use when the Service exposes multiple ports and you need a specific one.
                         format: int32
                         maximum: 65535
                         minimum: 1
@@ -1186,62 +1411,90 @@ spec:
                     - name
                     type: object
                   tcpForwarding:
-                    description: Has TCP Forwarding
+                    description: |-
+                      TCPForwarding enables TCP protocol forwarding for this stream.
+                      When true, TCP traffic on the incoming port is forwarded to the target.
+                      Default is true. Set to false if only UDP forwarding is needed.
                     enum:
                     - true
                     - false
                     type: boolean
                   udpForwarding:
-                    description: Has UDP Forwarding
+                    description: |-
+                      UDPForwarding enables UDP protocol forwarding for this stream.
+                      When true, UDP traffic on the incoming port is forwarded to the target.
+                      Default is true. Set to false if only TCP forwarding is needed.
                     enum:
                     - true
                     - false
                     type: boolean
                 type: object
               incomingPort:
-                description: Incoming Port
+                description: |-
+                  IncomingPort defines the port where the stream will listen for connections.
+                  Must be available and not in use by other services.
+                  Common ranges: 1024-65535 for non-privileged ports.
                 maximum: 65535
                 minimum: 1
                 type: integer
               overwriteIncomingPortWithForwardPort:
-                description: If True the incoming port will be overwritten with the
-                  forward port
+                description: |-
+                  OverwriteIncomingPortWithForwardPort allows automatic port matching.
+                  When true, the incoming port is set to match the forwarding port.
+                  Useful for transparent proxying where ports should remain the same.
                 enum:
                 - true
                 - false
                 type: boolean
               ssl:
-                description: Ssl configuration for the stream
+                description: |-
+                  Ssl configures TLS/SSL termination for this stream.
+                  Enables encrypted connections for TCP streams (not applicable to UDP).
+                  Leave empty for unencrypted stream forwarding.
                 properties:
                   certificateId:
                     description: |-
-                      Bind existing certificate id to the stream
-                      CustomCertificate has priority over LetsencryptCertificate and  CustomCertificate
+                      CertificateId directly references an existing certificate ID in NPM.
+                      Highest priority - overrides both CustomCertificate and LetsEncryptCertificate.
+                      Use when binding to pre-existing NPM certificates not managed by this operator.
                     type: integer
                   customCertificate:
                     description: |-
-                      Custom Certificate name managed by the customCertificate resource
-                      CustomCertificate has priority over LetsencryptCertificate
+                      CustomCertificate references a managed custom SSL/TLS certificate resource.
+                      Takes priority over LetsEncryptCertificate when both are specified.
+                      Use for certificates from commercial CAs or self-signed certificates.
                     properties:
                       name:
-                        description: Name of the custom certificate resource
+                        description: |-
+                          Name specifies the CustomCertificate resource to use for SSL/TLS.
+                          The referenced CustomCertificate must exist and contain valid certificate data.
                         type: string
                       namespace:
-                        description: Namespace of the custom certificate resource
+                        description: |-
+                          Namespace of the CustomCertificate resource.
+                          If not specified, uses the same namespace as the ProxyHost.
+                          Must follow Kubernetes namespace naming conventions.
                         pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                         type: string
                     required:
                     - name
                     type: object
                   letsEncryptCertificate:
-                    description: Letsencrypt Certificate name managed by the letsencryptCertificate
-                      resource
+                    description: |-
+                      LetsEncryptCertificate references a managed Let's Encrypt certificate resource.
+                      Enables TLS/SSL for the stream using Let's Encrypt certificates.
+                      The certificate must be valid for stream usage (not just HTTP/HTTPS).
                     properties:
                       name:
-                        description: Name of the letsencrypt certificate resource
+                        description: |-
+                          Name specifies the LetsEncryptCertificate resource to use for SSL/TLS.
+                          The referenced certificate must exist and be valid for the proxy domains.
                         type: string
                       namespace:
-                        description: Namespace of the letsencrypt certificate resource
+                        description: |-
+                          Namespace of the LetsEncryptCertificate resource.
+                          If not specified, uses the same namespace as the ProxyHost.
+                          Must follow Kubernetes namespace naming conventions.
                         pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                         type: string
                     required:
@@ -1249,16 +1502,23 @@ spec:
                     type: object
                 type: object
               token:
-                description: Token resource, if not provided, the operator will try
-                  to find a token with `token-nginxpm` name in the same namespace
-                  as the proxyhost is created or in the `nginxpm-operator-system`
-                  namespace or in the `default` namespace
+                description: |-
+                  Token references the authentication token for the Nginx Proxy Manager API.
+                  If not provided, the operator will search for a token named "token-nginxpm" in:
+                  1. The same namespace as this Stream
+                  2. The "nginxpm-operator-system" namespace
+                  3. The "default" namespace
                 properties:
                   name:
-                    description: Name of the token resource
+                    description: |-
+                      Name specifies the Token resource to reference.
+                      Used by other resources to authenticate with Nginx Proxy Manager.
                     type: string
                   namespace:
-                    description: Namespace of the token resource
+                    description: |-
+                      Namespace of the Token resource.
+                      If not specified, uses the same namespace as the referencing resource.
+                      Must follow Kubernetes namespace naming conventions.
                     pattern: ^[a-z]([-a-z0-9]*[a-z0-9])?$
                     type: string
                 required:
@@ -1272,7 +1532,10 @@ spec:
             description: StreamStatus defines the observed state of Stream.
             properties:
               conditions:
-                description: Represents the observations of a Stream's current state.
+                description: |-
+                  Conditions represent the current state of the Stream resource.
+                  Common condition types include "Ready", "PortAvailable", and "Synced".
+                  The "Ready" condition indicates if the stream is successfully configured and active.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -1329,16 +1592,27 @@ spec:
                   type: object
                 type: array
               forwardingPort:
-                description: Forwarding port
+                description: |-
+                  ForwardingPort shows the target port being forwarded to.
+                  Reflects the actual upstream port configuration in NPM.
+                  Useful for debugging connection issues.
                 type: integer
               id:
-                description: Stream ID from remote Nginx Proxy Manager instance
+                description: |-
+                  Id represents the unique identifier assigned by the Nginx Proxy Manager instance.
+                  This field is populated after successful stream creation in NPM.
                 type: integer
               incomingPort:
-                description: Incoming port
+                description: |-
+                  IncomingPort shows the actual listening port configured in NPM.
+                  May differ from spec if port conflicts were resolved.
+                  This is the port clients should connect to.
                 type: integer
               online:
-                description: Online status from remote Nginx Proxy Manager instance
+                description: |-
+                  Online reflects the stream's operational status in NPM.
+                  True indicates the stream is active and forwarding traffic.
+                  False may indicate configuration errors or port conflicts.
                 enum:
                 - true
                 - false
@@ -1398,17 +1672,25 @@ spec:
             description: TokenSpec defines the desired state of Token
             properties:
               endpoint:
-                description: Endpoint of a Nginx Proxy manager instance
+                description: |-
+                  Endpoint is the base URL of the Nginx Proxy Manager instance.
+                  Format: "http(s)://hostname:port" (e.g., "https://npm.example.com:81").
+                  This is where the operator will send API requests.
                 maxLength: 255
                 minLength: 1
                 pattern: ^(https?):\/\/([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(:[0-9]{1,5})?$
                 type: string
               secret:
-                description: Secret resource reference to add to the token cr
+                description: |-
+                  Secret references the Kubernetes Secret containing authentication credentials.
+                  The Secret must include "identity" and "secret" data fields.
+                  These credentials are used to obtain and refresh NPM API tokens.
                 properties:
                   secretName:
-                    description: SecretName is the name of the secret resource to
-                      add to the token cr
+                    description: |-
+                      SecretName references the Kubernetes Secret containing NPM credentials.
+                      The Secret must contain "identity" and "secret" fields.
+                      These credentials are used to authenticate with the NPM API.
                     maxLength: 255
                     minLength: 1
                     type: string
@@ -1424,8 +1706,9 @@ spec:
             properties:
               conditions:
                 description: |-
-                  Represents the observations of a Token's current state.
-                  For further information see: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
+                  Conditions represent the current state of the Token resource.
+                  Common condition types include "Ready", "Authenticated", and "TokenExpiring".
+                  The "Ready" condition indicates if the token is valid and usable for API calls.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -1482,13 +1765,17 @@ spec:
                   type: object
                 type: array
               expires:
-                description: Expiration time of the token, value is generated from
-                  controller reconcile
+                description: |-
+                  Expires indicates when the current JWT token will expire.
+                  The operator automatically refreshes tokens before expiration.
+                  Format: Kubernetes metav1.Time (RFC3339).
                 format: date-time
                 type: string
               token:
-                description: Authentication Token, this is generated from controller
-                  reconcile
+                description: |-
+                  Token contains the JWT authentication token from Nginx Proxy Manager.
+                  This token is automatically generated and refreshed by the operator.
+                  Used internally for API authentication - do not modify manually.
                 type: string
             type: object
         type: object
@@ -2096,7 +2383,7 @@ spec:
         - --health-probe-bind-address=:8081
         command:
         - /manager
-        image: ghcr.io/paradoxe35/nginxpm-operator:latest
+        image: ghcr.io/paradoxe35/nginxpm-operator:v0.1.2
         livenessProbe:
           httpGet:
             path: /healthz
