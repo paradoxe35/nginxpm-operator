@@ -219,10 +219,10 @@ spec:
               domainNames:
                 description: |-
                   DomainNames lists the domains this proxy will handle.
-                  Supports standard domains ("example.com"), wildcards ("*.example.com"), and ports (e.g., "example.com:8080").
+                  Supports standard domains ("example.com") and wildcards ("*.example.com").
                   All domains must point to the Nginx Proxy Manager instance.
                 items:
-                  pattern: ^(\*\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}(:[0-9]{1,5})?$
+                  pattern: ^(\*\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$
                   type: string
                 maxItems: 10
                 minItems: 1

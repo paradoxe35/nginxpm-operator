@@ -672,7 +672,7 @@ func (in *ProxyHostSpec) DeepCopyInto(out *ProxyHostSpec) {
 	}
 	if in.DomainNames != nil {
 		in, out := &in.DomainNames, &out.DomainNames
-		*out = make([]DomainNameWithPort, len(*in))
+		*out = make([]DomainName, len(*in))
 		copy(*out, *in)
 	}
 	if in.AccessList != nil {

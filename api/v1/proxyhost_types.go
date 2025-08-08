@@ -309,14 +309,14 @@ type ProxyHostSpec struct {
 	Token *TokenName `json:"token,omitempty"`
 
 	// DomainNames lists the domains this proxy will handle.
-	// Supports standard domains ("example.com"), wildcards ("*.example.com"), and ports (e.g., "example.com:8080").
+	// Supports standard domains ("example.com") and wildcards ("*.example.com").
 	// All domains must point to the Nginx Proxy Manager instance.
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=10
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=array
 	// +required
-	DomainNames []DomainNameWithPort `json:"domainNames,omitempty"`
+	DomainNames []DomainName `json:"domainNames,omitempty"`
 
 	// BindExisting controls the operator's behavior with existing NPM proxy hosts.
 	// When true (default): Updates existing proxy hosts with matching domains.
