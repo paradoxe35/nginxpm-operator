@@ -21,7 +21,8 @@ import (
 )
 
 type CustomCertificateCredentialsSecret struct {
-	// Name of the secret resource
+	// Name specifies the Kubernetes Secret containing the certificate data.
+	// The Secret must contain the certificate and private key fields.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +required
@@ -29,7 +30,8 @@ type CustomCertificateCredentialsSecret struct {
 }
 
 type CustomCertificateCredentials struct {
-	// Secret resource holds certificate values
+	// Secret references the Kubernetes Secret containing the SSL/TLS certificate.
+	// The referenced Secret should contain the certificate chain and private key.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=object
 	// +required
@@ -41,20 +43,28 @@ type CustomCertificateSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Token resource, if not provided, the operator will try to find a token with `token-nginxpm` name in the same namespace as the proxyhost is created or in the `nginxpm-operator-system` namespace or in the `default` namespace
+	// Token references the authentication token for the Nginx Proxy Manager API.
+	// If not provided, the operator will search for a token named "token-nginxpm" in:
+	// 1. The same namespace as this CustomCertificate
+	// 2. The "nginxpm-operator-system" namespace
+	// 3. The "default" namespace
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +Optional
 	Token *TokenName `json:"token,omitempty"`
 
-	// NiceName of the CustomCertificate (If not provided, the resource name will be used)
+	// NiceName provides a human-readable display name for the certificate.
+	// If not specified, the CustomCertificate resource name will be used.
+	// This name appears in the Nginx Proxy Manager UI for easier identification.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MaxLength=64
 	// +kubebuilder:validation:Type=string
 	// +Optional
 	NiceName *string `json:"niceName,omitempty"`
 
-	// Certificate credential secret name
+	// Certificate references the Kubernetes Secret containing the SSL/TLS certificate data.
+	// The Secret must include both the certificate chain and the private key.
+	// This certificate will be uploaded to Nginx Proxy Manager for use with proxy hosts.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=object
 	// +required
@@ -65,18 +75,25 @@ type CustomCertificateSpec struct {
 type CustomCertificateStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// CustomCertificateStatus ID from remote  Nginx Proxy Manager instance
+	// Id represents the unique identifier assigned by the Nginx Proxy Manager instance.
+	// This field is populated after successful certificate upload to NPM.
 	Id *int `json:"id,omitempty"`
 
-	// Expiration time of the certificate
+	// ExpiresOn indicates when the SSL/TLS certificate will expire.
+	// Format: ISO 8601 date-time string.
+	// This value is extracted from the certificate and updated during synchronization.
 	// +optional
 	ExpiresOn *string `json:"expiresOn,omitempty"`
 
-	// Status of the certificate
+	// Status reflects the current state of the certificate in Nginx Proxy Manager.
+	// Common values include "valid", "expired", "expiring_soon".
+	// This field helps monitor certificate health and renewal requirements.
 	// +optional
 	Status *string `json:"status,omitempty"`
 
-	// Represents the observations of a CustomCertificateStatus's current state.
+	// Conditions represent the current state of the CustomCertificate resource.
+	// Common condition types include "Ready", "Valid", and "Synced".
+	// The "Ready" condition indicates if the certificate is successfully configured in NPM.
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 

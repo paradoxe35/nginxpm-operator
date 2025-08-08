@@ -33,13 +33,16 @@ type DomainName string
 type DomainNameWithPort string
 
 type SslCustomCertificate struct {
-	// Name of the custom certificate resource
+	// Name specifies the CustomCertificate resource to use for SSL/TLS.
+	// The referenced CustomCertificate must exist and contain valid certificate data.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +required
 	Name string `json:"name,omitempty"`
 
-	// Namespace of the custom certificate resource
+	// Namespace of the CustomCertificate resource.
+	// If not specified, uses the same namespace as the ProxyHost.
+	// Must follow Kubernetes namespace naming conventions.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Pattern=`^[a-z]([-a-z0-9]*[a-z0-9])?$`
@@ -48,13 +51,16 @@ type SslCustomCertificate struct {
 }
 
 type SslLetsEncryptCertificate struct {
-	// Name of the letsencrypt certificate resource
+	// Name specifies the LetsEncryptCertificate resource to use for SSL/TLS.
+	// The referenced certificate must exist and be valid for the proxy domains.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +required
 	Name string `json:"name,omitempty"`
 
-	// Namespace of the letsencrypt certificate resource
+	// Namespace of the LetsEncryptCertificate resource.
+	// If not specified, uses the same namespace as the ProxyHost.
+	// Must follow Kubernetes namespace naming conventions.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Pattern=`^[a-z]([-a-z0-9]*[a-z0-9])?$`
@@ -63,62 +69,78 @@ type SslLetsEncryptCertificate struct {
 }
 
 type ProxyHostSsl struct {
-	// When true, will request a certificate from Let's Encrypt automatically
+	// AutoCertificateRequest enables automatic Let's Encrypt certificate provisioning.
+	// When true, NPM will automatically request and manage certificates for the domains.
+	// Requires valid domain ownership and accessibility for HTTP-01 challenge.
 	// +kubebuilder:default:=false
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=boolean
 	// +optional
 	AutoCertificateRequest bool `json:"autoCertificateRequest,omitempty"`
 
-	// Letsencrypt Certificate name managed by the letsencryptCertificate resource
+	// LetsEncryptCertificate references a managed Let's Encrypt certificate resource.
+	// Takes precedence over AutoCertificateRequest when specified.
+	// The certificate must be valid for all domains in this ProxyHost.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional
 	LetsEncryptCertificate *SslLetsEncryptCertificate `json:"letsEncryptCertificate,omitempty"`
 
-	// Custom Certificate name managed by the customCertificate resource
-	// CustomCertificate has priority over LetsencryptCertificate
+	// CustomCertificate references a managed custom SSL/TLS certificate resource.
+	// Takes highest precedence - overrides both LetsEncryptCertificate and AutoCertificateRequest.
+	// Use for certificates from commercial CAs or self-signed certificates.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional
 	CustomCertificate *SslCustomCertificate `json:"customCertificate,omitempty"`
 
-	// Bind existing certificate id to the stream
-	// CustomCertificate has priority over LetsencryptCertificate and  CustomCertificate
+	// CertificateId directly references an existing certificate ID in NPM.
+	// Highest priority - overrides all other certificate configurations.
+	// Use when binding to pre-existing NPM certificates not managed by this operator.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=integer
 	// +optional
 	CertificateId *int `json:"certificateId,omitempty"`
 
-	// LetsEncrypt Email address to request a certificate for
+	// LetsEncryptEmail is the contact email for Let's Encrypt notifications.
+	// Required when AutoCertificateRequest is true.
+	// Receives certificate expiration and account-related notifications.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
 	// +optional
 	LetsEncryptEmail *string `json:"letsEncryptEmail,omitempty"`
 
-	// Force SSL https, redirect http to https. default is true
+	// SslForced enables automatic HTTP to HTTPS redirection.
+	// When true (default), all HTTP requests are redirected to HTTPS.
+	// Set to false to allow both HTTP and HTTPS access.
 	// +kubebuilder:default:=true
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=boolean
 	// +optional
 	SslForced bool `json:"sslForced,omitempty"`
 
-	// Enable http2 support, default is true
+	// Http2Support enables HTTP/2 protocol support for improved performance.
+	// HTTP/2 provides multiplexing, server push, and header compression.
+	// Default is true. Disable only if clients have compatibility issues.
 	// +kubebuilder:default:=true
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=boolean
 	// +optional
 	Http2Support bool `json:"http2Support,omitempty"`
 
-	// Enable HSTS, default is false
+	// HstsEnabled activates HTTP Strict Transport Security headers.
+	// HSTS forces browsers to use HTTPS and prevents protocol downgrade attacks.
+	// Default is false. Enable for enhanced security on production sites.
 	// +kubebuilder:default:=false
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=boolean
 	// +optional
 	HstsEnabled bool `json:"hstsEnabled,omitempty"`
 
-	// Enable HSTS subdomains, default is false
+	// HstsSubdomains extends HSTS policy to all subdomains.
+	// When true, includeSubDomains directive is added to HSTS header.
+	// Only effective when HstsEnabled is true. Use with caution on shared domains.
 	// +kubebuilder:default:=false
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=boolean
@@ -127,7 +149,9 @@ type ProxyHostSsl struct {
 }
 
 type ForwardHost struct {
-	// The host to forward to (This must be a valid DNS name or IP address)
+	// HostName specifies the target host for forwarding requests.
+	// Accepts valid DNS names (e.g., "backend.local") or IP addresses (IPv4/IPv6).
+	// This host receives the proxied traffic from Nginx.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=255
 	// +kubebuilder:validation:Required
@@ -136,7 +160,9 @@ type ForwardHost struct {
 	// +required
 	HostName string `json:"hostName,omitempty"`
 
-	// Service Target Port is the port to forward to
+	// HostPort specifies the TCP port on the target host.
+	// Must be a valid port number (1-65535).
+	// Common values: 80 (HTTP), 443 (HTTPS), 8080 (alternative HTTP).
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=integer
 	// +kubebuilder:validation:Minimum=1
@@ -146,9 +172,10 @@ type ForwardHost struct {
 }
 
 type ForwardService struct {
-	// Name of the service resource to forward to
-	// IP and port of the service will be used as the forwarding target
-	// Only ClusterIP and LoadBalancer services are supported
+	// Name of the Kubernetes Service to forward requests to.
+	// The Service's ClusterIP and port will be used as the forwarding target.
+	// Supports ClusterIP and LoadBalancer service types.
+	// Service must be accessible from the Nginx Proxy Manager instance.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=255
 	// +kubebuilder:validation:Required
@@ -156,14 +183,18 @@ type ForwardService struct {
 	// +required
 	Name string `json:"name,omitempty"`
 
-	// Namespace of the service resource to forward to
+	// Namespace of the target Kubernetes Service.
+	// If not specified, uses the same namespace as the ProxyHost.
+	// Must follow Kubernetes namespace naming conventions.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Pattern=`^[a-z]([-a-z0-9]*[a-z0-9])?$`
 	// +optional
 	Namespace *string `json:"namespace,omitempty"`
 
-	// Force forwarding to a known service port
+	// Port overrides the Service port selection.
+	// If not specified, uses the first port from the Service definition.
+	// Use when the Service exposes multiple ports and you need a specific one.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=integer
 	// +kubebuilder:validation:Minimum=1
@@ -173,33 +204,43 @@ type ForwardService struct {
 }
 
 type ProxyHostForward struct {
-	// Scheme is the scheme to use for the forwarding, (http or https)
+	// Scheme defines the protocol for upstream communication.
+	// "http" for unencrypted traffic, "https" for TLS-encrypted traffic.
+	// Choose based on your backend service's configuration.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Enum=http;https
 	// +required
 	Scheme string `json:"scheme,omitempty"`
 
-	// Service resource reference to be forwarded to
+	// Service references a Kubernetes Service as the forwarding target.
+	// Mutually exclusive with Hosts field.
+	// The operator will resolve the Service to its ClusterIP automatically.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional
 	Service *ForwardService `json:"service,omitempty"`
 
-	// List of your forward hosts; if specified, this will take priority over the service.
+	// Hosts defines explicit forwarding targets by hostname/IP and port.
+	// Takes priority over Service field when both are specified.
+	// Use for non-Kubernetes backends or specific host requirements.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=array
 	// +optional
 	Hosts []ForwardHost `json:"hosts,omitempty"`
 
-	// Add a path for sub-folder forwarding
+	// Path adds a URL path prefix to forwarded requests.
+	// Example: "/api" forwards "example.com/users" to "backend/api/users".
+	// Must start with "/". Leave empty to forward without path modification.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Pattern=`^\/([a-zA-Z0-9._~-]+\/?)*$`
 	// +optional
 	Path string `json:"path,omitempty"`
 
-	// AdvancedConfig is the advanced configuration for the proxyhost, at your own risk
+	// AdvancedConfig contains raw Nginx configuration directives.
+	// Injected directly into the location block. Use with caution.
+	// May override operator-managed settings. For advanced users only.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +optional
@@ -207,14 +248,18 @@ type ProxyHostForward struct {
 }
 
 type CustomLocation struct {
-	// Define location Location path
+	// LocationPath defines the URL path pattern for this custom location.
+	// Must start with "/". Supports exact matches and prefix matches.
+	// Example: "/api" matches all requests starting with "/api".
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Pattern=`^\/([a-zA-Z0-9._~-]+\/?)*$`
 	// +required
 	LocationPath string `json:"locationPath,omitempty"`
 
-	// The Service forward configuration for the custom location
+	// Forward specifies the upstream configuration for this location.
+	// Overrides the default forward configuration for this specific path.
+	// Allows different backends for different URL paths on the same domain.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=object
 	// +required
@@ -222,19 +267,25 @@ type CustomLocation struct {
 }
 
 type ProxyHostAccessList struct {
-	// If you know ID of an access list, you can put it here
+	// AccessListId directly references an existing NPM access list by ID.
+	// Takes precedence over Name field.
+	// Use when binding to pre-existing access lists not managed by this operator.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=integer
 	// +optional
 	AccessListId *int `json:"accessListId,omitempty"`
 
-	// The access list resource name
+	// Name specifies the AccessList resource to apply to this ProxyHost.
+	// The AccessList defines authentication and IP-based access controls.
+	// Must reference an existing AccessList in the cluster.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +optional
 	Name string `json:"name,omitempty"`
 
-	// Namespace of the access list resource
+	// Namespace of the AccessList resource.
+	// If not specified, uses the same namespace as the ProxyHost.
+	// Must follow Kubernetes namespace naming conventions.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Pattern=`^[a-z]([-a-z0-9]*[a-z0-9])?$`
@@ -247,13 +298,19 @@ type ProxyHostSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Token resource, if not provided, the operator will try to find a token with `token-nginxpm` name in the same namespace as the proxyhost is created or in the `nginxpm-operator-system` namespace or in the `default` namespace
+	// Token references the authentication token for the Nginx Proxy Manager API.
+	// If not provided, the operator will search for a token named "token-nginxpm" in:
+	// 1. The same namespace as this ProxyHost
+	// 2. The "nginxpm-operator-system" namespace
+	// 3. The "default" namespace
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional
 	Token *TokenName `json:"token,omitempty"`
 
-	// DomainNames is the list of domain names to add to the proxyhost
+	// DomainNames lists the domains this proxy will handle.
+	// Supports standard domains ("example.com") and wildcards ("*.example.com").
+	// All domains must point to the Nginx Proxy Manager instance.
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=10
 	// +kubebuilder:validation:Required
@@ -261,53 +318,69 @@ type ProxyHostSpec struct {
 	// +required
 	DomainNames []DomainName `json:"domainNames,omitempty"`
 
-	// If set to true (the default), it will bind and update an existing remote proxy host if the domain names match; otherwise, it will create a new one.
+	// BindExisting controls the operator's behavior with existing NPM proxy hosts.
+	// When true (default): Updates existing proxy hosts with matching domains.
+	// When false: Always creates new proxy hosts, may cause conflicts.
 	// +kubebuilder:default:=true
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=boolean
 	// +optional
 	BindExisting bool `json:"bindExisting,omitempty"`
 
-	// CachingEnabled is the flag to enable or disable caching, default is false
+	// CachingEnabled activates Nginx caching for improved performance.
+	// When true, static content and responses are cached according to cache headers.
+	// Default is false. Enable for better performance with cacheable content.
 	// +kubebuilder:default:=false
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=boolean
 	// +optional
 	CachingEnabled bool `json:"cachingEnabled,omitempty"`
 
-	// BlockExploits is the flag to enable or disable blocking exploits, default is true
+	// BlockExploits enables common exploit protection rules.
+	// Blocks various SQL injection, XSS, and other common web exploits.
+	// Default is true. Only disable if it causes issues with legitimate traffic.
 	// +kubebuilder:default:=true
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=boolean
 	// +optional
 	BlockExploits bool `json:"blockExploits,omitempty"`
 
-	// WebsocketSupport is the flag to enable or disable websocket support, default is true
+	// WebsocketSupport enables WebSocket protocol proxying.
+	// Required for real-time applications using WebSocket connections.
+	// Default is true. Disable only if WebSocket is not needed.
 	// +kubebuilder:default:=true
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=boolean
 	// +optional
 	WebsocketSupport bool `json:"websocketSupport,omitempty"`
 
-	// AccessList to add to the proxyhost
+	// AccessList configures authentication and access control for this proxy.
+	// References an AccessList resource defining auth requirements and IP restrictions.
+	// Leave empty for public access without authentication.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional
 	AccessList *ProxyHostAccessList `json:"accessList,omitempty"`
 
-	// Ssl configuration for the proxyhost, default is autoCertificateRequest:true
+	// Ssl configures SSL/TLS settings for this proxy host.
+	// Controls certificate management, HTTPS redirection, and security headers.
+	// If not specified, defaults to automatic Let's Encrypt certificate.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=object
 	// +optional
 	Ssl *ProxyHostSsl `json:"ssl,omitempty"`
 
-	// The Service forward configuration for the proxyhost
+	// Forward defines the default upstream configuration for all requests.
+	// Specifies where and how to forward incoming traffic.
+	// Can be overridden for specific paths using CustomLocations.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=object
 	// +required
 	Forward ProxyHostForward `json:"forward,omitempty"`
 
-	// CustomLocations is the list of custom locations to add to the proxyhost
+	// CustomLocations defines path-specific forwarding rules.
+	// Each location can have different upstream servers and configurations.
+	// Useful for routing different paths to different backend services.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=array
 	// +optional
@@ -319,32 +392,38 @@ type ProxyHostStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// ProxyHost ID from remote  Nginx Proxy Manager instance
+	// Id represents the unique identifier assigned by the Nginx Proxy Manager instance.
+	// This field is populated after successful creation/synchronization with NPM.
 	Id *int `json:"id,omitempty"`
 
-	// ProxyHost certificate ID from remote  Nginx Proxy Manager instance
+	// CertificateId indicates the SSL certificate ID currently used by this proxy.
+	// References the certificate in NPM that handles HTTPS for this proxy.
+	// Updated when certificates are changed or renewed.
 	CertificateId *int `json:"certificateId,omitempty"`
 
-	// Whether the ProxyHost was bound with an existing proxyhost
+	// Bound indicates if this resource was linked to an existing NPM proxy host.
+	// When true, the operator found and adopted an existing proxy with matching domains.
+	// When false, a new proxy host was created in NPM.
 	// +kubebuilder:default:=false
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=boolean
 	// +optional
 	Bound bool `json:"bound,omitempty"`
 
-	// Online status from remote Nginx Proxy Manager instance
+	// Online reflects the proxy host's operational status in NPM.
+	// True indicates the proxy is active and serving traffic.
+	// False may indicate configuration errors or NPM issues.
 	// +kubebuilder:validation:Enum=true;false
 	// +kubebuilder:validation:Default=false
 	Online bool `json:"online,omitempty"`
 
-	// Represents the observations of a ProxyHost's current state.
-	// ProxyHost.status.conditions.type are: "Available", "Progressing", and "Degraded"
-	// ProxyHost.status.conditions.status are one of True, False, Unknown.
-	// ProxyHost.status.conditions.reason the value should be a CamelCase string and producers of specific
-	// condition types may define expected values and meanings for this field, and whether the values
-	// are considered a guaranteed API.
-	// ProxyHost.status.conditions.Message is a human readable message indicating details about the transition.
-	// For further information see: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
+	// Conditions represent the current state of the ProxyHost resource.
+	// Common condition types:
+	// - "Ready": ProxyHost is configured and serving traffic
+	// - "Progressing": Configuration changes are being applied
+	// - "Degraded": ProxyHost has issues but may partially function
+	// - "CertificateReady": SSL certificate is valid and active
+	// Each condition includes status (True/False/Unknown), reason, and message fields.
 
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }

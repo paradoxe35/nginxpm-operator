@@ -22,13 +22,16 @@ import (
 
 // This is used by other resources
 type TokenName struct {
-	// Name of the token resource
+	// Name specifies the Token resource to reference.
+	// Used by other resources to authenticate with Nginx Proxy Manager.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +required
 	Name string `json:"name,omitempty"`
 
-	// Namespace of the token resource
+	// Namespace of the Token resource.
+	// If not specified, uses the same namespace as the referencing resource.
+	// Must follow Kubernetes namespace naming conventions.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Pattern=`^[a-z]([-a-z0-9]*[a-z0-9])?$`
@@ -38,15 +41,21 @@ type TokenName struct {
 
 // SecretData is the data of the secret resource
 type SecretData struct {
-	// In nginx-proxy-manager, this is normally the username or email address
+	// Identity is the authentication username or email for Nginx Proxy Manager.
+	// Typically the admin email address used to log into NPM.
+	// This field should be stored in a Kubernetes Secret.
 	Identity string `json:"identity"`
 
-	// In nginx-proxy-manager, this is normally the password
+	// Secret is the authentication password for Nginx Proxy Manager.
+	// The password associated with the Identity for NPM login.
+	// This sensitive field must be stored in a Kubernetes Secret.
 	Secret string `json:"secret"`
 }
 
 type Secret struct {
-	// SecretName is the name of the secret resource to add to the token cr
+	// SecretName references the Kubernetes Secret containing NPM credentials.
+	// The Secret must contain "identity" and "secret" fields.
+	// These credentials are used to authenticate with the NPM API.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=255
 	// +kubebuilder:validation:Required
@@ -59,7 +68,9 @@ type Secret struct {
 type TokenSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Endpoint of a Nginx Proxy manager instance
+	// Endpoint is the base URL of the Nginx Proxy Manager instance.
+	// Format: "http(s)://hostname:port" (e.g., "https://npm.example.com:81").
+	// This is where the operator will send API requests.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=255
 	// +kubebuilder:validation:Required
@@ -68,7 +79,9 @@ type TokenSpec struct {
 	// +required
 	Endpoint string `json:"endpoint,omitempty"`
 
-	// Secret resource reference to add to the token cr
+	// Secret references the Kubernetes Secret containing authentication credentials.
+	// The Secret must include "identity" and "secret" data fields.
+	// These credentials are used to obtain and refresh NPM API tokens.
 	// +required
 	Secret Secret `json:"secret,omitempty"`
 }
@@ -77,18 +90,23 @@ type TokenSpec struct {
 type TokenStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Authentication Token, this is generated from controller reconcile
+	// Token contains the JWT authentication token from Nginx Proxy Manager.
+	// This token is automatically generated and refreshed by the operator.
+	// Used internally for API authentication - do not modify manually.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +optional
 	Token *string `json:"token,omitempty"`
 
-	// Expiration time of the token, value is generated from controller reconcile
+	// Expires indicates when the current JWT token will expire.
+	// The operator automatically refreshes tokens before expiration.
+	// Format: Kubernetes metav1.Time (RFC3339).
 	// +optional
 	Expires *metav1.Time `json:"expires,omitempty"`
 
-	// Represents the observations of a Token's current state.
-	// For further information see: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
+	// Conditions represent the current state of the Token resource.
+	// Common condition types include "Ready", "Authenticated", and "TokenExpiring".
+	// The "Ready" condition indicates if the token is valid and usable for API calls.
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
