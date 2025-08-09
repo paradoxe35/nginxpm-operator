@@ -24,7 +24,7 @@ This solution is particularly beneficial for homelab setups and environments whe
 To install the operator, run the following command:
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/paradoxe35/nginxpm-operator/v0.1.6/dist/install.yaml
+kubectl apply -f https://raw.githubusercontent.com/paradoxe35/nginxpm-operator/v0.1.7/dist/install.yaml
 ```
 
 ## Quick Start Guide

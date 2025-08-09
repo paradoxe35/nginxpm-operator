@@ -21,6 +21,7 @@ import (
 	"errors"
 	"reflect"
 	"strings"
+	"time"
 
 	nginxpmoperatoriov1 "github.com/paradoxe35/nginxpm-operator/api/v1"
 	"github.com/paradoxe35/nginxpm-operator/pkg/nginxpm"
@@ -148,19 +149,29 @@ func AddFinalizer(r client.Writer, ctx context.Context, finalizer string, object
 	return nil
 }
 
+// Custom retry backoff for status updates
+var statusUpdateRetry = retry.DefaultRetry
+
 func UpdateStatus(ctx context.Context, r client.Client, object client.Object, namespacedName types.NamespacedName, mutate func()) error {
 	log := log.FromContext(ctx)
 
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := r.Get(ctx, namespacedName, object)
+	err := retry.RetryOnConflict(statusUpdateRetry, func() error {
+		// Use context with timeout for each attempt
+		getCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		
+		err := r.Get(getCtx, namespacedName, object)
 		if err != nil {
 			return err
 		}
 
 		mutate()
 
-		// Update the object status
-		return r.Status().Update(ctx, object)
+		// Update the object status with timeout
+		updateCtx, updateCancel := context.WithTimeout(ctx, 5*time.Second)
+		defer updateCancel()
+		
+		return r.Status().Update(updateCtx, object)
 	})
 
 	if err != nil {

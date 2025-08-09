@@ -105,6 +105,12 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 				serviceIP,
 				option.UpstreamForward.AdvancedConfig,
 			)
+		} else {
+			forward.AdvancedConfig = assignValueToNginxVariable(
+				forward.NginxVariable,
+				serviceIP,
+				forward.AdvancedConfig,
+			)
 		}
 
 		// Verify if service port is valid
@@ -167,6 +173,12 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 				forward.NginxVariable,
 				hostName,
 				option.UpstreamForward.AdvancedConfig,
+			)
+		} else {
+			forward.AdvancedConfig = assignValueToNginxVariable(
+				forward.NginxVariable,
+				hostName,
+				forward.AdvancedConfig,
 			)
 		}
 

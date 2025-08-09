@@ -316,7 +316,8 @@ func (r *ProxyHostReconciler) domainsShouldBeUnique(ctx context.Context, ph *ngi
 		// check if the domain is already used by another proxy host
 		for _, domain := range domains {
 			if slices.Contains(proxyHostDomains, domain) {
-				msg := fmt.Sprintf("Domain %s is already used by another proxy host: (name: %s, namespace: %s)", domain, proxyHost.GetName(), proxyHost.GetNamespace())
+				msg := fmt.Sprintf("Domain %s is already used by another proxy host: (name: %s, namespace: %s)",
+					domain, proxyHost.GetName(), proxyHost.GetNamespace())
 
 				err := errors.New(msg)
 				log.Error(err, msg)
@@ -926,12 +927,7 @@ func (r *ProxyHostReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		).
 		Watches(
 			&corev1.Service{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(PH_FORWARD_SERVICE_FIELD)),
-			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
-		).
-		Watches(
-			&corev1.Service{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsForMap(PH_CUSTOM_LOCATION_FORWARD_FIELD)),
+			handler.EnqueueRequestsFromMapFunc(r.findServicesForProxyHost),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Watches(
@@ -968,6 +964,35 @@ func (r *ProxyHostReconciler) findObjectsForMap(field string) func(ctx context.C
 
 		return requests
 	}
+}
+
+func (r *ProxyHostReconciler) findServicesForProxyHost(ctx context.Context, obj client.Object) []reconcile.Request {
+	service := obj.(*corev1.Service)
+
+	// Combine both field searches in one function
+	var allRequests []reconcile.Request
+
+	// Check for forward service field
+	forwardRequests := r.findObjectsForMap(PH_FORWARD_SERVICE_FIELD)(ctx, service)
+	allRequests = append(allRequests, forwardRequests...)
+
+	// Check for custom location forward field
+	customLocationRequests := r.findObjectsForMap(PH_CUSTOM_LOCATION_FORWARD_FIELD)(ctx, service)
+	for _, req := range customLocationRequests {
+		// Avoid duplicates
+		isDuplicate := false
+		for _, existing := range allRequests {
+			if existing.Name == req.Name && existing.Namespace == req.Namespace {
+				isDuplicate = true
+				break
+			}
+		}
+		if !isDuplicate {
+			allRequests = append(allRequests, req)
+		}
+	}
+
+	return allRequests
 }
 
 func (r *ProxyHostReconciler) findProxyHostsForPod(ctx context.Context, obj client.Object) []reconcile.Request {
