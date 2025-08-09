@@ -234,18 +234,9 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 					// Bound but no initial config stored (legacy behavior)
 					log.Info("Disabling ProxyHost record from remote NPM (no initial config to restore)")
 
-					// First check if the proxy host exists and is enabled
-					existingProxy, err := nginxpmClient.FindProxyHostByID(int(*ph.Status.Id))
+					err := nginxpmClient.DisableProxyHost(int(*ph.Status.Id))
 					if err != nil {
-						log.Error(err, "Failed to find ProxyHost before disabling")
-					} else if existingProxy != nil && existingProxy.Enabled {
-						// Only disable if it's currently enabled
-						err := nginxpmClient.DisableProxyHost(int(*ph.Status.Id))
-						if err != nil {
-							log.Error(err, "Failed to disable ProxyHost record from remote NPM")
-						}
-					} else {
-						log.Info("ProxyHost is already disabled or doesn't exist, skipping disable operation")
+						log.Error(err, "Failed to disable ProxyHost record from remote NPM")
 					}
 				} else {
 					// Not bound, so we created it - delete it
@@ -258,21 +249,18 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				}
 			}
 
-			// Re-fetch the resource to get the latest version before removing finalizer
-			// This helps avoid conflict errors
 			latestPh := &nginxpmoperatoriov1.ProxyHost{}
 			if err := r.Get(ctx, req.NamespacedName, latestPh); err != nil {
 				if apierrors.IsNotFound(err) {
-					// Resource already deleted, nothing to do
 					return ctrl.Result{}, nil
 				}
+
 				log.Error(err, "Failed to re-fetch ProxyHost before removing finalizer")
 				return ctrl.Result{RequeueAfter: 10 * time.Second}, err
 			}
 
 			// Remove the finalizer from the latest version
 			if err := controller.RemoveFinalizer(r, ctx, proxyHostFinalizer, latestPh); err != nil {
-				// If it's a conflict error, we'll retry on the next reconciliation
 				if apierrors.IsConflict(err) {
 					log.Info("Conflict error when removing finalizer, will retry")
 					return ctrl.Result{RequeueAfter: 2 * time.Second}, nil

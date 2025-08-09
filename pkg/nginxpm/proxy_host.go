@@ -90,6 +90,15 @@ type ProxyHostRequestInput struct {
 
 // DeleteProxyHost deletes a proxy host by its ID.
 func (c *Client) DeleteProxyHost(id int) error {
+	existing, err := c.FindProxyHostByID(id)
+	if err != nil {
+		return fmt.Errorf("delete proxy host %d: %w", id, err)
+	}
+
+	if existing == nil {
+		return nil
+	}
+
 	endpoint := fmt.Sprintf("/api/nginx/proxy-hosts/%d", id)
 	resp, err := c.doRequest(http.MethodDelete, endpoint, nil)
 	if err != nil {
@@ -106,6 +115,15 @@ func (c *Client) DeleteProxyHost(id int) error {
 
 // DisableProxyHost disable a proxy host by its ID.
 func (c *Client) DisableProxyHost(id int) error {
+	existing, err := c.FindProxyHostByID(id)
+	if err != nil {
+		return fmt.Errorf("disable proxy host %d: %w", id, err)
+	}
+
+	if !existing.Enabled {
+		return nil
+	}
+
 	endpoint := fmt.Sprintf("/api/nginx/proxy-hosts/%d/disable", id)
 	resp, err := c.doRequest(http.MethodPost, endpoint, nil)
 	if err != nil {
@@ -122,6 +140,15 @@ func (c *Client) DisableProxyHost(id int) error {
 
 // EnableProxyHost enable a proxy host by its ID.
 func (c *Client) EnableProxyHost(id int) error {
+	existing, err := c.FindProxyHostByID(id)
+	if err != nil {
+		return fmt.Errorf("enable proxy host %d: %w", id, err)
+	}
+
+	if existing.Enabled {
+		return nil
+	}
+
 	endpoint := fmt.Sprintf("/api/nginx/proxy-hosts/%d/enable", id)
 	resp, err := c.doRequest(http.MethodPost, endpoint, nil)
 	if err != nil {
@@ -282,6 +309,10 @@ func buildProxyHostRequestBody(input ProxyHostRequestInput) map[string]interface
 	certificateID := 0
 	if input.CertificateID != nil {
 		certificateID = *input.CertificateID
+	}
+
+	if input.Locations == nil {
+		input.Locations = []ProxyHostLocation{}
 	}
 
 	body := map[string]interface{}{

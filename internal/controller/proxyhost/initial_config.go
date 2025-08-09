@@ -91,6 +91,7 @@ func BuildRestorationInput(config *nginxpmoperatoriov1.InitialConfiguration) *ng
 		HSTSEnabled:           config.HSTSEnabled,
 		HSTSSubdomains:        config.HSTSSubdomains,
 		CustomFields:          make(nginxpm.RequestCustomFields),
+		Locations:             []nginxpm.ProxyHostLocation{},
 	}
 
 	// Restore locations if present
