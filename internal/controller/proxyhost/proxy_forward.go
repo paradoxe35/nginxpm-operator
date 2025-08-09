@@ -316,7 +316,7 @@ func assignValueToNginxVariable(nginxVariable string, value string, advancedConf
 		nginxVariable = "$" + nginxVariable
 	}
 
-	valueText := fmt.Sprintf("set %s %s;", nginxVariable, value)
+	valueText := fmt.Sprintf(`set %s "%s";`, nginxVariable, value)
 
 	return valueText + "\n" + advancedConfig
 }

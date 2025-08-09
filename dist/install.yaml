@@ -2468,7 +2468,7 @@ spec:
         - --health-probe-bind-address=:8081
         command:
         - /manager
-        image: ghcr.io/paradoxe35/nginxpm-operator:v0.1.5
+        image: ghcr.io/paradoxe35/nginxpm-operator:v0.1.6
         livenessProbe:
           httpGet:
             path: /healthz
