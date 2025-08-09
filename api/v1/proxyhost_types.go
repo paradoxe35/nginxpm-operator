@@ -387,6 +387,68 @@ type ProxyHostSpec struct {
 	CustomLocations []CustomLocation `json:"customLocations,omitempty"`
 }
 
+// InitialConfiguration stores the original NPM proxy host configuration
+// before any mutations by the operator. Used to restore settings when
+// a bound resource is deleted.
+type InitialConfiguration struct {
+	// DomainNames from the original NPM configuration
+	DomainNames []string `json:"domainNames,omitempty"`
+	
+	// ForwardHost from the original configuration
+	ForwardHost string `json:"forwardHost,omitempty"`
+	
+	// ForwardPort from the original configuration
+	ForwardPort int `json:"forwardPort,omitempty"`
+	
+	// ForwardScheme from the original configuration
+	ForwardScheme string `json:"forwardScheme,omitempty"`
+	
+	// AccessListId from the original configuration
+	AccessListId int `json:"accessListId,omitempty"`
+	
+	// CertificateId from the original configuration
+	CertificateId *int `json:"certificateId,omitempty"`
+	
+	// SSLForced from the original configuration
+	SSLForced bool `json:"sslForced,omitempty"`
+	
+	// CachingEnabled from the original configuration
+	CachingEnabled bool `json:"cachingEnabled,omitempty"`
+	
+	// BlockExploits from the original configuration
+	BlockExploits bool `json:"blockExploits,omitempty"`
+	
+	// AllowWebsocketUpgrade from the original configuration
+	AllowWebsocketUpgrade bool `json:"allowWebsocketUpgrade,omitempty"`
+	
+	// HTTP2Support from the original configuration
+	HTTP2Support bool `json:"http2Support,omitempty"`
+	
+	// HSTSEnabled from the original configuration
+	HSTSEnabled bool `json:"hstsEnabled,omitempty"`
+	
+	// HSTSSubdomains from the original configuration
+	HSTSSubdomains bool `json:"hstsSubdomains,omitempty"`
+	
+	// AdvancedConfig from the original configuration
+	AdvancedConfig string `json:"advancedConfig,omitempty"`
+	
+	// Locations from the original configuration
+	Locations []ProxyHostLocationConfig `json:"locations,omitempty"`
+	
+	// Enabled status from the original configuration
+	Enabled bool `json:"enabled,omitempty"`
+}
+
+// ProxyHostLocationConfig stores original location configuration
+type ProxyHostLocationConfig struct {
+	Path           string `json:"path,omitempty"`
+	AdvancedConfig string `json:"advancedConfig,omitempty"`
+	ForwardScheme  string `json:"forwardScheme,omitempty"`
+	ForwardHost    string `json:"forwardHost,omitempty"`
+	ForwardPort    int    `json:"forwardPort,omitempty"`
+}
+
 // ProxyHostStatus defines the observed state of ProxyHost
 type ProxyHostStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
@@ -416,6 +478,14 @@ type ProxyHostStatus struct {
 	// +kubebuilder:validation:Enum=true;false
 	// +kubebuilder:validation:Default=false
 	Online bool `json:"online,omitempty"`
+
+	// InitialConfiguration stores the original NPM proxy host configuration
+	// captured when binding to an existing proxy host. This is used to restore
+	// the original settings when the resource is deleted and was bound to an
+	// existing NPM proxy host.
+	// +kubebuilder:validation:Optional
+	// +optional
+	InitialConfiguration *InitialConfiguration `json:"initialConfiguration,omitempty"`
 
 	// Conditions represent the current state of the ProxyHost resource.
 	// Common condition types:

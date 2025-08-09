@@ -27,11 +27,28 @@ import (
 
 // ProxyHost represents the structure of a proxy host as returned by the API.
 type ProxyHost struct {
-	ID             int       `json:"id"`
-	Enabled        bool      `json:"enabled"`
-	UnscopedConfig *string   `json:"unscoped_config"` // Custom field from https://github.com/paradoxe35/nginx-proxy-manager, it must be a string pointer
-	DomainNames    []string  `json:"domain_names"`
-	Meta           NginxMeta `json:"meta"`
+	ID                    int                 `json:"id"`
+	CreatedOn             string              `json:"created_on"`
+	ModifiedOn            string              `json:"modified_on"`
+	OwnerUserID           int                 `json:"owner_user_id"`
+	DomainNames           []string            `json:"domain_names"`
+	ForwardHost           string              `json:"forward_host"`
+	ForwardPort           int                 `json:"forward_port"`
+	AccessListID          int                 `json:"access_list_id"`
+	CertificateID         int                 `json:"certificate_id"`
+	SSLForced             bool                `json:"ssl_forced"`
+	CachingEnabled        bool                `json:"caching_enabled"`
+	BlockExploits         bool                `json:"block_exploits"`
+	AdvancedConfig        string              `json:"advanced_config"`
+	Meta                  NginxMeta           `json:"meta"`
+	AllowWebsocketUpgrade bool                `json:"allow_websocket_upgrade"`
+	HTTP2Support          bool                `json:"http2_support"`
+	ForwardScheme         string              `json:"forward_scheme"`
+	Enabled               bool                `json:"enabled"`
+	Locations             []ProxyHostLocation `json:"locations"`
+	HSTSEnabled           bool                `json:"hsts_enabled"`
+	HSTSSubdomains        bool                `json:"hsts_subdomains"`
+	UnscopedConfig        *string             `json:"unscoped_config"` // Custom field from https://github.com/paradoxe35/nginx-proxy-manager, it must be a string pointer
 }
 
 // ProxyHostMeta represents the meta information for a proxy host.

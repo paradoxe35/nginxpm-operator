@@ -188,18 +188,41 @@ func (r *ProxyHostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			log.Info("Performing Finalizer Operations for ProxyHost")
 
 			// Delete the ProxyHost record from remote  Nginx Proxy Manager instance
-			//
 			if ph.Status.Id != nil {
-				// If the ProxyHost is bound, we delete the record
-				// If not Bound, we disable it
-				if ph.Status.Bound {
-					log.Info("Disabling ProxyHost record from remote NPM")
+				// If the ProxyHost is bound and has initial configuration, restore it
+				// Otherwise, delete or disable as before
+				if ShouldRestoreInitialConfig(ph) {
+					log.Info("Restoring initial configuration for bound ProxyHost", "proxyHostId", *ph.Status.Id)
+
+					// Build restoration input from stored initial configuration
+					restorationInput := BuildRestorationInput(ph.Status.InitialConfiguration)
+					if restorationInput != nil {
+						// Update the proxy host with the original configuration
+						_, err := nginxpmClient.UpdateProxyHost(int(*ph.Status.Id), *restorationInput)
+						if err != nil {
+							log.Error(err, "Failed to restore initial configuration for ProxyHost")
+						} else {
+							log.Info("Successfully restored initial configuration for ProxyHost")
+						}
+
+						// Re-enable the proxy host if it was disabled and originally enabled
+						if ph.Status.InitialConfiguration.Enabled {
+							err := nginxpmClient.EnableProxyHost(int(*ph.Status.Id))
+							if err != nil {
+								log.Error(err, "Failed to re-enable ProxyHost after restoration")
+							}
+						}
+					}
+				} else if ph.Status.Bound {
+					// Bound but no initial config stored (legacy behavior)
+					log.Info("Disabling ProxyHost record from remote NPM (no initial config to restore)")
 					err := nginxpmClient.DisableProxyHost(int(*ph.Status.Id))
 
 					if err != nil {
 						log.Error(err, "Failed to disable ProxyHost record from remote NPM")
 					}
 				} else {
+					// Not bound, so we created it - delete it
 					log.Info("Deleting ProxyHost record from remote NPM")
 					err := nginxpmClient.DeleteProxyHost(int(*ph.Status.Id))
 
@@ -336,6 +359,14 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 
 		if proxyHost != nil {
 			bound = true
+
+			// Capture initial configuration if we haven't already
+			if ShouldCaptureInitialConfig(ph, proxyHost) {
+				initialConfig := CaptureInitialConfiguration(proxyHost)
+				// We'll update the status with initial config at the end of this function
+				ph.Status.InitialConfiguration = initialConfig
+				log.Info("Captured initial configuration for bound proxy host", "proxyHostId", proxyHost.ID)
+			}
 		}
 	}
 
@@ -512,6 +543,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		ph.Status.Online = proxyHost.Meta.NginxOnline
 		ph.Status.CertificateId = certificateID
 		ph.Status.Bound = bound
+		// InitialConfiguration is already set above if needed, so it will be preserved
 	})
 }
 

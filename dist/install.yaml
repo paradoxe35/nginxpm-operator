@@ -1265,6 +1265,79 @@ spec:
                   Id represents the unique identifier assigned by the Nginx Proxy Manager instance.
                   This field is populated after successful creation/synchronization with NPM.
                 type: integer
+              initialConfiguration:
+                description: |-
+                  InitialConfiguration stores the original NPM proxy host configuration
+                  captured when binding to an existing proxy host. This is used to restore
+                  the original settings when the resource is deleted and was bound to an
+                  existing NPM proxy host.
+                properties:
+                  accessListId:
+                    description: AccessListId from the original configuration
+                    type: integer
+                  advancedConfig:
+                    description: AdvancedConfig from the original configuration
+                    type: string
+                  allowWebsocketUpgrade:
+                    description: AllowWebsocketUpgrade from the original configuration
+                    type: boolean
+                  blockExploits:
+                    description: BlockExploits from the original configuration
+                    type: boolean
+                  cachingEnabled:
+                    description: CachingEnabled from the original configuration
+                    type: boolean
+                  certificateId:
+                    description: CertificateId from the original configuration
+                    type: integer
+                  domainNames:
+                    description: DomainNames from the original NPM configuration
+                    items:
+                      type: string
+                    type: array
+                  enabled:
+                    description: Enabled status from the original configuration
+                    type: boolean
+                  forwardHost:
+                    description: ForwardHost from the original configuration
+                    type: string
+                  forwardPort:
+                    description: ForwardPort from the original configuration
+                    type: integer
+                  forwardScheme:
+                    description: ForwardScheme from the original configuration
+                    type: string
+                  hstsEnabled:
+                    description: HSTSEnabled from the original configuration
+                    type: boolean
+                  hstsSubdomains:
+                    description: HSTSSubdomains from the original configuration
+                    type: boolean
+                  http2Support:
+                    description: HTTP2Support from the original configuration
+                    type: boolean
+                  locations:
+                    description: Locations from the original configuration
+                    items:
+                      description: ProxyHostLocationConfig stores original location
+                        configuration
+                      properties:
+                        advancedConfig:
+                          type: string
+                        forwardHost:
+                          type: string
+                        forwardPort:
+                          type: integer
+                        forwardScheme:
+                          type: string
+                        path:
+                          type: string
+                      type: object
+                    type: array
+                  sslForced:
+                    description: SSLForced from the original configuration
+                    type: boolean
+                type: object
               online:
                 description: |-
                   Online reflects the proxy host's operational status in NPM.
@@ -2383,7 +2456,7 @@ spec:
         - --health-probe-bind-address=:8081
         command:
         - /manager
-        image: ghcr.io/paradoxe35/nginxpm-operator:v0.1.4
+        image: ghcr.io/paradoxe35/nginxpm-operator:v0.1.5
         livenessProbe:
           httpGet:
             path: /healthz
