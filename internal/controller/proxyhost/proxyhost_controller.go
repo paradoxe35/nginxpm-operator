@@ -383,6 +383,8 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 	// Convert domain names to []string
 	domains := r.extractDomains(ph)
 
+	var capturedInitialConfig *nginxpmoperatoriov1.InitialConfiguration
+
 	// Let's check if the proxy host is already created
 	if ph.Status.Id != nil {
 		proxyHost, err = nginxpmClient.FindProxyHostByID(*ph.Status.Id)
@@ -397,6 +399,9 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 			return err
 		}
 
+		// Preserve existing initial configuration
+		capturedInitialConfig = ph.Status.InitialConfiguration
+
 	} else if ph.Spec.BindExisting {
 		// If finding by ID doesn't match a record, we search for the proxy host by domain.
 		proxyHost, _ = nginxpmClient.FindProxyHostByDomain(domains)
@@ -406,9 +411,7 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 
 			// Capture initial configuration if we haven't already
 			if ShouldCaptureInitialConfig(ph, proxyHost) {
-				initialConfig := CaptureInitialConfiguration(proxyHost)
-				// We'll update the status with initial config at the end of this function
-				ph.Status.InitialConfiguration = initialConfig
+				capturedInitialConfig = CaptureInitialConfiguration(proxyHost)
 				log.Info("Captured initial configuration for bound proxy host", "proxyHostId", proxyHost.ID)
 			}
 		}
@@ -587,7 +590,10 @@ func (r *ProxyHostReconciler) createOrUpdateProxyHost(ctx context.Context, req c
 		ph.Status.Online = proxyHost.Meta.NginxOnline
 		ph.Status.CertificateId = certificateID
 		ph.Status.Bound = bound
-		// InitialConfiguration is already set above if needed, so it will be preserved
+		// Set or preserve the initial configuration
+		if capturedInitialConfig != nil {
+			ph.Status.InitialConfiguration = capturedInitialConfig
+		}
 	})
 }
 
