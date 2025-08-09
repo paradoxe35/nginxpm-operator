@@ -98,6 +98,15 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 			serviceIP, servicePort = r.forwardWhenNotNodePortType(service, forward)
 		}
 
+		if option.UpstreamForward != nil {
+			// Assign serviceIP to nginx variable and add it to the advanced config
+			option.UpstreamForward.AdvancedConfig = assignValueToNginxVariable(
+				forward.NginxVariable,
+				serviceIP,
+				option.UpstreamForward.AdvancedConfig,
+			)
+		}
+
 		// Verify if service port is valid
 		if servicePort == 0 {
 			msg := fmt.Sprintf("service port is not valid, please check the Service resource name, label: %s", label)
@@ -131,6 +140,7 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 		hostPort := forward.Hosts[0].HostPort
 		hosts := forward.Hosts
 
+		// We can have multiple hosts, we need to create an upstream config
 		nginxUpstreamHosts := make([]controller.NginxUpstreamHost, len(hosts))
 		for i, host := range hosts {
 			nginxUpstreamHosts[i] = controller.NginxUpstreamHost{Hostname: host.HostName, Port: host.HostPort}
@@ -149,6 +159,15 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 
 				option.UpstreamForward.NginxUpstreamConfigs[upstreamConf.Name] = upstreamConf.Config
 			}
+		}
+
+		if option.UpstreamForward != nil {
+			// Assign hostName to nginx variable and add it to the advanced config
+			option.UpstreamForward.AdvancedConfig = assignValueToNginxVariable(
+				forward.NginxVariable,
+				hostName,
+				option.UpstreamForward.AdvancedConfig,
+			)
 		}
 
 		proxyHostForward = &ProxyHostForward{
@@ -286,6 +305,20 @@ func (r *ProxyHostReconciler) forwardWhenNodePortType(ctx context.Context, ph *n
 		nginxUpstreamName:   conf.Name,
 		nginxUpstreamConfig: conf.Config,
 	}, nil
+}
+
+func assignValueToNginxVariable(nginxVariable string, value string, advancedConfig string) string {
+	if nginxVariable == "" {
+		return advancedConfig
+	}
+
+	if !strings.HasPrefix(nginxVariable, "$") {
+		nginxVariable = "$" + nginxVariable
+	}
+
+	valueText := fmt.Sprintf("set %s %s;", nginxVariable, value)
+
+	return valueText + "\n" + advancedConfig
 }
 
 func mergeNginxUpstreamConfigs(configs map[string]string) string {

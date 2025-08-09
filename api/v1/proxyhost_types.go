@@ -221,6 +221,14 @@ type ProxyHostForward struct {
 	// +optional
 	Service *ForwardService `json:"service,omitempty"`
 
+	// NginxVariable is the name of the nginx variable that will be used to store the forwarding target.
+	// This is useful when you want to use a dynamic forwarding targetS in the advancedConfig.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern=`^\$[a-zA-Z_][a-zA-Z0-9_]*$`
+	// +optional
+	NginxVariable string `json:"nginxVariable,omitempty"`
+
 	// Hosts defines explicit forwarding targets by hostname/IP and port.
 	// Takes priority over Service field when both are specified.
 	// Use for non-Kubernetes backends or specific host requirements.
@@ -393,49 +401,49 @@ type ProxyHostSpec struct {
 type InitialConfiguration struct {
 	// DomainNames from the original NPM configuration
 	DomainNames []string `json:"domainNames,omitempty"`
-	
+
 	// ForwardHost from the original configuration
 	ForwardHost string `json:"forwardHost,omitempty"`
-	
+
 	// ForwardPort from the original configuration
 	ForwardPort int `json:"forwardPort,omitempty"`
-	
+
 	// ForwardScheme from the original configuration
 	ForwardScheme string `json:"forwardScheme,omitempty"`
-	
+
 	// AccessListId from the original configuration
 	AccessListId int `json:"accessListId,omitempty"`
-	
+
 	// CertificateId from the original configuration
 	CertificateId *int `json:"certificateId,omitempty"`
-	
+
 	// SSLForced from the original configuration
 	SSLForced bool `json:"sslForced,omitempty"`
-	
+
 	// CachingEnabled from the original configuration
 	CachingEnabled bool `json:"cachingEnabled,omitempty"`
-	
+
 	// BlockExploits from the original configuration
 	BlockExploits bool `json:"blockExploits,omitempty"`
-	
+
 	// AllowWebsocketUpgrade from the original configuration
 	AllowWebsocketUpgrade bool `json:"allowWebsocketUpgrade,omitempty"`
-	
+
 	// HTTP2Support from the original configuration
 	HTTP2Support bool `json:"http2Support,omitempty"`
-	
+
 	// HSTSEnabled from the original configuration
 	HSTSEnabled bool `json:"hstsEnabled,omitempty"`
-	
+
 	// HSTSSubdomains from the original configuration
 	HSTSSubdomains bool `json:"hstsSubdomains,omitempty"`
-	
+
 	// AdvancedConfig from the original configuration
 	AdvancedConfig string `json:"advancedConfig,omitempty"`
-	
+
 	// Locations from the original configuration
 	Locations []ProxyHostLocationConfig `json:"locations,omitempty"`
-	
+
 	// Enabled status from the original configuration
 	Enabled bool `json:"enabled,omitempty"`
 }

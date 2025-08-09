@@ -151,6 +151,12 @@ spec:
                             - hostPort
                             type: object
                           type: array
+                        nginxVariable:
+                          description: |-
+                            NginxVariable is the name of the nginx variable that will be used to store the forwarding target.
+                            This is useful when you want to use a dynamic forwarding targetS in the advancedConfig.
+                          pattern: ^\$[a-zA-Z_][a-zA-Z0-9_]*$
+                          type: string
                         path:
                           description: |-
                             Path adds a URL path prefix to forwarded requests.
@@ -269,6 +275,12 @@ spec:
                       - hostPort
                       type: object
                     type: array
+                  nginxVariable:
+                    description: |-
+                      NginxVariable is the name of the nginx variable that will be used to store the forwarding target.
+                      This is useful when you want to use a dynamic forwarding targetS in the advancedConfig.
+                    pattern: ^\$[a-zA-Z_][a-zA-Z0-9_]*$
+                    type: string
                   path:
                     description: |-
                       Path adds a URL path prefix to forwarded requests.
