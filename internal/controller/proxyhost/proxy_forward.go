@@ -229,13 +229,17 @@ func (r *ProxyHostReconciler) forwardWhenNotNodePortType(service *corev1.Service
 
 	// Extract service port
 	var servicePort int32
-	if forward.Service.Port != nil {
+	if forward.Service.Port != nil && *forward.Service.Port > 0 {
 		servicePort = *forward.Service.Port
 	} else {
 		servicePort = matchPort(service.Spec.Ports, "http")
 
 		if forward.Scheme == "https" || servicePort == 0 {
 			servicePort = matchPort(service.Spec.Ports, "https")
+		}
+
+		if forward.Service.PortName != nil && *forward.Service.PortName != "" {
+			servicePort = matchPort(service.Spec.Ports, *forward.Service.PortName)
 		}
 
 		if servicePort == 0 && len(service.Spec.Ports) > 0 {
@@ -292,6 +296,15 @@ func (r *ProxyHostReconciler) forwardWhenNodePortType(ctx context.Context, ph *n
 	if forward.Scheme == "https" || servicePort == 0 {
 		servicePort = matchPort(service.Spec.Ports, "https")
 	}
+
+	if forward.Service.PortName != nil && *forward.Service.PortName != "" {
+		servicePort = matchPort(service.Spec.Ports, *forward.Service.PortName)
+	}
+
+	if servicePort == 0 && forward.Service.Port != nil && *forward.Service.Port > 0 {
+		servicePort = *forward.Service.Port
+	}
+
 	if servicePort == 0 && len(service.Spec.Ports) > 0 {
 		servicePort = service.Spec.Ports[0].NodePort
 	}

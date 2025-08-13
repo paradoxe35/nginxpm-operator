@@ -183,7 +183,7 @@ spec:
                               description: |-
                                 Name of the Kubernetes Service to forward requests to.
                                 The Service's ClusterIP and port will be used as the forwarding target.
-                                Supports ClusterIP and LoadBalancer service types.
+                                Supports ClusterIP, LoadBalancer, and NodePort (recommended) service types.
                                 Service must be accessible from the Nginx Proxy Manager instance.
                               maxLength: 255
                               minLength: 1
@@ -204,6 +204,12 @@ spec:
                               maximum: 65535
                               minimum: 1
                               type: integer
+                            portName:
+                              description: |-
+                                Port name of the target Kubernetes Service.
+                                If not specified, uses the first port from the Service definition.
+                                Use when the Service exposes multiple ports and you need a specific one.
+                              type: string
                           required:
                           - name
                           type: object
@@ -307,7 +313,7 @@ spec:
                         description: |-
                           Name of the Kubernetes Service to forward requests to.
                           The Service's ClusterIP and port will be used as the forwarding target.
-                          Supports ClusterIP and LoadBalancer service types.
+                          Supports ClusterIP, LoadBalancer, and NodePort (recommended) service types.
                           Service must be accessible from the Nginx Proxy Manager instance.
                         maxLength: 255
                         minLength: 1
@@ -328,6 +334,12 @@ spec:
                         maximum: 65535
                         minimum: 1
                         type: integer
+                      portName:
+                        description: |-
+                          Port name of the target Kubernetes Service.
+                          If not specified, uses the first port from the Service definition.
+                          Use when the Service exposes multiple ports and you need a specific one.
+                        type: string
                     required:
                     - name
                     type: object

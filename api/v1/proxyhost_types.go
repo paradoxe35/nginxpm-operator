@@ -174,7 +174,7 @@ type ForwardHost struct {
 type ForwardService struct {
 	// Name of the Kubernetes Service to forward requests to.
 	// The Service's ClusterIP and port will be used as the forwarding target.
-	// Supports ClusterIP and LoadBalancer service types.
+	// Supports ClusterIP, LoadBalancer, and NodePort (recommended) service types.
 	// Service must be accessible from the Nginx Proxy Manager instance.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=255
@@ -201,6 +201,14 @@ type ForwardService struct {
 	// +kubebuilder:validation:Maximum=65535
 	// +optional
 	Port *int32 `json:"port,omitempty"`
+
+	// Port name of the target Kubernetes Service.
+	// If not specified, uses the first port from the Service definition.
+	// Use when the Service exposes multiple ports and you need a specific one.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +optional
+	PortName *string `json:"portName,omitempty"`
 }
 
 type ProxyHostForward struct {
