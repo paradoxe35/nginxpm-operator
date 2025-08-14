@@ -161,12 +161,8 @@ func (r *StreamReconciler) forwardWhenNotNodePortType(service *corev1.Service, f
 		}
 	}
 
-	if forward.Service.Port != nil {
-		servicePort = *forward.Service.Port
-	} else {
-		if servicePort == 0 && len(service.Spec.Ports) > 0 {
-			servicePort = service.Spec.Ports[0].Port
-		}
+	if servicePort == 0 && len(service.Spec.Ports) > 0 {
+		servicePort = service.Spec.Ports[0].Port
 	}
 
 	return serviceIP, int(servicePort)
@@ -246,13 +242,24 @@ func portMatched(scheme string, port corev1.ServicePort) bool {
 func getServiceDestination(service *corev1.Service, forward nginxpmoperatoriov1.StreamForward, matchPort MatchPort) (string, int32) {
 	serviceIP := service.Spec.ClusterIP
 
-	var servicePort int32
-	if forward.TCPForwarding {
+	var servicePort int32 = 0
+
+	if forward.Service.Port != nil && *forward.Service.Port > 0 {
+		servicePort = *forward.Service.Port
+	}
+
+	if forward.TCPForwarding && servicePort == 0 {
 		servicePort = matchPort(service.Spec.Ports, "TCP")
 	}
 
-	if forward.UDPForwarding {
+	if forward.UDPForwarding && servicePort == 0 {
 		if v := matchPort(service.Spec.Ports, "UDP"); v != 0 {
+			servicePort = v
+		}
+	}
+
+	if forward.Service.PortName != nil && *forward.Service.PortName != "" {
+		if v := matchPort(service.Spec.Ports, *forward.Service.PortName); v != 0 {
 			servicePort = v
 		}
 	}
