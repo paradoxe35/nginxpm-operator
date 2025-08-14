@@ -491,8 +491,10 @@ type ProxyHostStatus struct {
 	// Online reflects the proxy host's operational status in NPM.
 	// True indicates the proxy is active and serving traffic.
 	// False may indicate configuration errors or NPM issues.
-	// +kubebuilder:validation:Enum=true;false
-	// +kubebuilder:validation:Default=false
+	// +kubebuilder:default:=false
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=boolean
+	// +optional
 	Online bool `json:"online,omitempty"`
 
 	// InitialConfiguration stores the original NPM proxy host configuration

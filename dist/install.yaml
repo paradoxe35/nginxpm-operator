@@ -114,24 +114,20 @@ spec:
                   type: object
                 type: array
               passAuth:
+                default: false
                 description: |-
                   PassAuth determines whether to pass authentication headers to the upstream server.
                   When true: Basic Auth credentials are forwarded to the proxied server.
                   When false: Authentication is handled only by Nginx, credentials are not forwarded.
                   Enable this only if the upstream service also requires the authentication headers.
-                enum:
-                - true
-                - false
                 type: boolean
               satisfyAny:
+                default: false
                 description: |-
                   SatisfyAny controls how multiple access control methods are evaluated.
                   When true: Access is granted if ANY condition is met (logical OR).
                   When false: Access requires ALL conditions to be met (logical AND).
                   This applies when both IP restrictions and Basic Auth are configured.
-                enum:
-                - true
-                - false
                 type: boolean
               token:
                 description: |-
@@ -226,6 +222,7 @@ spec:
                   This field is populated after successful creation/synchronization with NPM.
                 type: integer
               proxyHostCount:
+                default: 0
                 description: |-
                   ProxyHostCount indicates the number of ProxyHost resources currently using this AccessList.
                   This helps track AccessList usage and prevent accidental deletion of in-use lists.
@@ -1363,13 +1360,11 @@ spec:
                     type: boolean
                 type: object
               online:
+                default: false
                 description: |-
                   Online reflects the proxy host's operational status in NPM.
                   True indicates the proxy is active and serving traffic.
                   False may indicate configuration errors or NPM issues.
-                enum:
-                - true
-                - false
                 type: boolean
             type: object
         type: object
@@ -1514,22 +1509,18 @@ spec:
                     - name
                     type: object
                   tcpForwarding:
+                    default: true
                     description: |-
                       TCPForwarding enables TCP protocol forwarding for this stream.
                       When true, TCP traffic on the incoming port is forwarded to the target.
                       Default is true. Set to false if only UDP forwarding is needed.
-                    enum:
-                    - true
-                    - false
                     type: boolean
                   udpForwarding:
+                    default: true
                     description: |-
                       UDPForwarding enables UDP protocol forwarding for this stream.
                       When true, UDP traffic on the incoming port is forwarded to the target.
                       Default is true. Set to false if only TCP forwarding is needed.
-                    enum:
-                    - true
-                    - false
                     type: boolean
                 type: object
               incomingPort:
@@ -1541,13 +1532,11 @@ spec:
                 minimum: 1
                 type: integer
               overwriteIncomingPortWithForwardPort:
+                default: false
                 description: |-
                   OverwriteIncomingPortWithForwardPort allows automatic port matching.
                   When true, the incoming port is set to match the forwarding port.
                   Useful for transparent proxying where ports should remain the same.
-                enum:
-                - true
-                - false
                 type: boolean
               ssl:
                 description: |-
@@ -1712,13 +1701,11 @@ spec:
                   This is the port clients should connect to.
                 type: integer
               online:
+                default: false
                 description: |-
                   Online reflects the stream's operational status in NPM.
                   True indicates the stream is active and forwarding traffic.
                   False may indicate configuration errors or port conflicts.
-                enum:
-                - true
-                - false
                 type: boolean
             type: object
         type: object
@@ -2486,7 +2473,7 @@ spec:
         - --health-probe-bind-address=:8081
         command:
         - /manager
-        image: ghcr.io/paradoxe35/nginxpm-operator:v0.2.3
+        image: ghcr.io/paradoxe35/nginxpm-operator:v0.2.4
         livenessProbe:
           httpGet:
             path: /healthz

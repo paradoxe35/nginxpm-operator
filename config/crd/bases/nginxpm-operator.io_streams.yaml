@@ -135,22 +135,18 @@ spec:
                     - name
                     type: object
                   tcpForwarding:
+                    default: true
                     description: |-
                       TCPForwarding enables TCP protocol forwarding for this stream.
                       When true, TCP traffic on the incoming port is forwarded to the target.
                       Default is true. Set to false if only UDP forwarding is needed.
-                    enum:
-                    - true
-                    - false
                     type: boolean
                   udpForwarding:
+                    default: true
                     description: |-
                       UDPForwarding enables UDP protocol forwarding for this stream.
                       When true, UDP traffic on the incoming port is forwarded to the target.
                       Default is true. Set to false if only TCP forwarding is needed.
-                    enum:
-                    - true
-                    - false
                     type: boolean
                 type: object
               incomingPort:
@@ -162,13 +158,11 @@ spec:
                 minimum: 1
                 type: integer
               overwriteIncomingPortWithForwardPort:
+                default: false
                 description: |-
                   OverwriteIncomingPortWithForwardPort allows automatic port matching.
                   When true, the incoming port is set to match the forwarding port.
                   Useful for transparent proxying where ports should remain the same.
-                enum:
-                - true
-                - false
                 type: boolean
               ssl:
                 description: |-
@@ -333,13 +327,11 @@ spec:
                   This is the port clients should connect to.
                 type: integer
               online:
+                default: false
                 description: |-
                   Online reflects the stream's operational status in NPM.
                   True indicates the stream is active and forwarding traffic.
                   False may indicate configuration errors or port conflicts.
-                enum:
-                - true
-                - false
                 type: boolean
             type: object
         type: object

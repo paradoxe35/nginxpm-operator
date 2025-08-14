@@ -106,24 +106,20 @@ spec:
                   type: object
                 type: array
               passAuth:
+                default: false
                 description: |-
                   PassAuth determines whether to pass authentication headers to the upstream server.
                   When true: Basic Auth credentials are forwarded to the proxied server.
                   When false: Authentication is handled only by Nginx, credentials are not forwarded.
                   Enable this only if the upstream service also requires the authentication headers.
-                enum:
-                - true
-                - false
                 type: boolean
               satisfyAny:
+                default: false
                 description: |-
                   SatisfyAny controls how multiple access control methods are evaluated.
                   When true: Access is granted if ANY condition is met (logical OR).
                   When false: Access requires ALL conditions to be met (logical AND).
                   This applies when both IP restrictions and Basic Auth are configured.
-                enum:
-                - true
-                - false
                 type: boolean
               token:
                 description: |-
@@ -218,6 +214,7 @@ spec:
                   This field is populated after successful creation/synchronization with NPM.
                 type: integer
               proxyHostCount:
+                default: 0
                 description: |-
                   ProxyHostCount indicates the number of ProxyHost resources currently using this AccessList.
                   This helps track AccessList usage and prevent accidental deletion of in-use lists.

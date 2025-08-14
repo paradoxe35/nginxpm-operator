@@ -628,13 +628,11 @@ spec:
                     type: boolean
                 type: object
               online:
+                default: false
                 description: |-
                   Online reflects the proxy host's operational status in NPM.
                   True indicates the proxy is active and serving traffic.
                   False may indicate configuration errors or NPM issues.
-                enum:
-                - true
-                - false
                 type: boolean
             type: object
         type: object

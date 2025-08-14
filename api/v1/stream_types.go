@@ -24,15 +24,19 @@ type StreamForward struct {
 	// TCPForwarding enables TCP protocol forwarding for this stream.
 	// When true, TCP traffic on the incoming port is forwarded to the target.
 	// Default is true. Set to false if only UDP forwarding is needed.
-	// +kubebuilder:validation:Enum=true;false
-	// +kubebuilder:validation:Default=true
+	// +kubebuilder:default:=true
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=boolean
+	// +optional
 	TCPForwarding bool `json:"tcpForwarding,omitempty"`
 
 	// UDPForwarding enables UDP protocol forwarding for this stream.
 	// When true, UDP traffic on the incoming port is forwarded to the target.
 	// Default is true. Set to false if only TCP forwarding is needed.
-	// +kubebuilder:validation:Enum=true;false
-	// +kubebuilder:validation:Default=true
+	// +kubebuilder:default:=true
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=boolean
+	// +optional
 	UDPForwarding bool `json:"udpForwarding,omitempty"`
 
 	// Service references a Kubernetes Service as the forwarding target.
@@ -106,8 +110,10 @@ type StreamSpec struct {
 	// OverwriteIncomingPortWithForwardPort allows automatic port matching.
 	// When true, the incoming port is set to match the forwarding port.
 	// Useful for transparent proxying where ports should remain the same.
-	// +kubebuilder:validation:Enum=true;false
-	// +kubebuilder:validation:Default=false
+	// +kubebuilder:default:=false
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=boolean
+	// +optional
 	OverwriteIncomingPortWithForwardPort bool `json:"overwriteIncomingPortWithForwardPort,omitempty"`
 
 	// Forward defines the upstream configuration for this stream.
@@ -149,8 +155,10 @@ type StreamStatus struct {
 	// Online reflects the stream's operational status in NPM.
 	// True indicates the stream is active and forwarding traffic.
 	// False may indicate configuration errors or port conflicts.
-	// +kubebuilder:validation:Enum=true;false
-	// +kubebuilder:validation:Default=false
+	// +kubebuilder:default:=false
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=boolean
+	// +optional
 	Online bool `json:"online,omitempty"`
 
 	// Conditions represent the current state of the Stream resource.

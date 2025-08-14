@@ -76,16 +76,20 @@ type AccessListSpec struct {
 	// When true: Access is granted if ANY condition is met (logical OR).
 	// When false: Access requires ALL conditions to be met (logical AND).
 	// This applies when both IP restrictions and Basic Auth are configured.
-	// +kubebuilder:validation:Enum=true;false
-	// +kubebuilder:validation:Default=false
+	// +kubebuilder:default:=false
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=boolean
+	// +optional
 	SatisfyAny bool `json:"satisfyAny,omitempty"`
 
 	// PassAuth determines whether to pass authentication headers to the upstream server.
 	// When true: Basic Auth credentials are forwarded to the proxied server.
 	// When false: Authentication is handled only by Nginx, credentials are not forwarded.
 	// Enable this only if the upstream service also requires the authentication headers.
-	// +kubebuilder:validation:Enum=true;false
-	// +kubebuilder:validation:Default=false
+	// +kubebuilder:default:=false
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=boolean
+	// +optional
 	PassAuth bool `json:"passAuth,omitempty"`
 
 	// Authorizations defines the list of username/password pairs for HTTP Basic Authentication.
@@ -114,7 +118,7 @@ type AccessListStatus struct {
 
 	// ProxyHostCount indicates the number of ProxyHost resources currently using this AccessList.
 	// This helps track AccessList usage and prevent accidental deletion of in-use lists.
-	// +kubebuilder:validation:Default=0
+	// +kubebuilder:default:=0
 	ProxyHostCount int `json:"proxyHostCount,omitempty"`
 
 	// Conditions represent the current state of the AccessList resource.
