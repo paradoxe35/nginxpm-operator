@@ -246,7 +246,7 @@ func (r *ProxyHostReconciler) forwardWhenNotNodePortType(service *corev1.Service
 		}
 
 		if servicePort == 0 && len(service.Spec.Ports) > 0 {
-			servicePort = service.Spec.Ports[0].NodePort
+			servicePort = service.Spec.Ports[0].Port
 		}
 	}
 
