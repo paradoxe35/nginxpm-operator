@@ -152,7 +152,9 @@ func (r *ProxyHostReconciler) makeForward(option MakeForwardOption) (*ProxyHostF
 			nginxUpstreamHosts[i] = controller.NginxUpstreamHost{Hostname: host.HostName, Port: host.HostPort}
 		}
 
-		upstreamConf := controller.GenerateNginxUpstreamConfig(ph.Name, ph.Namespace, nginxUpstreamHosts)
+		upstreamConf := controller.GenerateNginxUpstreamConfig(
+			ph.Name, ph.Namespace, nginxUpstreamHosts, forward.NginxKeepalive,
+		)
 		if upstreamConf.Name != "" && option.UnscopedConfigSupported && len(hosts) > 1 { // we pass upstream when have more that one host
 			hostName = upstreamConf.Name
 			nginxUpstreamConfigs[upstreamConf.Name] = upstreamConf.Config
@@ -330,7 +332,9 @@ func (r *ProxyHostReconciler) forwardWhenNodePortType(ctx context.Context, ph *n
 		nginxUpstreamHosts[i] = controller.NginxUpstreamHost{Hostname: nodeIP, Port: servicePort}
 	}
 
-	conf := controller.GenerateNginxUpstreamConfig(ph.Name, ph.Namespace, nginxUpstreamHosts)
+	conf := controller.GenerateNginxUpstreamConfig(
+		ph.Name, ph.Namespace, nginxUpstreamHosts, forward.NginxKeepalive,
+	)
 
 	return &nodePortConfig{
 		serviceIP:           serviceIP,

@@ -54,7 +54,7 @@ const (
 	failTimeout       = 30 * time.Second // Duration to mark down
 )
 
-func GenerateNginxUpstreamConfig(rName, rNamespace string, hosts []NginxUpstreamHost) upstreamConfig {
+func GenerateNginxUpstreamConfig(rName, rNamespace string, hosts []NginxUpstreamHost, keepaliveEnable bool) upstreamConfig {
 	nginxUpstreamName := ""
 	nginxUpstreamConfig := ""
 
@@ -62,11 +62,19 @@ func GenerateNginxUpstreamConfig(rName, rNamespace string, hosts []NginxUpstream
 		nginxUpstreamName = generateNginxUpstreamName(rName, rNamespace, hosts)
 
 		nginxUpstreamConfig = fmt.Sprintf("upstream %s {\n", nginxUpstreamName)
-		nginxUpstreamConfig += "    least_conn;\n"
+
+		// Avoid using least_conn when keepalive is enabled
+		if !keepaliveEnable {
+			nginxUpstreamConfig += "    least_conn;\n"
+		}
+
 		// keepalive config
-		nginxUpstreamConfig += fmt.Sprintf("    keepalive %d;\n", keepaliveCount)
-		nginxUpstreamConfig += fmt.Sprintf("    keepalive_timeout %ds;\n", int(keepaliveTimeout.Seconds()))
-		nginxUpstreamConfig += fmt.Sprintf("    keepalive_requests %d;\n", keepaliveRequests)
+		if keepaliveEnable {
+			nginxUpstreamConfig += fmt.Sprintf("    keepalive %d;\n", keepaliveCount)
+			nginxUpstreamConfig += fmt.Sprintf("    keepalive_timeout %ds;\n", int(keepaliveTimeout.Seconds()))
+			nginxUpstreamConfig += fmt.Sprintf("    keepalive_requests %d;\n", keepaliveRequests)
+		}
+
 		nginxUpstreamConfig += "\n" // Blank line for readability
 
 		failTimeoutStr := fmt.Sprintf("%ds", int(failTimeout.Seconds()))

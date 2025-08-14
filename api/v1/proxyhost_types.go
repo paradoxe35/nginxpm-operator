@@ -229,6 +229,13 @@ type ProxyHostForward struct {
 	// +optional
 	Service *ForwardService `json:"service,omitempty"`
 
+	// NginxKeepalive enables keepalive connections to the upstream server.
+	// +kubebuilder:default:=true
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=boolean
+	// +optional
+	NginxKeepalive bool `json:"nginxKeepalive,omitempty"`
+
 	// NginxVariable is the name of the nginx variable that will be used to store the forwarding target.
 	// This is useful when you want to use a dynamic forwarding targetS in the advancedConfig.
 	// +kubebuilder:validation:Optional

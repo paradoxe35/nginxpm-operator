@@ -121,7 +121,8 @@ func (r *StreamReconciler) makeForward(option MakeForwardOption) (*StreamForward
 			nginxUpstreamHosts[i] = controller.NginxUpstreamHost{Hostname: host.HostName, Port: host.HostPort}
 		}
 
-		upstreamConf := controller.GenerateNginxUpstreamConfig(stream.Name, stream.Namespace, nginxUpstreamHosts)
+		// Disable keepalive since it's not supported for TCP/UDP streams
+		upstreamConf := controller.GenerateNginxUpstreamConfig(stream.Name, stream.Namespace, nginxUpstreamHosts, false)
 		if upstreamConf.Name != "" && option.UnscopedConfigSupported && len(hosts) > 1 { // we pass upstream when have more that one host
 			hostName = upstreamConf.Name
 			nginxUpstreamConfigs = upstreamConf.Config
@@ -219,7 +220,8 @@ func (r *StreamReconciler) forwardWhenNodePortType(ctx context.Context, st *ngin
 		nginxUpstreamHosts[i] = controller.NginxUpstreamHost{Hostname: nodeIP, Port: servicePort}
 	}
 
-	conf := controller.GenerateNginxUpstreamConfig(st.Name, st.Namespace, nginxUpstreamHosts)
+	// 	Disable keepalive since it's not supported for TCP/UDP streams
+	conf := controller.GenerateNginxUpstreamConfig(st.Name, st.Namespace, nginxUpstreamHosts, false)
 
 	return &nodePortConfig{
 		serviceIP:           serviceIP,

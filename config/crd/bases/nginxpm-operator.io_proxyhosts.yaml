@@ -151,6 +151,11 @@ spec:
                             - hostPort
                             type: object
                           type: array
+                        nginxKeepalive:
+                          default: true
+                          description: NginxKeepalive enables keepalive connections
+                            to the upstream server.
+                          type: boolean
                         nginxVariable:
                           description: |-
                             NginxVariable is the name of the nginx variable that will be used to store the forwarding target.
@@ -281,6 +286,11 @@ spec:
                       - hostPort
                       type: object
                     type: array
+                  nginxKeepalive:
+                    default: true
+                    description: NginxKeepalive enables keepalive connections to the
+                      upstream server.
+                    type: boolean
                   nginxVariable:
                     description: |-
                       NginxVariable is the name of the nginx variable that will be used to store the forwarding target.
